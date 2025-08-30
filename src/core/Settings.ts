@@ -81,24 +81,24 @@ class Settings {
         Helpers.waitForElm(query).then(() => {
             const element = document.querySelector(query);
 
-            const outerDiv = document.createElement("div");
-            outerDiv.classList.add("option-vFOAS");
+            const optionDiv = document.createElement("div");
+            optionDiv.classList.add("option-vFOAS");
 
             const contentDiv = document.createElement("div");
             contentDiv.classList.add("content-P2T0i");
 
-            const divElm = document.createElement("divElm");
-            divElm.setAttribute("tabindex", "0");
-            divElm.setAttribute("title", title);
-            divElm.classList.add("button-DNmYL", "button-container-zVLH6", "button");
-            divElm.id = id;
-            divElm.textContent = title;
+            const buttonDiv = document.createElement("div");
+            buttonDiv.setAttribute("tabindex", "0");
+            buttonDiv.setAttribute("title", title);
+            buttonDiv.classList.add("button-DNmYL", "button-container-zVLH6", "button");
+            buttonDiv.id = id;
+            buttonDiv.textContent = title;
 
-            contentDiv.appendChild(divElm);
+            contentDiv.appendChild(buttonDiv);
 
-            outerDiv.appendChild(contentDiv);
+            optionDiv.appendChild(contentDiv);
 
-            element.appendChild(outerDiv);
+            element.appendChild(optionDiv);
         })
     }
 

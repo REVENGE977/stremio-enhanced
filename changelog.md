@@ -74,3 +74,97 @@ This should've been part of v0.7 tbh, but I rushed the previous release for no r
   - Now works even if you launch Stremio Enhanced first then you launch Discord.
   - Now shows the watching status type instead of playing if you're watching something.
 - **Custom update modal:** Now displays a custom new update dialog that shows release notes on new updates.
+
+## Update v0.9.1
+This is just a small update to fix compatibility issues in Linux/macOS. 
+
+- Changed file paths to use path.join for cross-platform compatibility.
+- Improved the StremioService class to check for Flatpak installation.
+- Fixed an issue where, on Linux, Stremio Enhanced attempted to use `process.env.APPDATA` to locate AppData, which doesn't exist on Linux and returned undefined instead. Now it will use the .config folder on Linux instead.
+- Now correctly opens the file explorer on the operating system the user is using. Previously, clicking "OPEN THEMES FOLDER" or "OPEN PLUGINS FOLDER" in the settings menu had no effect on non-Windows systems.
+
+Just like the latest release, I'm providing stremio-service bundled builds but this time also for macOS (x64) and Linux.
+
+This is what I tested:
+- On Linux, I Installed Stremio Service using [Flatpak](https://flathub.org/apps/com.stremio.Service). & also tested the service bundled build.
+- On macOS (x86, Intel), I installed Stremio Service using StremioService.dmg [from here](https://dl.strem.io/stremio-service/v0.1.13/StremioService.dmg).
+- On Windows, I tested both the service-bundled build and the regular build.
+
+Soon, I'll transition from using Electron Packager to Electron Builder, which will fix some cross-platform compatibility issues.
+
+**Note:** The macOS arm build may not work (you can run directly from source until the issue is fixed). The x86 is tested and should work.
+
+[Also, the stremio-aniskip plugin is out. Give it a try!](https://github.com/REVENGE977/stremio-aniskip)
+
+## Update v0.9.1+repack
+This is just a small update to fix compatibility issues in Linux/macOS. 
+
+- Changed file paths to use path.join for cross-platform compatibility.
+- Improved the StremioService class to check for Flatpak installation.
+- Fixed an issue where, on Linux, Stremio Enhanced attempted to use `process.env.APPDATA` to locate AppData, which doesn't exist on Linux and returned undefined instead. Now it will use the .config folder on Linux instead.
+- Now correctly opens the file explorer on the operating system the user is using. Previously, clicking "OPEN THEMES FOLDER" or "OPEN PLUGINS FOLDER" in the settings menu had no effect on non-Windows systems.
+- Transitioned to using electron-builder instead of electron-packager.
+- Implemented GitHub Actions workflow for automated project building.
+
+This is what I tested:
+- On Linux, I Installed Stremio Service using [Flatpak](https://flathub.org/apps/com.stremio.Service). & also tested the service bundled build.
+- On macOS (x86, Intel), I installed Stremio Service using StremioService.dmg [from here](https://dl.strem.io/stremio-service/v0.1.13/StremioService.dmg).
+- On Windows, I tested both the service-bundled build and the regular build.
+
+[Also, the stremio-aniskip plugin is out. Give it a try!](https://github.com/REVENGE977/stremio-aniskip)
+
+**The app isn't signed so if you're on macOS you'll have to bypass Gatekeeper.**
+
+You should right-click the app and choose “Open” for first time you open the app (instead of double clicking) or run on terminal this command:
+
+```sh
+xattr -cr /path/to/Stremio.Enhanced.app
+```
+
+or if that doesn't work try this:
+```sh
+xattr -d com.apple.quarantine /path/to/Stremio.Enhanced.app
+```
+
+## Update v0.9.2
+- Updated classes names to make Enhanced compatible with the latest [Stremio Web](https://web.stremio.com/) version.
+- Updated Electron to 36.2.0 from 28.1.4. 
+  - This fixes an issue where the right click menu in devtools doesn't show on top of the window.
+  - This also sets the possibility to add support for transparent themes for future updates.
+
+## Update v1.0
+- **Stremio Service no longer needed**: 
+  - Now Enhanced run a Stremio streaming server in the background without needing Stremio Service. 
+  - It uses a more recent version of the streaming server which should fix some playback issues. The latest available release of Stremio Service used version 4.20.8 whereas Enhanced now use 4.20.11 built-in.
+  - This should also fix issues related to needing Stremio Service, such as [Playback stops working every few episodes](https://github.com/REVENGE977/stremio-enhanced/issues/33) (at least from my testing it did, if you still encounter this issue, feel free to inform me).
+  - Enhanced stores Stremio’s streaming server logs in a stremio-server.log file located in its application data directory (`~/.config/stremio-enhanced` on Linux, `~/Library/Application Support/stremio-enhanced` on macOS, and `%appdata%/stremio-enhanced` on Windows).
+- **Improved Discord Rich Presence**: 
+  - Now if you resume playback from the home page directly, it will also update status on Discord and show what you're watching.
+- **Explore and try community-made plugins & themes from the app**: 
+  - You can now go to the settings menu and click on the "Community Plugins & Themes" button to easily explore and download available themes and plugins for Stremio Enhanced (not many available right now). 
+  - The themes and plugins are fetched from [Stremio Enhanced Registry](https://github.com/REVENGE977/stremio-enhanced-registry/). If you're a developer you can submit your work there.
+- **Added support for transparent themes**: 
+  - There is a new toggle option in the settings menu. When enabled it will use the transparent flag in Electron to allow transparent themes. 
+  - Enabling this option might affect performance and a restart is required after enabling it.
+- **No longer uses OpenGL on macOS**: 
+  - In the previous version, Enhanced used OpenGL for all platforms (this is done to fix an issue where the audio tracks menu in the video player is unavailable). 
+  - Enhanced now uses OpenGL on Windows/Linux but not macOS, since OpenGL is not well optimized on macOS and caused performance issues.
+  
+  *Note: I don't have a mac so I'm not sure if this will introduce more issues. Feel free to report any issues you encounter.*
+- **Updated Electron to 37**:
+  - [Electron 36 on Linux experienced conflicts between GTK 2/3 and GTK 4 libraries](https://github.com/REVENGE977/stremio-enhanced/issues/37). This should fix that issue.
+
+**As always the app isn't signed so if you're on macOS you'll have to bypass Gatekeeper. Signing would cost me 99 USD per year..**
+
+To bypass, you should right-click the app and choose “Open” for first time you open the app (instead of double clicking) or run this command in terminal:
+
+```sh
+xattr -cr /path/to/Stremio.Enhanced.app
+```
+
+or if that doesn't work try this:
+```sh
+xattr -d com.apple.quarantine /path/to/Stremio.Enhanced.app
+```
+
+*I've only tested this version on Windows and Linux. I don't have a mac and macOS VMs suck.*

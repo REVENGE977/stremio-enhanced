@@ -1,5 +1,5 @@
 import Settings from "./Settings";
-import { readFileSync, writeFileSync } from "fs";
+import { readFileSync, writeFileSync, readdirSync, statSync, existsSync, mkdirSync, unlinkSync } from "fs";
 import { exec } from "child_process";
 import properties from "./Properties"
 import helpers from "../utils/Helpers"
@@ -7,7 +7,7 @@ import MetaData from "../interfaces/MetaData";
 import { getLogger } from "../utils/logger";
 import Properties from "./Properties";
 import { getApplyThemeTemplate } from "../components/apply-theme/applyTheme";
-import { join } from "path";
+import { basename, join } from "path";
 
 class ModManager {
     private static logger = getLogger("ModManager");
@@ -39,7 +39,81 @@ class ModManager {
         
         this.logger.info(`Plugin ${pluginName} unloaded!`);
     }
-    
+
+    // Fetch mods from the registry repository
+    public static async fetchMods() {
+        let mods = await fetch("https://raw.githubusercontent.com/REVENGE977/stremio-enhanced-registry/refs/heads/main/registry.json");
+        return mods.json();
+    }
+
+    public static async downloadMod(modLink: string, type: "plugin" | "theme") {
+        try {
+            this.logger.info(`Downloading ${type} from: ${modLink}`);
+
+            const response = await fetch(modLink);
+            if (!response.ok) throw new Error(`Failed to download: ${response.status} ${response.statusText}`);
+
+            const saveDir = type === "plugin" ? Properties.pluginsPath : Properties.themesPath;
+            if (!existsSync(saveDir)) mkdirSync(saveDir, { recursive: true });
+
+            const filename = basename(new URL(modLink).pathname) || `${type}-${Date.now()}`;
+            const filePath = join(saveDir, filename);
+
+            const buffer = Buffer.from(await response.arrayBuffer());
+            writeFileSync(filePath, buffer);
+
+            this.logger.info(`Downloaded ${type} saved to: ${filePath}`);
+            return filePath;
+        } catch (error) {
+            this.logger.error(`Error downloading ${type}: ` + error);
+            throw error;
+        }
+    }
+
+
+    public static async removeMod(fileName: string, type: "plugin" | "theme") {
+        this.logger.info(`Removing ${type} file: ${fileName}`);
+
+        switch (type) {
+            case "plugin":
+                if (this.isPluginInstalled(fileName)) {
+                    unlinkSync(join(Properties.pluginsPath, fileName));
+                }
+                break;
+            case "theme":
+                if (this.isThemeInstalled(fileName)) {
+                    if(localStorage.getItem("currentTheme") === fileName) {
+                        localStorage.setItem("currentTheme", "Default");
+                    }
+
+                    document.getElementById("activeTheme").remove();
+                    unlinkSync(join(Properties.themesPath, fileName));
+                }
+                break;
+        }
+    }
+
+    public static isThemeInstalled(fileName: string) {
+        const installedThemes = this.getInstalledThemes();
+        return installedThemes.includes(fileName);
+    }
+
+    public static isPluginInstalled(fileName: string) {
+        const installedPlugins = this.getInstalledPlugins();
+        return installedPlugins.includes(fileName);
+    }
+
+    private static getInstalledThemes() {
+        const dirPath = Properties.themesPath;
+        return readdirSync(dirPath)
+            .filter(file => statSync(join(dirPath, file)).isFile());
+    }
+
+    private static getInstalledPlugins() {
+        const dirPath = Properties.pluginsPath;
+        return readdirSync(dirPath)
+            .filter(file => statSync(join(dirPath, file)).isFile());
+    }
     
     // not sure if this is the best way to do this, but hey at least it works.
     public static togglePluginListener() {
@@ -57,21 +131,25 @@ class ModManager {
                     } else {
                         this.unloadPlugin(pluginName);
 
-                        const container = document.querySelector("#enhanced > div:nth-child(3)");
+                        if(!document.getElementById("plugin-reload-warning")) {
+                            this.logger.info("Plugin unloaded, adding reload warning.");
+                            const container = document.querySelector("#enhanced > div:nth-child(3)");
 
-                        const paragraph = document.createElement("p");
-                        paragraph.style.color = "white";
-                        
-                        const link = document.createElement("a");
-                        link.style.color = "cyan";
-                        link.textContent = "here";
-                        link.setAttribute("onclick", "window.location.href = '/'");
-                        
-                        paragraph.appendChild(document.createTextNode("Reload is required to disable plugins. Press "));
-                        paragraph.appendChild(link);
-                        paragraph.appendChild(document.createTextNode(" to reload."));
-                        
-                        container.appendChild(paragraph);
+                            const paragraph = document.createElement("p");
+                            paragraph.id = "plugin-reload-warning";
+                            paragraph.style.color = "white";
+                            
+                            const link = document.createElement("a");
+                            link.style.color = "cyan";
+                            link.textContent = "here";
+                            link.setAttribute("onclick", "window.location.href = '/'");
+                            
+                            paragraph.appendChild(document.createTextNode("Reload is required to disable plugins. Click "));
+                            paragraph.appendChild(link);
+                            paragraph.appendChild(document.createTextNode(" to reload."));
+                            
+                            container.appendChild(paragraph);
+                        }
                     }
                 })
             }
@@ -119,30 +197,6 @@ class ModManager {
     }
         
     public static scrollListener() {
-        // let generalSection = document.querySelector('#settingsPage > div.sections > nav > a:nth-child(1)');
-        // generalSection.addEventListener("click", () => {
-        //     document.querySelector("#settings-user-prefs").scrollIntoView();
-        //     Settings.activeSection(generalSection);
-        // })
-        
-        // let playerSection = document.querySelector('#settingsPage > div.sections > nav > a:nth-child(2)');
-        // playerSection.addEventListener("click", () => {
-        //     document.querySelector("#settings-player-prefs").scrollIntoView();
-        //     Settings.activeSection(playerSection);
-        // })
-        
-        // let streamingSection = document.querySelector('#settingsPage > div.sections > nav > a:nth-child(3)');
-        // streamingSection.addEventListener("click", () => {
-        //     document.querySelector("#settings-streaming-prefs").scrollIntoView();
-        //     Settings.activeSection(streamingSection);
-        // })
-        
-        // let shortcutsSection = document.querySelector('#settingsPage > div.sections > nav > a:nth-child(4)');
-        // shortcutsSection.addEventListener("click", () => {
-        //     document.querySelector("#settings-shortcuts").scrollIntoView();
-        //     Settings.activeSection(shortcutsSection);
-        // })
-
         helpers.waitForElm(".menu-xeE06 > div:nth-child(5) > div").then(() => {
             let enhanced = document.getElementById('enhanced');
             let enhancedNav = document.querySelector('.menu-xeE06 > div:nth-child(5) > div');
@@ -161,7 +215,7 @@ class ModManager {
                     if (entry.isIntersecting) {
                         Settings.activeSection(enhancedNav);
                     } else {
-                        enhancedNav.classList.remove("selected-yhdng");
+                        enhancedNav.classList.remove("selected-S7SeK");
                     }
                 });
             }, { threshold: 0.1 });
@@ -199,16 +253,18 @@ class ModManager {
                 
                 if(request.status == 200) {
                     let extractedMetaData:MetaData = helpers.extractMetadataFromText(response);
-                    if(extractedMetaData.version > installedItemMetaData.version) {
-                        this.logger.info(`An update exists for ${pluginOrTheme} (${installedItemMetaData.name}). New version: ${extractedMetaData.version} | Current version: ${installedItemMetaData.version}`);
+                    if(extractedMetaData) {
+                        if(extractedMetaData.version > installedItemMetaData.version) {
+                            this.logger.info(`An update exists for ${pluginOrTheme} (${installedItemMetaData.name}). New version: ${extractedMetaData.version} | Current version: ${installedItemMetaData.version}`);
 
-                        document.getElementById(`${itemFile}-update`).style.display = "flex";
-                        document.getElementById(`${itemFile}-update`).addEventListener("click", () => {
-                            writeFileSync(itemPath, response, 'utf-8');
-                            Settings.removeItem(itemFile);
-                            Settings.addItem(pluginOrTheme, itemFile, extractedMetaData);
-                        })
-                    }
+                            document.getElementById(`${itemFile}-update`).style.display = "flex";
+                            document.getElementById(`${itemFile}-update`).addEventListener("click", () => {
+                                writeFileSync(itemPath, response, 'utf-8');
+                                Settings.removeItem(itemFile);
+                                Settings.addItem(pluginOrTheme, itemFile, extractedMetaData);
+                            })
+                        } else this.logger.info(`No update available for ${pluginOrTheme} (${installedItemMetaData.name}). Current version: ${installedItemMetaData.version}`);
+                    } else this.logger.warn(`Failed to extract metadata from response for ${pluginOrTheme} (${installedItemMetaData.name}). Possibly invalid updateUrl provided.`);
                 }
             }
         }

@@ -1,14 +1,16 @@
-import { ipcRenderer } from "electron";
-import { readdirSync } from "fs";
+import { ipcRenderer, app } from "electron";
+import { readdirSync, existsSync } from "fs";
 import Settings from "./core/Settings";
 import properties from "./core/Properties"
-import { existsSync } from "fs";
 import ModManager from "./core/ModManager";
 import Helpers from "./utils/Helpers";
 import Updater from "./core/Updater";
 import DiscordPresence from "./utils/DiscordPresence";
+import { getModsTabTemplate } from "./components/mods-tab/modsTab";
+import { getModItemTemplate } from "./components/mods-item/modsItem";
 import { getAboutCategoryTemplate } from "./components/about-category/aboutCategory";
 import { getDefaultThemeTemplate } from "./components/default-theme/defaultTheme";
+import { getBackButton } from "./components/back-btn/backBtn";
 import logger from "./utils/logger";
 import { join } from "path";
 import { pathToFileURL } from "url";
@@ -28,7 +30,7 @@ window.addEventListener("load", async () => {
     }
     
     applyUserTheme();
-    
+
     // Loads enabled plugins.
     loadEnabledPlugins();
     
@@ -52,8 +54,13 @@ window.addEventListener("load", async () => {
         
         writeAbout();
         
+        //Browse plugins/themes from stremio-enhanced-registry
+        Helpers.waitForElm('#browsePluginsThemesBtn').then(() => {
+            let browsePluginsThemesBtn:any = document.getElementById("browsePluginsThemesBtn");
+            browsePluginsThemesBtn.addEventListener("click", browseMods)
+        })
+
         //Check for updates button
-        Settings.addButton("Check For Updates", "checkforupdatesBtn", "#enhanced > div:nth-child(4)");
         Helpers.waitForElm('#checkforupdatesBtn').then(() => {
             let checkForUpdateBtn:any = document.getElementById("checkforupdatesBtn");
             checkForUpdateBtn.addEventListener("click", async () => {
@@ -93,7 +100,18 @@ window.addEventListener("load", async () => {
                 }
             })
         })
-        
+
+        //Enable transparency toggle
+        Helpers.waitForElm('#enableTransparentThemes').then(() => {
+            let enableTransparencyBtn:any = document.getElementById("enableTransparentThemes");
+            enableTransparencyBtn.addEventListener("click", async () => {
+                enableTransparencyBtn.classList.toggle("checked");
+                logger.info(`Enable transparency toggled ${enableTransparencyBtn.classList.contains("checked") ? "ON" : "OFF"}`);
+
+                ipcRenderer.send("set-transparency", enableTransparencyBtn.classList.contains("checked"));
+            })
+        })
+
         Helpers.waitForElm('#enhanced > div:nth-child(2)').then(() => {
             //default theme
             const isCurrentThemeDefault = localStorage.getItem("currentTheme") == "Default";
@@ -157,6 +175,7 @@ function applyUserTheme() {
     } else localStorage.setItem("currentTheme", "Default");
 }
 
+
 function loadEnabledPlugins() {
     let pluginsToLoad = readdirSync(`${properties.pluginsPath}`).filter((fileName) => { return fileName.endsWith(".plugin.js") });
     pluginsToLoad.forEach(plugin => {
@@ -165,12 +184,91 @@ function loadEnabledPlugins() {
     })
 }
 
+async function browseMods() {
+    document.querySelector(".settings-content-co5eU").innerHTML = getModsTabTemplate();
+
+    let mods = await ModManager.fetchMods();
+    mods.plugins.forEach((plugin:any) => {
+        let installed = ModManager.isPluginInstalled(Helpers.getFileNameFromUrl(plugin.download));
+        document.getElementById("mods-list").innerHTML += getModItemTemplate(plugin, "Plugin", installed);
+    });
+
+    mods.themes.forEach((theme:any) => {
+        let installed = ModManager.isThemeInstalled(Helpers.getFileNameFromUrl(theme.download));
+        document.getElementById("mods-list").innerHTML += getModItemTemplate(theme, "Theme", installed);
+    });
+
+    let actionBtns = document.querySelectorAll(".modActionBtn");
+    actionBtns.forEach((btn: HTMLDivElement) => {
+        btn.addEventListener("click", () => {
+            const link = btn.getAttribute("data-link");
+            const type = btn.getAttribute("data-type").toLowerCase() as "plugin" | "theme";
+
+            if (link && type) {
+                if(btn.title == "Install") {
+                    ModManager.downloadMod(link, type);
+                    btn.classList.remove("install-button-container-yfcq5");
+                    btn.classList.add("uninstall-button-container-oV4Yo");
+
+                    btn.title = "Uninstall";
+                    btn.childNodes[1].textContent = "Uninstall";
+                } else {
+                    ModManager.removeMod(Helpers.getFileNameFromUrl(link), type);
+                    btn.classList.remove("uninstall-button-container-oV4Yo");
+                    btn.classList.add("install-button-container-yfcq5");
+
+                    btn.title = "Install";
+                    btn.childNodes[1].textContent = "Install";
+                }
+            }
+        });
+    });
+
+    // search bar logic
+    const searchInput = document.querySelector(".search-input-bAgAh") as HTMLInputElement;
+    const addonsContainer = document.querySelector(".addons-list-container-Ovr2Z");
+
+    if (!searchInput || !addonsContainer) return;
+
+    searchInput.addEventListener("input", function () {
+        const filter = searchInput.value.trim().toLowerCase();
+        const modItems = addonsContainer.querySelectorAll(".addon-container-lC5KN");
+
+        modItems.forEach((item) => {
+            const name = item.querySelector(".name-container-qIAg8")?.textContent?.toLowerCase() || "";
+            const description = item.querySelector(".description-container-v7Jhe")?.textContent?.toLowerCase() || "";
+            const type = item.querySelector(".types-container-DaOrg")?.textContent?.toLowerCase() || "";
+
+            const match = 
+                name.includes(filter) || 
+                description.includes(filter) || 
+                type.includes(filter);
+
+            (item as HTMLElement).style.display = match ? "" : "none";
+        });
+    });
+
+    // add back button
+    let horizontalNav = document.querySelectorAll(".horizontal-nav-bar-container-Y_zvK")[1];
+    if (horizontalNav) {
+        horizontalNav.innerHTML = getBackButton();
+        document.getElementById("back-btn").addEventListener("click", () => {
+            location.hash = '#/';
+            setTimeout(() => {
+                location.hash = '#/settings';
+            }, 0);
+        });
+    }
+}
+
 function writeAbout() {
     Helpers.waitForElm('#enhanced > div:nth-child(4)').then(() => {
-        const currentVersion = Updater.getCurrentVersion();
-        const checkForUpdatesOnStartup = localStorage.getItem("checkForUpdatesOnStartup") == "true";
-        const discordrichpresence = localStorage.getItem("discordrichpresence") == "true";
+        ipcRenderer.invoke("get-transparency-status").then((enableTransparentThemes) => {
+            const currentVersion = Updater.getCurrentVersion();
+            const checkForUpdatesOnStartup = localStorage.getItem("checkForUpdatesOnStartup") == "true";
+            const discordrichpresence = localStorage.getItem("discordrichpresence") == "true";
 
-        document.querySelector(`#enhanced > div:nth-child(4)`).innerHTML += getAboutCategoryTemplate(currentVersion, checkForUpdatesOnStartup, discordrichpresence);
+            document.querySelector(`#enhanced > div:nth-child(4)`).innerHTML += getAboutCategoryTemplate(currentVersion, checkForUpdatesOnStartup, discordrichpresence, enableTransparentThemes);
+        });
     })
 }

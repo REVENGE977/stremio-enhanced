@@ -1,17 +1,28 @@
-import { app, BrowserWindow, shell, ipcMain } from "electron";
 import { join } from "path";
-import { mkdirSync, existsSync } from "fs";
+import { mkdirSync, existsSync, writeFileSync, unlinkSync } from "fs";
 import helpers from './utils/Helpers';
 import Updater from "./core/Updater";
 import Properties from "./core/Properties";
 import logger from "./utils/logger";
-import StremioService from "./utils/StremioService";
+
+// Fix GTK 2/3 and GTK 4 conflict on Linux
+import { app } from 'electron';
+if (process.platform === 'linux') app.commandLine.appendSwitch('gtk-version', '3');
+
+import { BrowserWindow, shell, ipcMain } from "electron";
+import StreamingServer from "./utils/StreamingServer";
 
 app.setName("stremio-enhanced");
 
 let mainWindow: BrowserWindow | null;
+const transparencyFlagPath = join(app.getPath("userData"), "transparency");
+const transparencyEnabled = existsSync(transparencyFlagPath);
 
-app.commandLine.appendSwitch('use-angle', 'gl'); // Uses OpenGL for rendering. Having it on OpenGL enables the audio tracks menu in the video player
+// Uses OpenGL for rendering. Having it on OpenGL enables the audio tracks menu in the video player. macOS support for OpenGL is terrible so this is only applied for Windows and Linux.
+if(process.platform === "win32" || process.platform === "linux") {
+    app.commandLine.appendSwitch('use-angle', 'gl');
+    logger.info("Not running on macOS, using OpenGL for rendering");
+}
 app.commandLine.appendSwitch('enable-gpu-rasterization'); // Uses GPU for rendering
 app.commandLine.appendSwitch('enable-zero-copy'); // Improves video decoding
 app.commandLine.appendSwitch('ignore-gpu-blocklist'); // Forces GPU acceleration
@@ -29,9 +40,9 @@ async function createWindow() {
         width: 1500,
         height: 850,
         icon: "./images/icon.ico",
-        // transparent: false,
+        transparent: transparencyEnabled,
         hasShadow: false,
-        // visualEffectState: "active",
+        visualEffectState: transparencyEnabled ? "active" : "followWindow",
         backgroundColor: "#00000000",
     });
         
@@ -49,6 +60,23 @@ async function createWindow() {
         await Updater.checkForUpdates(true);
     });
 
+    ipcMain.on("set-transparency", (_, enabled: boolean) => {
+        if (enabled) {
+            logger.info("Enabled transparent themes");
+            writeFileSync(transparencyFlagPath, "1");
+        } else {
+            try {
+                logger.info("Disabled transparent themes");
+                unlinkSync(transparencyFlagPath);
+            } catch {}
+        }
+    });
+
+    ipcMain.handle("get-transparency-status", () => {
+        const enableTransparentThemes = existsSync(transparencyFlagPath);
+        return enableTransparentThemes;
+    });
+
     // Opens links in external browser instead of opening them in the Electron app.
     mainWindow.webContents.setWindowOpenHandler((edata:any) => {
         shell.openExternal(edata.url);
@@ -60,10 +88,6 @@ async function createWindow() {
         logger.info("--devtools flag passed. Opening devtools.."); 
         mainWindow.webContents.openDevTools({ mode: "detach" }); 
     }
-
-    mainWindow.on('closed', () => {
-        if(!process.argv.includes("--no-stremio-service")) StremioService.terminate();
-    });
 }
 
 app.on("ready", async () => {
@@ -92,24 +116,9 @@ app.on("ready", async () => {
         logger.error("Failed to create necessary directories: " + err);
     }
     
-    if(!process.argv.includes("--no-stremio-service")) {
-        const stremioServicePath = StremioService.checkExecutableExists();
-        if(!stremioServicePath) {
-            const buttonClicked = await helpers.showAlert("error", "Stremio Service Is Required!", "Stremio Service not found. Please install it from https://github.com/Stremio/stremio-service", ['OK']);
-            
-            if(buttonClicked == 0) {
-                shell.openExternal("https://www.stremio.com/download-service");
-            }
-            
-            return process.exit();
-        }
-        
-        // check if stremio service is running or not, and if not start it.
-        if (!await StremioService.isProcessRunning()) {
-            await StremioService.run(stremioServicePath);
-        } else logger.info("Stremio Service is already running.");
-        
-    } else logger.info("Launching without Stremio Service.");
+    if(!process.argv.includes("--no-stremio-server")) {
+        StreamingServer.start();
+    } else logger.info("Launching without built-in Stremio streaming server.");
     
     createWindow();
     

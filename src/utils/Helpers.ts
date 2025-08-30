@@ -38,7 +38,7 @@ class Helpers {
                 
                 return metadata;
             } else {
-                logger.error('Comment block not found in file ' + filePath);
+                logger.error('Meta data comments not found in the file: ' + filePath);
                 return null;
             }
         } catch (error) {
@@ -212,6 +212,11 @@ class Helpers {
 
     public getElementByXpath(path:string) {
         return document.evaluate(path, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue;
+    }
+
+    public getFileNameFromUrl(url: string): string {
+        const parts = url.split('/');
+        return parts[parts.length - 1];
     }
 
     public formatTime(seconds:number) {

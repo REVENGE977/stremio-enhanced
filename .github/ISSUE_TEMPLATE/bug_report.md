@@ -20,7 +20,7 @@ Steps to reproduce the behavior:
 **Expected behavior**
 A clear and concise description of what you expected to happen.
 
-**Have you checked whether the issue also occur in https://web.stremio.com/ (in your browser) if you run Stremio Service yourself? (if it does, then it's a Stremio Service issue, not Enhanced!)**
+**Have you checked whether the issue also occur in https://web.stremio.com/ (in your browser)?**
 
 **Screenshots**
 If applicable, add screenshots to help explain your problem.

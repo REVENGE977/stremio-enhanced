@@ -1,13 +1,13 @@
 {
   "name": "stremio-enhanced",
-  "version": "0.9.2",
+  "version": "1.0.0",
   "description": "Electron-based Stremio client with plugins and themes support.",
   "main": "./dist/main.js",
   "scripts": {
     "dist": "tsc && node ./copyComponents.js",
     "watch": "tsc -w",
     "lint": "eslint -c .eslintrc --ext .ts ./src",
-    "dev": "npm run dist && npx electron --log-level=3 ./dist/main.js --devtools",
+    "dev": "node -e \"console.clear()\" && npm run dist && npx electron --log-level=3 ./dist/main.js --devtools",
     "build": "npm run dist && electron-builder",
     "build:linux:x64": "electron-builder --linux --x64",
     "build:linux:arm64": "electron-builder --linux --arm64",
@@ -26,22 +26,23 @@
   "devDependencies": {
     "@types/discord-rpc": "^4.0.8",
     "@types/electron": "^1.4.38",
+    "@types/unzipper": "^0.10.11",
     "@typescript-eslint/eslint-plugin": "^4.33.0",
     "@typescript-eslint/parser": "^4.33.0",
     "acrylic-vibrancy": "^1.1.0",
-    "electron": "^36.2.0",
-    "electron-builder": "23.6.0",
+    "electron": "^37.3.1",
+    "electron-builder": "^26.0.12",
     "eslint": "^7.32.0",
     "typescript": "^4.7.2"
   },
   "dependencies": {
-    "@types/winston": "^2.4.4",
     "@xhayper/discord-rpc": "^1.2.1",
     "discord-api-types": "^0.37.119",
     "discord-rpc": "^4.0.1",
     "electron-prompt": "^1.7.0",
     "electron-updater": "^5.3.0",
     "marked": "^15.0.7",
+    "unzipper": "^0.12.3",
     "winston": "^3.11.0"
   },
   "optionalDependencies": {
@@ -71,18 +72,57 @@
       "**/register-scheme/build/Release/*.node",
       "**/register-scheme/node-addon-api/src/node-api.target.mk"
     ],
+    "extraFiles": [
+      {
+        "from": "stremio-server/common",
+        "to": "./streamingserver",
+        "filter": ["**/*"]
+      }
+    ],
     "win": {
-      "target": "nsis",
-      "compression": "maximum",
-      "icon": "images/icon.ico"
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "extraFiles": [
+        {
+          "from": "stremio-server/windows",
+          "to": "./streamingserver",
+          "filter": ["**/*"]
+        }
+      ]
     },
     "mac": {
       "target": "dmg",
-      "icon": "images/icon.icns"
+      "icon": "images/icon.icns",
+      "extraFiles": [
+        {
+          "from": "stremio-server/macos",
+          "to": "./streamingserver",
+          "filter": ["**/*"]
+        }
+      ]
     },
     "linux": {
       "target": "AppImage",
-      "icon": "images/icon.png"
+      "icon": "images/icon.png",
+      "extraFiles": [
+        {
+          "from": "stremio-server/linux",
+          "to": "./streamingserver",
+          "filter": ["**/*"]
+        }
+      ]
     }
   }
 }

@@ -15,13 +15,15 @@
 - [x] Make it so if the user opens Discord after opening Stremio Enhanced, Discord Rich Presence still works.
 - [x] In-app patch notes when an update is available.
 - [ ] Support having options for plugins. 
-- [ ] Improve Update system: auto update so user doesn't have to download anything manually.
-- [ ] Auto download Stremio Service for the user if an installation is not detected.
+- [ ] Improve update system: auto update so user doesn't have to download anything manually.
+- [x] Auto download Stremio Service for the user if an installation is not detected.
 - [ ] Support addons links by opening directly: instead of having the user copy and paste links. 
-- [ ] In-app plugins/themes list to browse and find new plugins/themes.
+- [x] In-app plugins/themes list to browse and find new plugins/themes.
+- [x] Auto download Stremio Service if not found.
 - [ ] Plugin idea: categories in library.
+- [x] Make it run the streaming server natively without Stremio Service.
 - [ ] Features from Zaarrg/stremio-community-v5
   - [ ] MPV support
-  - [ ] Thumbnail preview
-  - [ ] Upscale model support
-  - [ ] Native playback
+    - [ ] Thumbnail preview
+    - [ ] Upscale model support
+    - [ ] Native playback

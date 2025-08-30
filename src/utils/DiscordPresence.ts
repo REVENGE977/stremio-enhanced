@@ -86,49 +86,45 @@ class DiscordPresence {
     
     private static async checkWatching() {
         if(location.href.includes('#/player')) {
+            this.logger.info("Video player opened.");
             Helpers.waitForElm('video').then(async () => {
                 let video = document.getElementsByTagName('video')[0] as HTMLVideoElement;
-                
-                const metaDetails = await this.getMetaDetails();
-                
-                let mediaType = metaDetails.type;
-                this.logger.info("Updating activity to Watching.");
 
-                let mediaName = metaDetails.name;
-                let mediaPoster = metaDetails.poster;
+                                    const playerState = (await this.getPlayerState());
+                    let metaInfo = playerState.metaDetails;
+                this.logger.info("Updating activity to Watching.");
                 
                 const handlePlaying = async () => {
+
                     let startTimestamp = Math.floor(Date.now() / 1000) - Math.floor(video.currentTime);
                     let endTimestamp = startTimestamp + Math.floor(video.duration);
                     
-                    if(mediaType == "series") {
-                        const playerState = (await this.getPlayerState());
+                    if(metaInfo.type == "series") {
                         let seriesInfoDetails = playerState.seriesInfoDetails;
-                        let metaInfo = playerState.metaDetails;
 
                         let episode = seriesInfoDetails.episode;
                         let season = seriesInfoDetails.season;
                         let isKitsu = metaInfo.id.startsWith("kitsu:");
 
                         this.updateActivity({ 
-                            details: mediaName, 
+                            details: metaInfo.name, 
                             state: "Watching " + (!isKitsu ? `S${season} E${episode}` : `E${episode}`), 
                             startTimestamp,
                             endTimestamp,
-                            largeImageKey: mediaPoster ?? "1024stremio",
+                            largeImageKey: metaInfo.poster ?? "1024stremio",
                             largeImageText: "Stremio Enhanced",
                             smallImageKey: "play",
                             smallImageText: "Playing..",
                             instance: false,
                             type: ActivityType.Watching
                         }); 
-                    } else if(mediaType == "movie") {
+                    } else if(metaInfo.type == "movie") {
                         this.updateActivity({ 
-                            details: mediaName, 
+                            details: metaInfo.name, 
                             state: 'Watching',
                             startTimestamp,
                             endTimestamp,
-                            largeImageKey: mediaPoster ?? "1024stremio",
+                            largeImageKey: metaInfo.poster ?? "1024stremio",
                             largeImageText: "Stremio Enhanced",
                             smallImageKey: "play",
                             smallImageText: "Playing..",
@@ -139,7 +135,7 @@ class DiscordPresence {
                 };
                 
                 const handlePausing = async () => {
-                    if(mediaType == "series") {
+                    if(metaInfo.type == "series") {
                         const playerState = (await this.getPlayerState());
                         let metaInfo = playerState.metaDetails;
                         let seriesInfoDetails = playerState.seriesInfoDetails;
@@ -149,20 +145,20 @@ class DiscordPresence {
                         let isKitsu = metaInfo.id.startsWith("kitsu:");
 
                         this.updateActivity({
-                            details: mediaName, 
+                            details: metaInfo.name, 
                             state: `Paused at ${Helpers.formatTime(video.currentTime)} in ${!isKitsu ? `S${season} E${episode}` : `E${episode}`}`, 
-                            largeImageKey: mediaPoster,
+                            largeImageKey: metaInfo.poster,
                             largeImageText: "Stremio Enhanced",
                             smallImageKey: "pause",
                             smallImageText: "Paused",
                             instance: false,
                             type: ActivityType.Watching
                         }); 
-                    } else if(mediaType == "movie") {
-                        this.updateActivity({ 
-                            details: mediaName,
-                            state: `Paused at ${Helpers.formatTime(video.currentTime)}`, 
-                            largeImageKey: mediaPoster ?? "1024stremio",
+                    } else if(metaInfo.type == "movie") {
+                        this.updateActivity({
+                            details: metaInfo.name,
+                            state: `Paused at ${Helpers.formatTime(video.currentTime)}`,
+                            largeImageKey: metaInfo.poster ?? "1024stremio",
                             largeImageText: "Stremio Enhanced",
                             smallImageKey: "pause",
                             smallImageText: "Paused",

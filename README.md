@@ -42,6 +42,7 @@
 - [🎨 Themes and Plugins](#-themes-and-plugins)
 	- [🖌️ Installing Themes](#️-installing-themes)
 	- [🛠️ Installing Plugins](#️-installing-plugins)
+	- [🌐 Community Plugins \& Themes](#-community-plugins--themes)
 - [❓ What Is the Difference Between Plugins and Addons?](#-what-is-the-difference-between-plugins-and-addons)
 - [📜 Creating Your Own Plugin](#-creating-your-own-plugin)
 - [🎨 Creating Your Own Theme](#-creating-your-own-theme)
@@ -57,8 +58,8 @@
 Stremio Enhanced is an Electron-based [Stremio](https://www.stremio.com/) client with support for plugins and themes. It enhances the default Stremio experience by adding more customization options and integrations.  
 
 ### 🛠 How It Works  
-- It runs the [Stremio Service](https://github.com/Stremio/stremio-service) automatically in the background.
-- It loads [the web version of Stremio v5](https://web.stremio.com) within an Electron environment.
+- It runs the Stremio streaming server automatically in the background.
+- It loads [the web version of Stremio](https://web.stremio.com) within an Electron environment.
 
 ### ✨ Features  
 - **Themes** – Customize the look and feel of Stremio with different themes to match your style.  
@@ -107,6 +108,17 @@ You can download the latest version from [the releases tab](https://github.com/R
 
 ![settings_screenshot](https://github.com/REVENGE977/stremio-enhanced/raw/main/images/settings_screenshot.png)
 
+### 🌐 Community Plugins & Themes
+You can also use the new community tab.
+
+1. Go to the settings and scroll down.
+2. Click on "Community Plugins & Themes"
+3. Here you can see and download the available submitted community-made themes and plugins.
+
+![community_tab](./images/communitytab.png)
+
+These plugins and themes are fetched from the [Stremio Enhanced Registry](https://github.com/REVENGE977/stremio-enhanced-registry) repository. If you're a developer you can submit your work there.
+
 ## ❓ What Is the Difference Between Plugins and Addons?
 - **Addons** are available on the normal version of Stremio. They add catalogs and streams for Stremio.
 - **Plugins** add more functionality to Stremio, like new features.
@@ -114,7 +126,7 @@ You can download the latest version from [the releases tab](https://github.com/R
 ## 📜 Creating Your Own Plugin
 Plugins are simply JavaScript files running on the client side. Create a JavaScript file with a `.plugin.js` extension and write your code as you would normally for the client side.
 
-As of version v0.3, you are required to provide metadata for the plugin. Here is an example:
+You are required to provide metadata for the plugin. Here is an example:
 
 ```js
 /**
@@ -133,6 +145,7 @@ Create a file with a name ending in `.theme.css` and write your CSS modification
 
 ## 🐛 Known Issues
 - Subtitles are not available for **some** streams that have embedded subs. This seems to be an issue with either [Stremio Web](https://web.stremio.com/) or Stremio Service, as it also occurs in the browser. Subtitles do work fine for **most** streams though.
+- On macOS, you'll need to bypass Gatekeeper to run the app. This is because the app is not signed.
 
 ## 📃 Todo List
 You can find the current list of tasks and planned features in the [todo.md](./todo.md) file.
@@ -159,7 +172,7 @@ If you'd like to go the extra mile, you can also support me by sponsoring the pr
 **This project is not affiliated in any way with Stremio.**
 
 - **This project** is licensed under the MIT License.
-- **Stremio Service** is bundled in certain releases of this project and is licensed under the GPL-2.0 License. [You can find the source code for Stremio Service here.](https://github.com/Stremio/stremio-service)
+- **Stremio streaming server (server.js)** is included in the source code of this repository to be bundled in releases but is entirely made by Stremio.
 
 
 <p align="center">💻 Developed with ❤️ by <a href="https://github.com/REVENGE977">REVENGE977</a> | 📜 Licensed under MIT</p>

@@ -17,7 +17,7 @@ function applyTheme(theme) {
 
     const currentTheme = localStorage.getItem("currentTheme");
     if (currentTheme) {
-        console.log("disabling " + currentTheme + " CURRENTTHEME");
+        console.log("[ Theme ] Disabling " + currentTheme + " as an active theme");
 
         const currentThemeElement = document.getElementById(currentTheme);
         if (currentThemeElement) {
@@ -35,7 +35,7 @@ function applyTheme(theme) {
     }
 
     localStorage.setItem("currentTheme", theme);
-    console.log("disabling " + theme + " NEWTHEME");
+    console.log("[ Theme ] Disabling " + theme + " as an active theme");
 
     const newThemeElement = document.getElementById(theme);
     if (newThemeElement) {
@@ -51,5 +51,5 @@ function applyTheme(theme) {
         newThemeElement.innerText = "Applied";
     }
 
-    console.log(`${theme} applied!`);
+    console.log(`[ Theme ] ${theme} applied!`);
 }
