@@ -90,8 +90,8 @@ class DiscordPresence {
             Helpers.waitForElm('video').then(async () => {
                 let video = document.getElementsByTagName('video')[0] as HTMLVideoElement;
 
-                                    const playerState = (await this.getPlayerState());
-                    let metaInfo = playerState.metaDetails;
+                const playerState = (await this.getPlayerState());
+                let metaInfo = playerState.metaDetails;
                 this.logger.info("Updating activity to Watching.");
                 
                 const handlePlaying = async () => {

@@ -78,6 +78,11 @@ class ModManager {
             case "plugin":
                 if (this.isPluginInstalled(fileName)) {
                     unlinkSync(join(Properties.pluginsPath, fileName));
+                    let enabledPlugins = JSON.parse(localStorage.getItem("enabledPlugins"));
+                    if(enabledPlugins.includes(fileName)) {
+                        enabledPlugins = enabledPlugins.filter((x:string) => x !== fileName);
+                        localStorage.setItem("enabledPlugins", JSON.stringify(enabledPlugins));
+                    }
                 }
                 break;
             case "theme":

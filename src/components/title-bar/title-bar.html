@@ -1,0 +1,58 @@
+<nav class="title-bar">
+    <div class="title-bar-buttons">
+        <div id="minimizeApp-btn" title="Minimize" class="button">
+            <svg viewBox="0 0 24 24">
+                <path d="M20,14H4V10H20" style="fill:white;"></path>
+            </svg>
+        </div>
+        <div id="maximizeApp-btn" title="Maximize" class="button">
+            <svg viewBox="0 0 24 24">
+                <path d="M3,3H21V21H3V3M5,5V19H19V5H5Z" style="fill:white;"></path>
+            </svg>
+        </div>
+        <div id="closeApp-btn" title="Close" class="button">
+            <svg viewBox="0 0 24 24" style="width: 25px; height: 25px;">
+                <path d="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z" style="fill:white;"></path>
+            </svg>
+        </div>
+    </div>
+
+    <style>
+		body > *:not(.title-bar) {
+			padding-top: 40px; 
+		}
+
+        .button {
+            cursor: pointer;
+        }
+
+        .title-bar {
+            position: fixed; 
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 40px;
+            z-index: 9999;
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            background: rgba(0,0,0,0.15);
+            backdrop-filter: blur(20px) saturate(120%);
+			-webkit-app-region: drag;
+        }
+
+        .title-bar-buttons {
+            -webkit-app-region: no-drag;
+            display: flex;
+            align-items: center;
+            gap: 2.0rem;
+            margin-left: auto;
+			margin-right: 20px;
+        }
+
+        .title-bar-buttons svg {
+            width: 20px;
+            height: 20px;
+        }
+    </style>
+</nav>

@@ -22,6 +22,11 @@
 - [x] Auto download Stremio Service if not found.
 - [ ] Plugin idea: categories in library.
 - [x] Make it run the streaming server natively without Stremio Service.
+  - [ ] Make it run Stremio Service by default but give the option to run server.js directly.
+  - [ ] Make it download Stremio Service automatically if the streaming isn't found in the current directory.
+- [x] Fix the transparent themes option
+  - [x] Add a custom title bar and disable the window frame
+  - [x] Make sure fullscreen works when the option is enabled
 - [ ] Features from Zaarrg/stremio-community-v5
   - [ ] MPV support
     - [ ] Thumbnail preview

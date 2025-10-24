@@ -11,6 +11,7 @@ if (process.platform === 'linux') app.commandLine.appendSwitch('gtk-version', '3
 
 import { BrowserWindow, shell, ipcMain } from "electron";
 import StreamingServer from "./utils/StreamingServer";
+import Helpers from "./utils/Helpers";
 
 app.setName("stremio-enhanced");
 
@@ -18,16 +19,20 @@ let mainWindow: BrowserWindow | null;
 const transparencyFlagPath = join(app.getPath("userData"), "transparency");
 const transparencyEnabled = existsSync(transparencyFlagPath);
 
-// Uses OpenGL for rendering. Having it on OpenGL enables the audio tracks menu in the video player. macOS support for OpenGL is terrible so this is only applied for Windows and Linux.
-if(process.platform === "win32" || process.platform === "linux") {
-    app.commandLine.appendSwitch('use-angle', 'gl');
-    logger.info("Not running on macOS, using OpenGL for rendering");
+if(process.platform === "darwin") {
+    logger.info(`Running on macOS, using Metal for rendering`);
+    app.commandLine.appendSwitch('use-angle', 'metal'); 
+} else {
+    logger.info(`Running on ${process.platform}, using OpenGL for rendering`);
+
+    app.commandLine.appendSwitch('use-angle', 'gl'); 
+    app.commandLine.appendSwitch('enable-gpu-rasterization'); 
+    app.commandLine.appendSwitch('ignore-gpu-blocklist'); 
+    app.commandLine.appendSwitch('disable-software-rasterizer'); 
 }
-app.commandLine.appendSwitch('enable-gpu-rasterization'); // Uses GPU for rendering
-app.commandLine.appendSwitch('enable-zero-copy'); // Improves video decoding
-app.commandLine.appendSwitch('ignore-gpu-blocklist'); // Forces GPU acceleration
-app.commandLine.appendSwitch('disable-software-rasterizer'); // Ensures no software fallback
-app.commandLine.appendSwitch('disable-features', 'BlockInsecurePrivateNetworkRequests,PrivateNetworkAccessSendPreflights'); // Allow CORS requests to local network resources
+
+app.commandLine.appendSwitch('enable-zero-copy'); 
+app.commandLine.appendSwitch('disable-features', 'BlockInsecurePrivateNetworkRequests,PrivateNetworkAccessSendPreflights');
 
 async function createWindow() {
     mainWindow = new BrowserWindow({
@@ -39,16 +44,50 @@ async function createWindow() {
         },
         width: 1500,
         height: 850,
+        resizable: true,
+        maximizable: true,
+        fullscreenable: true,
+        useContentSize: true,
         icon: "./images/icon.ico",
+        frame: transparencyEnabled ? false : true,
         transparent: transparencyEnabled,
         hasShadow: false,
         visualEffectState: transparencyEnabled ? "active" : "followWindow",
         backgroundColor: "#00000000",
     });
-        
+
     mainWindow.setMenu(null);
     mainWindow.loadURL("https://web.stremio.com/");
+    
     helpers.setMainWindow(mainWindow);
+
+    if(transparencyEnabled) {
+        mainWindow.on('enter-full-screen', () => {
+            mainWindow.webContents.send('fullscreen-changed', true);
+        });
+
+        mainWindow.on('leave-full-screen', () => {
+            mainWindow.webContents.send('fullscreen-changed', false);
+        });
+    }
+
+    ipcMain.on("minimize-window", () => {
+        if (mainWindow) mainWindow.minimize();
+    });
+
+    ipcMain.on("maximize-window", () => {
+        if (mainWindow) {
+            if (mainWindow.isMaximized()) {
+                mainWindow.unmaximize();
+            } else {
+                mainWindow.maximize();
+            }
+        }
+    });
+
+    ipcMain.on("close-window", () => {
+        if (mainWindow) mainWindow.close();
+    });
 
     ipcMain.on('update-check-on-startup', async (_, checkForUpdatesOnStartup) => {
         logger.info(`Checking for updates on startup: ${checkForUpdatesOnStartup == "true" ? "enabled" : "disabled"}.`);
@@ -70,6 +109,8 @@ async function createWindow() {
                 unlinkSync(transparencyFlagPath);
             } catch {}
         }
+
+        Helpers.showAlert("info", "Transparency setting changed", "Please restart the app to apply the changes.", ["OK"]);
     });
 
     ipcMain.handle("get-transparency-status", () => {

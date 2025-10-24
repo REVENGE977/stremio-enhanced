@@ -49,6 +49,12 @@ class StreamingServer {
             if (child.stderr) child.stderr.pipe(logStream);
 
             this.logger.info("Streaming server started with PID: " + child.pid);
+
+            process.on("exit", () => {
+                this.logger.info("Shutting down streaming server...");
+                logStream.end();
+                if (child && !child.killed) child.kill("SIGINT");
+            });
         }, 0);
     }
 }

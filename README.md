@@ -3,6 +3,7 @@
 		<img src="https://github.com/REVENGE977/stremio-enhanced/raw/main/images/icon.ico" alt="Stremio Enhanced Icon">
 	</a>
 	<h1 align="center">Stremio Enhanced</h1>
+	<h5 align="center">This is a community project and is <b>NOT</b> affiliated with Stremio in any way.</h5>
 	<p align="center">
 		<a href="https://github.com/REVENGE977/stremio-enhanced/releases/latest">
 			<img alt="GitHub Downloads (all assets, all releases)" src="https://img.shields.io/github/downloads/REVENGE977/stremio-enhanced/total?style=for-the-badge&color=%237B5BF5">

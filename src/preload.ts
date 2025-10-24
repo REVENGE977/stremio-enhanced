@@ -11,9 +11,11 @@ import { getModItemTemplate } from "./components/mods-item/modsItem";
 import { getAboutCategoryTemplate } from "./components/about-category/aboutCategory";
 import { getDefaultThemeTemplate } from "./components/default-theme/defaultTheme";
 import { getBackButton } from "./components/back-btn/backBtn";
+import { getTitleBarTemplate } from "./components/title-bar/titleBar";
 import logger from "./utils/logger";
 import { join } from "path";
 import { pathToFileURL } from "url";
+
 
 window.addEventListener("load", async () => {
     intializeUserSettings();
@@ -28,13 +30,41 @@ window.addEventListener("load", async () => {
         DiscordPresence.start();
         await DiscordPresence.discordRPCHandler();
     }
-    
+
+    // Apply enabled theme
     applyUserTheme();
 
     // Loads enabled plugins.
     loadEnabledPlugins();
-    
+
+    ipcRenderer.on('fullscreen-changed', (_, isFullscreen) => {
+        const titleBar = document.querySelector('.title-bar') as HTMLElement;
+        if (titleBar) {
+            console.log("Fullscreen changed:", isFullscreen);
+            titleBar.style.display = isFullscreen ? 'none' : 'flex';
+        }
+    });
+
+    ipcRenderer.invoke("get-transparency-status").then((enableTransparentThemes) => {
+        if(!enableTransparentThemes) return;
+        const observer = new MutationObserver(() => {
+            AddTitleBar();
+        });
+
+        observer.observe(document.body, { childList: true, subtree: true });
+    });
+
+
+    // Draw title bar
+    ipcRenderer.invoke("get-transparency-status").then((enableTransparentThemes) => {
+        if(enableTransparentThemes) AddTitleBar();
+    });
+
     window.addEventListener("hashchange", () => {
+        ipcRenderer.invoke("get-transparency-status").then((enableTransparentThemes) => {
+            if(enableTransparentThemes) AddTitleBar();
+        });
+
         if(!location.href.includes("#/settings")) return;
         if(document.querySelector(`a[href="#settings-enhanced"]`)) return;
         ModManager.addApplyThemeFunction();
@@ -271,4 +301,44 @@ function writeAbout() {
             document.querySelector(`#enhanced > div:nth-child(4)`).innerHTML += getAboutCategoryTemplate(currentVersion, checkForUpdatesOnStartup, discordrichpresence, enableTransparentThemes);
         });
     })
+}
+
+function AddTitleBar() {
+    logger.info("Adding title bar...");
+
+    const activeRoute = document.querySelector(".route-container:last-child .route-content");
+    if (activeRoute && !activeRoute.querySelector(".title-bar")) {
+        activeRoute.insertAdjacentHTML("afterbegin", getTitleBarTemplate());
+        logger.info("Title bar added to active route: ", activeRoute);
+
+        const titleBar = activeRoute.querySelector(".title-bar")!;
+        titleBar.querySelector("#minimizeApp-btn")?.addEventListener("click", () => {
+            ipcRenderer.send("minimize-window");
+        });
+
+        titleBar.querySelector("#maximizeApp-btn")?.addEventListener("click", () => {
+            if(titleBar.querySelector("#maximizeApp-btn svg path").getAttribute("d") == "M4,8H8V4H20V16H16V20H4V8M16,8V14H18V6H10V8H16M6,12V18H14V12H6Z") {
+                titleBar.querySelector("#maximizeApp-btn svg path").setAttribute("d", "M3,3H21V21H3V3M5,5V19H19V5H5Z");
+            } else {
+                titleBar.querySelector("#maximizeApp-btn svg path").setAttribute("d", "M4,8H8V4H20V16H16V20H4V8M16,8V14H18V6H10V8H16M6,12V18H14V12H6Z");
+            }
+            
+            ipcRenderer.send("maximize-window");
+        });
+
+        // const catcher = titleBar.querySelector('.dblclick-catcher');
+        // catcher.addEventListener('dblclick', () => {
+        //     if(titleBar.querySelector("#maximizeApp-btn svg path").getAttribute("d") == "M4,8H8V4H20V16H16V20H4V8M16,8V14H18V6H10V8H16M6,12V18H14V12H6Z") {
+        //         titleBar.querySelector("#maximizeApp-btn svg path").setAttribute("d", "M3,3H21V21H3V3M5,5V19H19V5H5Z");
+        //     } else {
+        //         titleBar.querySelector("#maximizeApp-btn svg path").setAttribute("d", "M4,8H8V4H20V16H16V20H4V8M16,8V14H18V6H10V8H16M6,12V18H14V12H6Z");
+        //     }
+            
+        //     ipcRenderer.send("maximize-window");
+        // });
+
+        titleBar.querySelector("#closeApp-btn")?.addEventListener("click", () => {
+            ipcRenderer.send("close-window");
+        });
+    }
 }
