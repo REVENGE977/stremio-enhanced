@@ -251,12 +251,28 @@ class StremioService {
     
     private static async installLinux(filePath: string) {
         try {
-            await execFileAsync("flatpak", ["install", "--user", "-y", filePath]);
-            this.logger.info("Flatpak installation completed.");
+            await execFileAsync("flatpak", [
+                "remote-add",
+                "--if-not-exists",
+                "flathub",
+                "https://dl.flathub.org/repo/flathub.flatpakrepo"
+            ]).catch(() => {});
+
+            try {
+                await execFileAsync("flatpak", ["info", "org.freedesktop.Platform//24.08"]);
+            } catch {
+                this.logger.info("Installing required Flatpak runtime...");
+                await execFileAsync("flatpak", ["install", "-y", "flathub", "org.freedesktop.Platform//24.08"]);
+            }
+
+            await execFileAsync("flatpak", ["install", "-y", filePath]);
+
+            this.logger.info("Stremio Service installed successfully.");
         } catch (err) {
             this.logger.error(`Flatpak install failed: ${err}`);
         }
     }
+
     
     public static terminate(): number {
         try {

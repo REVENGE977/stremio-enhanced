@@ -174,7 +174,7 @@ app.on("ready", async () => {
                 if(stremioServicePath) {
                     await StremioService.start(stremioServicePath);
                 } else {
-                    const result = await Helpers.showAlert("warning", "Stremio Service not found", "Stremio Service is required for streaming features. Do you want to download it now?", ["YES", "NO"]);
+                    const result = await Helpers.showAlert("warning", "Stremio Service not found", `Stremio Service is required for streaming features. Do you want to download it now? ${process.platform == "linux" ? "This will install the service via Flatpak (if available)." : ""}`, ["YES", "NO"]);
                     if (result === 0) {
                         await StremioService.downloadAndInstallService();
                     } else {
