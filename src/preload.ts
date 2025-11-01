@@ -1,4 +1,4 @@
-import { ipcRenderer, app } from "electron";
+import { ipcRenderer } from "electron";
 import { readdirSync, existsSync } from "fs";
 import Settings from "./core/Settings";
 import properties from "./core/Properties"

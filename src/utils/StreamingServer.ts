@@ -14,6 +14,14 @@ class StreamingServer {
     private static ffmpegPath = process.platform == "win32" ? join(this.streamingServerDir, "ffmpeg.exe") : join(this.streamingServerDir, "ffmpeg");
     private static ffprobePath = process.platform == "win32" ? join(this.streamingServerDir, "ffprobe.exe") : join(this.streamingServerDir, "ffprobe");
 
+    public static async streamingServerDirExists() {
+        if(!existsSync(this.streamingServerDir) || !existsSync(this.serverScriptPath) || !existsSync(this.ffmpegPath) || !existsSync(this.ffprobePath)) {
+            return false;
+        }
+
+        return true;
+    }
+
     public static start() {
         if(!existsSync(this.streamingServerDir)) {
             this.logger.warn(`Streaming server directory not found, creating: ${this.streamingServerDir}. You need the following files: server.js, ffmpeg, and ffprobe`);

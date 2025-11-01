@@ -12,6 +12,7 @@ if (process.platform === 'linux') app.commandLine.appendSwitch('gtk-version', '3
 import { BrowserWindow, shell, ipcMain } from "electron";
 import StreamingServer from "./utils/StreamingServer";
 import Helpers from "./utils/Helpers";
+import StremioService from "./utils/StremioService";
 
 app.setName("stremio-enhanced");
 
@@ -126,9 +127,13 @@ async function createWindow() {
     
     // Devtools flag
     if(process.argv.includes("--devtools")) { 
-        logger.info("--devtools flag passed. Opening devtools.."); 
+        logger.info("Developer tools flag detected. Opening DevTools in detached mode...");
         mainWindow.webContents.openDevTools({ mode: "detach" }); 
     }
+
+    // mainWindow.on('closed', () => {
+    //     if(!process.argv.includes("--no-stremio-service") && StremioService.isProcessRunning()) StremioService.terminate();
+    // });
 }
 
 app.on("ready", async () => {
@@ -158,8 +163,27 @@ app.on("ready", async () => {
     }
     
     if(!process.argv.includes("--no-stremio-server")) {
-        StreamingServer.start();
-    } else logger.info("Launching without built-in Stremio streaming server.");
+        if(!await StremioService.isProcessRunning()) {
+            const streamingServerDirExists = await StreamingServer.streamingServerDirExists();
+            if(streamingServerDirExists) {
+                logger.info("Launching current directory Stremio streaming server.");
+                StreamingServer.start();
+            } else {
+                logger.info("Stremio streaming server not found in the current directory. Launching Stremio Service..");
+                const stremioServicePath = StremioService.findExecutable();
+                if(stremioServicePath) {
+                    await StremioService.start(stremioServicePath);
+                } else {
+                    const result = await Helpers.showAlert("warning", "Stremio Service not found", "Stremio Service is required for streaming features. Do you want to download it now?", ["YES", "NO"]);
+                    if (result === 0) {
+                        await StremioService.downloadAndInstallService();
+                    } else {
+                        logger.info("User declined to download Stremio Service.");
+                    }
+                }
+            }
+        } else logger.info("Stremio Service is already running.");
+    } else logger.info("Launching without Stremio streaming server.");
     
     createWindow();
     
@@ -169,6 +193,8 @@ app.on("ready", async () => {
 });
 
 app.on("window-all-closed", () => {
+    logger.info("Closing app...");
+
     if (process.platform !== "darwin") {
         app.quit();
     }

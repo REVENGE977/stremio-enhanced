@@ -21,9 +21,9 @@
 - [x] In-app plugins/themes list to browse and find new plugins/themes.
 - [x] Auto download Stremio Service if not found.
 - [ ] Plugin idea: categories in library.
-- [x] Make it run the streaming server natively without Stremio Service.
-  - [ ] Make it run Stremio Service by default but give the option to run server.js directly.
-  - [ ] Make it download Stremio Service automatically if the streaming isn't found in the current directory.
+- [x] Make it run the streaming server natively without Stremio Service. (tested on windows only so far)
+  - [x] Make it run Stremio Service by default but if the user does create a "stremaingserver" folder in the current directory, it will use the server.js that's there.
+  - [x] Make it download and install Stremio Service automatically if the streaming isn't found in the current directory.
 - [x] Fix the transparent themes option
   - [x] Add a custom title bar and disable the window frame
   - [x] Make sure fullscreen works when the option is enabled

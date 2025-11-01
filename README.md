@@ -84,7 +84,8 @@ You can download the latest version from [the releases tab](https://github.com/R
 1. Clone the repository: `git clone https://github.com/REVENGE977/stremio-enhanced.git`
 2. Navigate to the project directory: `cd stremio-enhanced`
 3. Install dependencies: `npm install`
-4. Build the project: 
+4. Compile TypeScript: `npm run dist`
+5. Build the project with electron-builder: 
     - For Windows: `npm run build:win`
     - For Linux (x64): `npm run build:linux:x64`
     - For Linux (arm64): `npm run build:linux:arm64`
@@ -173,7 +174,5 @@ If you'd like to go the extra mile, you can also support me by sponsoring the pr
 **This project is not affiliated in any way with Stremio.**
 
 - **This project** is licensed under the MIT License.
-- **Stremio streaming server (server.js)** is included in the source code of this repository to be bundled in releases but is entirely made by Stremio.
-
 
 <p align="center">💻 Developed with ❤️ by <a href="https://github.com/REVENGE977">REVENGE977</a> | 📜 Licensed under MIT</p>

@@ -72,13 +72,6 @@
 			"**/register-scheme/build/Release/*.node",
 			"**/register-scheme/node-addon-api/src/node-api.target.mk"
 		],
-		"extraFiles": [
-			{
-				"from": "stremio-server/common",
-				"to": "./streamingserver",
-				"filter": ["**/*"]
-			}
-		],
 		"win": {
 			"target": [
 				{
@@ -93,38 +86,15 @@
 						"x64"
 					]
 				}
-			],
-			"extraFiles": [
-				{
-					"from": "stremio-server/windows",
-					"to": "./streamingserver",
-					"filter": ["**/*"]
-				}
 			]
 		},
 		"mac": {
 			"target": "dmg",
-			"icon": "images/icon.icns",
-			"extraFiles": [
-				{
-					"from": "stremio-server/macos",
-					"to": "MacOS/streamingserver",
-					"filter": ["**/*"]
-				}
-			],
-			"afterPack": "./afterPack.js"
+			"icon": "images/icon.icns"
 		},
 		"linux": {
 			"target": "AppImage",
-			"icon": "images/icon.png",
-			"extraFiles": [
-				{
-					"from": "stremio-server/linux",
-					"to": "./streamingserver",
-					"filter": ["**/*"]
-				}
-			],
-			"afterPack": "./afterPack.js"
+			"icon": "images/icon.png"
 		}
 	}
 }
