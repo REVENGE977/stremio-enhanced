@@ -171,7 +171,7 @@ app.on("ready", async () => {
             } else {
                 logger.info("Stremio streaming server not found in the current directory. Launching Stremio Service..");
                 if(await StremioService.isServiceInstalled()) {
-                    logger.info("Stremio Service found, starting...");
+                    logger.info("Found installation of Stremio Service.");
                     await StremioService.start();
                 } else {
                     const result = await Helpers.showAlert("warning", "Stremio Service not found", `Stremio Service is required for streaming features. Do you want to download it now? ${process.platform == "linux" ? "This will install the service via Flatpak (if available)." : ""}`, ["YES", "NO"]);

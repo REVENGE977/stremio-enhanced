@@ -3,22 +3,21 @@ import { basename, join, resolve } from "path";
 import { existsSync, createWriteStream } from "fs";
 import { execFile, spawn } from "child_process";
 import { promisify } from "util";
-import { exec as execAsync } from "child_process";
 import * as process from 'process';
 import { homedir } from 'os';
 import { app } from "electron";
 import https from "https";
 
-const execPromise = promisify(execAsync);
-const execFileAsync = promisify(execFile);
-
 class StremioService {
-    private static logger = getLogger("StremioService");
     private static API_URL = "https://api.github.com/repos/Stremio/stremio-service/releases/latest";
+    private static logger = getLogger("StremioService");
+    private static execFileAsync = promisify(execFile);
 
     public static start(): Promise<void> {
         return new Promise((resolve, reject) => {
             try {
+                this.logger.info("Starting Stremio Service...");
+
                 let child;
 
                 switch (process.platform) {
@@ -148,12 +147,12 @@ class StremioService {
     
     private static async installWindows(filePath: string) {
         const ps = `Start-Process -FilePath "${filePath}" -ArgumentList '/S' -Verb RunAs`;
-        await execFileAsync("powershell.exe", ["-ExecutionPolicy", "Bypass", "-NoProfile", "-Command", ps], {
+        await this.execFileAsync("powershell.exe", ["-ExecutionPolicy", "Bypass", "-NoProfile", "-Command", ps], {
             windowsHide: true,
         });
         
         this.logger.info("Waiting for Stremio Service installation to finish...");
-        const success = await this.waitForInstallCompletion(120000); // 2 minutes timeout
+        const success = await this.waitForInstallCompletion(120000); // 2 mins timeout
         
         if (success) {
             this.logger.info("Stremio Service detected as installed or running.");
@@ -222,7 +221,7 @@ class StremioService {
                 return existsSync("/Applications/StremioService.app/Contents/MacOS/stremio-service");
             case "linux":
                 try {
-                    const { stdout } = await execFileAsync("flatpak", ["info", "com.stremio.Service"]);
+                    const { stdout } = await this.execFileAsync("flatpak", ["info", "com.stremio.Service"]);
                     return stdout.includes("com.stremio.Service");
                 } catch {
                     return false;
@@ -232,7 +231,6 @@ class StremioService {
         }
     }
 
-
     private static async isServiceInstalledWindows(): Promise<boolean> {
         const localAppData = process.env.LOCALAPPDATA;
         if (!localAppData) return false;
@@ -241,22 +239,30 @@ class StremioService {
         return existsSync(servicePath);
     }
 
-
     private static async installMac(filePath: string) {
         const volume = "/Volumes/StremioService";
         try {
-            await execFileAsync("hdiutil", ["attach", filePath, "-mountpoint", volume]);
-            await execFileAsync("cp", ["-R", `${volume}/StremioService.app`, "/Applications/"]);
+            await this.execFileAsync("hdiutil", ["attach", filePath, "-mountpoint", volume]);
+            await this.execFileAsync("cp", ["-R", `${volume}/StremioService.app`, "/Applications/"]);
         } catch (err) {
             this.logger.error(`DMG install failed: ${err}`);
         } finally {
-            await execFileAsync("hdiutil", ["detach", volume]).catch(() => {});
+            await this.execFileAsync("hdiutil", ["detach", volume]).catch(() => {});
+        }
+
+        this.logger.info("Waiting for Stremio Service installation to finish...");
+        const success = await this.waitForInstallCompletion(120000); // 2 mins timeout
+
+        if (success) {
+            this.logger.info("Stremio Service detected as installed or running.");
+        } else {
+            this.logger.warn("Installation timeout or failed to detect Stremio Service.");
         }
     }
     
     private static async installLinux(filePath: string) {
         try {
-            await execFileAsync("flatpak", [
+            await this.execFileAsync("flatpak", [
                 "remote-add",
                 "--if-not-exists",
                 "flathub",
@@ -264,16 +270,22 @@ class StremioService {
             ]).catch(() => {});
 
             try {
-                await execFileAsync("flatpak", ["info", "org.freedesktop.Platform//24.08"]);
+                await this.execFileAsync("flatpak", ["info", "org.freedesktop.Platform//24.08"]);
             } catch {
                 this.logger.info("Installing Flatpak runtime org.freedesktop.Platform//24.08...");
-                await execFileAsync("flatpak", ["install", "-y", "flathub", "org.freedesktop.Platform//24.08"]);
+                await this.execFileAsync("flatpak", ["install", "-y", "flathub", "org.freedesktop.Platform//24.08"]);
             }
 
             this.logger.info(`Installing Stremio Service from ${filePath}`);
-            await execFileAsync("flatpak", ["install", "--user", "-y", filePath]);
+            await this.execFileAsync("flatpak", ["install", "--user", "-y", filePath]);
 
-            this.logger.info("Stremio Service installed successfully.");
+            const success = await this.waitForInstallCompletion(120000); // 2 mins timeout
+
+            if (success) {
+                this.logger.info("Stremio Service detected as installed or running.");
+            } else {
+                this.logger.warn("Installation timeout or failed to detect Stremio Service.");
+            }
         } catch (err) {
             this.logger.error(`Flatpak install failed: ${err}`);
         }
@@ -370,116 +382,28 @@ class StremioService {
         }
     }
     
-    // public static findExecutable() {
-    //     let installationPath;
-        
-    //     // Check if the executable exists in the current directory first
-    //     const localPath = resolve('./stremio-service.exe'); // Windows
-    //     const localPathUnix = resolve('./stremio-service'); // macOS & Linux
-        
-    //     if (existsSync(localPath) || existsSync(localPathUnix)) {
-    //         this.logger.info("StremioService executable found in the current directory.");
-    //         return existsSync(localPath) ? localPath : localPathUnix;
-    //     }
-        
-    //     // If not found locally, check OS-specific paths
-    //     switch (process.platform) {
-    //         case 'win32':
-    //             const localAppData = process.env.LOCALAPPDATA || join(homedir(), 'AppData', 'Local');
-    //             installationPath = join(localAppData, 'Programs', 'StremioService', 'stremio-service.exe');
-    //         break;
-    //         case 'darwin':
-    //             installationPath = join('/Applications', 'StremioService.app', 'Contents', 'MacOS', 'stremio-service');
-    //         break;
-    //         case 'linux':
-    //             const standardPaths = [
-    //                 '/usr/local/bin/stremio-service',
-    //                 '/usr/bin/stremio-service',
-    //                 join(process.env.HOME || '', 'bin', 'stremio-service')
-    //             ];
-                
-    //             for (const path of standardPaths) {
-    //                 if (existsSync(path)) {
-    //                     installationPath = path;
-    //                     break;
-    //                 }
-    //             }
-                
-    //             // If not found in standard paths, check for Flatpak installation
-    //             if (!installationPath) {
-    //                 try {
-    //                     const execSync = require('child_process').execSync;
-    //                     const flatpakPath = execSync('which flatpak').toString().trim();
-                        
-    //                     if (flatpakPath) {
-    //                         // Check if the Stremio Service Flatpak is installed
-    //                         const installed = execSync('flatpak list --app').toString();
-    //                         if (installed.includes('com.stremio.Service')) {
-    //                             const flatpakInstallPath = execSync('flatpak info --show-location com.stremio.Service')
-    //                             .toString().trim();
-                                
-    //                             const flatpakExecutable = join(flatpakInstallPath, 'files', 'bin', 'stremio-service');
-    //                             if (existsSync(flatpakExecutable)) {
-    //                                 installationPath = flatpakExecutable;
-    //                             }
-    //                         }
-    //                     }
-    //                 } catch (e) {
-    //                     this.logger.error("Flatpak check failed: " + e.message);
-    //                 }
-    //             }
-    //         break;
-    //         default:
-    //             this.logger.error('Unsupported operating system');
-    //             return null;
-    //     }
-        
-    //     if (!installationPath) {
-    //         this.logger.error('Failed to determine installation path for the current operating system');
-    //         return null;
-    //     }
-        
-    //     const fullPath = resolve(installationPath);
-    //     this.logger.info("Checking existence of " + fullPath);
-        
-    //     try {
-    //         if (existsSync(fullPath)) {
-    //             this.logger.info(`StremioService executable found in OS-specific path (${process.platform}).`);
-    //             return fullPath;
-    //         } else {
-    //             this.logger.warn(`StremioService executable not found at ${fullPath}`);
-    //         }
-    //     } catch (error) {
-    //         this.logger.error(`Error checking StremioService existence in ${fullPath}:` + error.message);
-    //     }
-        
-    //     return null;
-    // }    
-    
-    public static async isProcessRunning() {
+    public static async isProcessRunning(): Promise<boolean> {
         try {
-            let command;
             switch (process.platform) {
-                case 'win32':
-                    command = 'tasklist /FI "IMAGENAME eq stremio-service.exe"';
-                break;
-                case 'darwin':
-                case 'linux':
-                    command = 'pgrep -f "stremio-service"';
-                break;
+
+                case "win32": 
+                    const { stdout } = await this.execFileAsync("tasklist", ["/FI", 'IMAGENAME eq stremio-service.exe']);
+                    return stdout.toLowerCase().includes("stremio-service.exe");
+                case "darwin":
+                case "linux": 
+                    try {
+                        await this.execFileAsync("pgrep", ["-f", "stremio-service"]);
+                        return true;
+                    } catch {
+                        return false;
+                    }
                 default:
-                    this.logger.error('Unsupported operating system');
+                    this.logger.error("Unsupported operating system");
                     return false;
             }
-            
-            const { stdout } = await execPromise(command);
-            const isRunning = process.platform === 'win32'
-            ? stdout.toLowerCase().includes('stremio-service.exe')
-            : stdout.trim().length > 0;
-            
-            return isRunning;
-        } catch (error) {
-            this.logger.error(`Error executing process check command: ${error.message}`);
+
+        } catch (error: any) {
+            this.logger.error(`Error checking service running state: ${error.message}`);
             return false;
         }
     }
