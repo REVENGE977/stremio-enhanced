@@ -1,6 +1,6 @@
 import { getLogger } from "./logger";
 import { basename, join, resolve } from "path";
-import { existsSync, createWriteStream } from "fs";
+import { existsSync, createWriteStream, unlinkSync } from "fs";
 import { execFile, spawn } from "child_process";
 import { promisify } from "util";
 import * as process from 'process';
@@ -145,23 +145,7 @@ class StremioService {
         });
     }
     
-    private static async installWindows(filePath: string) {
-        const ps = `Start-Process -FilePath "${filePath}" -ArgumentList '/S' -Verb RunAs`;
-        await this.execFileAsync("powershell.exe", ["-ExecutionPolicy", "Bypass", "-NoProfile", "-Command", ps], {
-            windowsHide: true,
-        });
-        
-        this.logger.info("Waiting for Stremio Service installation to finish...");
-        const success = await this.waitForInstallCompletion(120000); // 2 mins timeout
-        
-        if (success) {
-            this.logger.info("Stremio Service detected as installed or running.");
-        } else {
-            this.logger.warn("Installation timeout or failed to detect Stremio Service.");
-        }
-    }
-    
-    private static async waitForInstallCompletion(timeoutMs = 120000): Promise<boolean> {
+    private static async waitForInstallCompletion(timeoutMs = 120000, installerPath?: string): Promise<boolean> {
         const start = Date.now();
         
         while (Date.now() - start < timeoutMs) {
@@ -170,7 +154,8 @@ class StremioService {
             
             const installed = await this.isServiceInstalled();
             if (installed) {
-                StremioService.start();
+                this.start();
+                if(installerPath && existsSync(installerPath)) unlinkSync(installerPath); // delete installer file after successful install
                 return true;
             }
             
@@ -239,6 +224,22 @@ class StremioService {
         return existsSync(servicePath);
     }
 
+    private static async installWindows(filePath: string) {
+        const ps = `Start-Process -FilePath "${filePath}" -ArgumentList '/S' -Verb RunAs`;
+        await this.execFileAsync("powershell.exe", ["-ExecutionPolicy", "Bypass", "-NoProfile", "-Command", ps], {
+            windowsHide: true,
+        });
+        
+        this.logger.info("Waiting for Stremio Service installation to finish...");
+        const success = await this.waitForInstallCompletion(120000, filePath); // 2 mins timeout
+        
+        if (success) {
+            this.logger.info("Stremio Service detected as installed or running.");
+        } else {
+            this.logger.warn("Installation timeout or failed to detect Stremio Service.");
+        }
+    }
+
     private static async installMac(filePath: string) {
         const volume = "/Volumes/StremioService";
         try {
@@ -251,7 +252,7 @@ class StremioService {
         }
 
         this.logger.info("Waiting for Stremio Service installation to finish...");
-        const success = await this.waitForInstallCompletion(120000); // 2 mins timeout
+        const success = await this.waitForInstallCompletion(120000, filePath); // 2 mins timeout
 
         if (success) {
             this.logger.info("Stremio Service detected as installed or running.");
@@ -279,7 +280,7 @@ class StremioService {
             this.logger.info(`Installing Stremio Service from ${filePath}`);
             await this.execFileAsync("flatpak", ["install", "--user", "-y", filePath]);
 
-            const success = await this.waitForInstallCompletion(120000); // 2 mins timeout
+            const success = await this.waitForInstallCompletion(120000, filePath); // 2 mins timeout
 
             if (success) {
                 this.logger.info("Stremio Service detected as installed or running.");
