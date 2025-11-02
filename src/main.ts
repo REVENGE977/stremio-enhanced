@@ -102,11 +102,11 @@ async function createWindow() {
 
     ipcMain.on("set-transparency", (_, enabled: boolean) => {
         if (enabled) {
-            logger.info("Enabled transparent themes");
+            logger.info("Enabled window transparency");
             writeFileSync(transparencyFlagPath, "1");
         } else {
             try {
-                logger.info("Disabled transparent themes");
+                logger.info("Disabled window transparency");
                 unlinkSync(transparencyFlagPath);
             } catch {}
         }
