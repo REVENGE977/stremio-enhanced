@@ -1,7 +1,7 @@
 import { getLogger } from "./logger";
 import { basename, join, resolve } from "path";
 import { existsSync, createWriteStream } from "fs";
-import { exec, execFile } from "child_process";
+import { execFile, spawn } from "child_process";
 import { promisify } from "util";
 import { exec as execAsync } from "child_process";
 import * as process from 'process';
@@ -14,29 +14,39 @@ const execFileAsync = promisify(execFile);
 
 class StremioService {
     private static logger = getLogger("StremioService");
-    public static start(servicePath: string): Promise<void> {
+    private static API_URL = "https://api.github.com/repos/Stremio/stremio-service/releases/latest";
+
+    public static start(): Promise<void> {
         return new Promise((resolve, reject) => {
-            setTimeout(() => {
-                try {
-                    this.logger.info("Starting Stremio Service from " + servicePath);
-                    
-                    if (exec(servicePath)) {
-                        this.logger.info("Stremio Service Started.");
-                        resolve();
-                    } else {
-                        this.logger.error("Failed to start the service.");
-                        reject(new Error("Failed to start the service.")); 
-                    }
-                } catch (error) {
-                    reject(error); 
+            try {
+                let child;
+
+                switch (process.platform) {
+                    case "win32": 
+                        const exe = this.findExecutable();
+                        child = spawn(exe, [], { detached: true, stdio: "ignore" });
+                        break;
+                    case "darwin": 
+                        child = spawn("open", ["/Applications/StremioService.app"], { detached: true, stdio: "ignore" });
+                        break;
+                    case "linux": 
+                        child = spawn("flatpak", ["run", "com.stremio.Service"], { detached: true, stdio: "ignore" });
+                        break;
+                    default:
+                        return reject(new Error("Unsupported platform"));
                 }
-            }, 0);
+
+                child.unref();
+
+                this.logger.info("Stremio Service started.");
+                resolve();
+
+            } catch (err) {
+                reject(err);
+            }
         });
     }
-    
-    
-    private static API_URL = "https://api.github.com/repos/Stremio/stremio-service/releases/latest";
-    
+        
     public static async downloadAndInstallService() {
         const platform = process.platform;
         
@@ -161,7 +171,7 @@ class StremioService {
             
             const installed = await this.isServiceInstalled();
             if (installed) {
-                StremioService.start(this.findExecutable());
+                StremioService.start();
                 return true;
             }
             
@@ -182,19 +192,27 @@ class StremioService {
             });
         }
 
-        if (platform === "darwin" || platform === "linux") {
+        if (platform === "darwin") {
             return new Promise(resolve => {
-                execFile("pgrep", ["-x", "stremio-service"], (err) => {
-                    resolve(!err); 
+                execFile("pgrep", ["-f", "StremioService"], (err) => {
+                    resolve(!err);
+                });
+            });
+        }
+
+        if (platform === "linux") {
+            return new Promise(resolve => {
+                execFile("flatpak", ["ps"], (err, stdout) => {
+                    if (!err && stdout.includes("com.stremio.Service")) return resolve(true);
+                    resolve(false);
                 });
             });
         }
 
         return false;
     }
-
     
-    private static async isServiceInstalled(): Promise<boolean> {
+    public static async isServiceInstalled(): Promise<boolean> {
         const platform = process.platform;
 
         switch(platform) {
@@ -216,24 +234,11 @@ class StremioService {
 
 
     private static async isServiceInstalledWindows(): Promise<boolean> {
-        const psCheck = `
-        $paths = @(
-            'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*',
-            'HKLM:\\SOFTWARE\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*',
-            'HKCU:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*'
-        )
-        foreach ($p in $paths) {
-            $items = Get-ItemProperty -Path $p -ErrorAction SilentlyContinue |
-            Where-Object { $_.DisplayName -like '*Stremio Service*' }
-            if ($items) { Write-Output 'FOUND'; break }
-        }
-        `;
-        try {
-            const { stdout } = await execFileAsync("powershell.exe", ["-NoProfile", "-Command", psCheck], { windowsHide: true });
-            return stdout.trim().includes("FOUND");
-        } catch {
-            return false;
-        }
+        const localAppData = process.env.LOCALAPPDATA;
+        if (!localAppData) return false;
+
+        const servicePath = join(localAppData, "Programs", "StremioService", "stremio-service.exe");
+        return existsSync(servicePath);
     }
 
 
@@ -261,18 +266,18 @@ class StremioService {
             try {
                 await execFileAsync("flatpak", ["info", "org.freedesktop.Platform//24.08"]);
             } catch {
-                this.logger.info("Installing required Flatpak runtime...");
+                this.logger.info("Installing Flatpak runtime org.freedesktop.Platform//24.08...");
                 await execFileAsync("flatpak", ["install", "-y", "flathub", "org.freedesktop.Platform//24.08"]);
             }
 
-            await execFileAsync("flatpak", ["install", "-y", filePath]);
+            this.logger.info(`Installing Stremio Service from ${filePath}`);
+            await execFileAsync("flatpak", ["install", "--user", "-y", filePath]);
 
             this.logger.info("Stremio Service installed successfully.");
         } catch (err) {
             this.logger.error(`Flatpak install failed: ${err}`);
         }
     }
-
     
     public static terminate(): number {
         try {
@@ -340,82 +345,22 @@ class StremioService {
         }
         return null;
     }
-    
+
     public static findExecutable() {
-        let installationPath;
-        
-        // Check if the executable exists in the current directory first
-        const localPath = resolve('./stremio-service.exe'); // Windows
-        const localPathUnix = resolve('./stremio-service'); // macOS & Linux
-        
-        if (existsSync(localPath) || existsSync(localPathUnix)) {
+        const localPath = resolve('./stremio-service.exe');
+        if(existsSync(localPath)) {
             this.logger.info("StremioService executable found in the current directory.");
-            return existsSync(localPath) ? localPath : localPathUnix;
+            return localPath;
         }
-        
-        // If not found locally, check OS-specific paths
-        switch (process.platform) {
-            case 'win32':
-                const localAppData = process.env.LOCALAPPDATA || join(homedir(), 'AppData', 'Local');
-                installationPath = join(localAppData, 'Programs', 'StremioService', 'stremio-service.exe');
-            break;
-            case 'darwin':
-                installationPath = join('/Applications', 'StremioService.app', 'Contents', 'MacOS', 'stremio-service');
-            break;
-            case 'linux':
-                const standardPaths = [
-                    '/usr/local/bin/stremio-service',
-                    '/usr/bin/stremio-service',
-                    join(process.env.HOME || '', 'bin', 'stremio-service')
-                ];
-                
-                for (const path of standardPaths) {
-                    if (existsSync(path)) {
-                        installationPath = path;
-                        break;
-                    }
-                }
-                
-                // If not found in standard paths, check for Flatpak installation
-                if (!installationPath) {
-                    try {
-                        const execSync = require('child_process').execSync;
-                        const flatpakPath = execSync('which flatpak').toString().trim();
-                        
-                        if (flatpakPath) {
-                            // Check if the Stremio Service Flatpak is installed
-                            const installed = execSync('flatpak list --app').toString();
-                            if (installed.includes('com.stremio.Service')) {
-                                const flatpakInstallPath = execSync('flatpak info --show-location com.stremio.Service')
-                                .toString().trim();
-                                
-                                const flatpakExecutable = join(flatpakInstallPath, 'files', 'bin', 'stremio-service');
-                                if (existsSync(flatpakExecutable)) {
-                                    installationPath = flatpakExecutable;
-                                }
-                            }
-                        }
-                    } catch (e) {
-                        this.logger.error("Flatpak check failed: " + e.message);
-                    }
-                }
-            break;
-            default:
-                this.logger.error('Unsupported operating system');
-                return null;
-        }
-        
-        if (!installationPath) {
-            this.logger.error('Failed to determine installation path for the current operating system');
-            return null;
-        }
-        
+
+        const localAppData = process.env.LOCALAPPDATA || join(homedir(), 'AppData', 'Local');
+        const installationPath = join(localAppData, 'Programs', 'StremioService', 'stremio-service.exe');
         const fullPath = resolve(installationPath);
         this.logger.info("Checking existence of " + fullPath);
-        
+
         try {
             if (existsSync(fullPath)) {
-                this.logger.info(`StremioService executable found in OS-specific path (${process.platform}).`);
+                this.logger.info(`StremioService executable found in OS-specific path (win32).`);
                 return fullPath;
             } else {
                 this.logger.warn(`StremioService executable not found at ${fullPath}`);
@@ -423,9 +368,93 @@ class StremioService {
         } catch (error) {
             this.logger.error(`Error checking StremioService existence in ${fullPath}:` + error.message);
         }
+    }
+    
+    // public static findExecutable() {
+    //     let installationPath;
         
-        return null;
-    }    
+    //     // Check if the executable exists in the current directory first
+    //     const localPath = resolve('./stremio-service.exe'); // Windows
+    //     const localPathUnix = resolve('./stremio-service'); // macOS & Linux
+        
+    //     if (existsSync(localPath) || existsSync(localPathUnix)) {
+    //         this.logger.info("StremioService executable found in the current directory.");
+    //         return existsSync(localPath) ? localPath : localPathUnix;
+    //     }
+        
+    //     // If not found locally, check OS-specific paths
+    //     switch (process.platform) {
+    //         case 'win32':
+    //             const localAppData = process.env.LOCALAPPDATA || join(homedir(), 'AppData', 'Local');
+    //             installationPath = join(localAppData, 'Programs', 'StremioService', 'stremio-service.exe');
+    //         break;
+    //         case 'darwin':
+    //             installationPath = join('/Applications', 'StremioService.app', 'Contents', 'MacOS', 'stremio-service');
+    //         break;
+    //         case 'linux':
+    //             const standardPaths = [
+    //                 '/usr/local/bin/stremio-service',
+    //                 '/usr/bin/stremio-service',
+    //                 join(process.env.HOME || '', 'bin', 'stremio-service')
+    //             ];
+                
+    //             for (const path of standardPaths) {
+    //                 if (existsSync(path)) {
+    //                     installationPath = path;
+    //                     break;
+    //                 }
+    //             }
+                
+    //             // If not found in standard paths, check for Flatpak installation
+    //             if (!installationPath) {
+    //                 try {
+    //                     const execSync = require('child_process').execSync;
+    //                     const flatpakPath = execSync('which flatpak').toString().trim();
+                        
+    //                     if (flatpakPath) {
+    //                         // Check if the Stremio Service Flatpak is installed
+    //                         const installed = execSync('flatpak list --app').toString();
+    //                         if (installed.includes('com.stremio.Service')) {
+    //                             const flatpakInstallPath = execSync('flatpak info --show-location com.stremio.Service')
+    //                             .toString().trim();
+                                
+    //                             const flatpakExecutable = join(flatpakInstallPath, 'files', 'bin', 'stremio-service');
+    //                             if (existsSync(flatpakExecutable)) {
+    //                                 installationPath = flatpakExecutable;
+    //                             }
+    //                         }
+    //                     }
+    //                 } catch (e) {
+    //                     this.logger.error("Flatpak check failed: " + e.message);
+    //                 }
+    //             }
+    //         break;
+    //         default:
+    //             this.logger.error('Unsupported operating system');
+    //             return null;
+    //     }
+        
+    //     if (!installationPath) {
+    //         this.logger.error('Failed to determine installation path for the current operating system');
+    //         return null;
+    //     }
+        
+    //     const fullPath = resolve(installationPath);
+    //     this.logger.info("Checking existence of " + fullPath);
+        
+    //     try {
+    //         if (existsSync(fullPath)) {
+    //             this.logger.info(`StremioService executable found in OS-specific path (${process.platform}).`);
+    //             return fullPath;
+    //         } else {
+    //             this.logger.warn(`StremioService executable not found at ${fullPath}`);
+    //         }
+    //     } catch (error) {
+    //         this.logger.error(`Error checking StremioService existence in ${fullPath}:` + error.message);
+    //     }
+        
+    //     return null;
+    // }    
     
     public static async isProcessRunning() {
         try {
