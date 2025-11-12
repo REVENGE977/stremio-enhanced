@@ -78,7 +78,17 @@ Stremio Enhanced is an Electron-based [Stremio](https://www.stremio.com/) client
 
 
 ## 📥 Downloads
-You can download the latest version from [the releases tab](https://github.com/REVENGE977/stremio-enhanced/releases). If you're on Windows, you can download the stremio service bundled build so you don't have to download and install Stremio Service separately.
+You can download the latest version from [the releases tab](https://github.com/REVENGE977/stremio-enhanced/releases). 
+
+If you're on **Windows**, you can also install through winget:
+```
+winget install REVENGE.StremioEnhanced
+```
+
+You can also install Stremio Service (which is required for Stremio Enhanced to stream content) from winget:
+```
+winget install Stremio.StremioService
+```
 
 ## ⚙️ Build From Source
 1. Clone the repository: `git clone https://github.com/REVENGE977/stremio-enhanced.git`

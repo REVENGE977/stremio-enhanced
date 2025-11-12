@@ -168,3 +168,13 @@ xattr -d com.apple.quarantine /path/to/Stremio.Enhanced.app
 ```
 
 *I've only tested this version on Windows and Linux. I don't have a mac and macOS VMs suck.*
+
+## Update v1.0.1
+- No longer bundles the Stremio streaming server. This change was made at the request of the Stremio team, as distributing server.js is not permitted.
+
+- Now by default, it uses Stremio Service again (like versions before v1.0.0), but if you wish to use server.js directly, create a folder called "streamingserver" in the app directory and put all the necessary streaming server files there, such as server.js and ffmpeg, etc. Enhanced will recognize when you have those files and will use them instead of Stremio Service. You can download the official server.js yourself from this link: https://dl.strem.io/server/v4.20.12/desktop/server.js (replace the version in the link with the latest version available of the Stremio streaming server. It's currently v4.20.12). Another way to do this is to just go to your Stremio Service installation and grab every file there into "streamingserver" except the executables like stremio-service.exe.
+
+- Now it will prompt the user and automatically install Stremio Service if not installed. (This has been tested only on Windows and Linux so far).
+
+- Fixed the transparent window toggle (still experimental, but it should actually work now).
+
