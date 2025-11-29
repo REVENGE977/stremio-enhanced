@@ -164,12 +164,16 @@ app.on("ready", async () => {
     
     if(!process.argv.includes("--no-stremio-server")) {
         if(!await StremioService.isProcessRunning()) {
-            const streamingServerDirExists = await StreamingServer.streamingServerDirExists();
-            if(streamingServerDirExists) {
-                logger.info("Launching current directory Stremio streaming server.");
+            // First, try to ensure streaming server files are downloaded
+            logger.info("Checking for streaming server files...");
+            const filesReady = await StreamingServer.ensureStreamingServerFiles();
+
+            if(filesReady) {
+                logger.info("Launching local streaming server.");
                 StreamingServer.start();
             } else {
-                logger.info("Stremio streaming server not found in the current directory. Launching Stremio Service..");
+                // Fall back to Stremio Service if download failed
+                logger.info("Streaming server files not available. Falling back to Stremio Service...");
                 if(await StremioService.isServiceInstalled()) {
                     logger.info("Found installation of Stremio Service.");
                     await StremioService.start();
