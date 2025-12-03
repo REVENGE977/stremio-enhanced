@@ -4,6 +4,7 @@ import { join } from "path";
 import { getLogger } from "./logger";
 import Properties from "../core/Properties";
 import https from "https";
+import { shell } from "electron";
 
 class StreamingServer {
     private static logger = getLogger("StreamingServer");
@@ -13,7 +14,7 @@ class StreamingServer {
     private static serverScriptPath = join(this.streamingServerDir, "server.js");
     private static logFilePath = join(Properties.enhancedPath, "stremio-server.log");
 
-    // Download URLs
+    // Download URL for server.js (user must download manually due to licensing)
     private static SERVER_JS_URL = "https://dl.strem.io/server/v4.20.12/desktop/server.js";
 
     // FFmpeg builds from John Van Sickle (includes both ffmpeg and ffprobe)
@@ -28,6 +29,29 @@ class StreamingServer {
             default: // linux
                 return "https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-amd64-static.tar.xz";
         }
+    }
+
+    // Get the directory where server.js should be placed
+    public static getStreamingServerDir(): string {
+        return this.streamingServerDir;
+    }
+
+    // Get the download URL for server.js
+    public static getServerJsUrl(): string {
+        return this.SERVER_JS_URL;
+    }
+
+    // Check if server.js exists
+    public static serverJsExists(): boolean {
+        return existsSync(this.serverScriptPath);
+    }
+
+    // Open the streaming server directory in the file manager
+    public static openStreamingServerDir(): void {
+        if (!existsSync(this.streamingServerDir)) {
+            mkdirSync(this.streamingServerDir, { recursive: true });
+        }
+        shell.openPath(this.streamingServerDir);
     }
 
     // Check if system ffmpeg/ffprobe are available and working
@@ -175,7 +199,7 @@ class StreamingServer {
         }
     }
 
-    public static async ensureStreamingServerFiles(): Promise<boolean> {
+    public static async ensureStreamingServerFiles(): Promise<"ready" | "missing_server_js" | "missing_ffmpeg"> {
         try {
             // Create directory if it doesn't exist
             if (!existsSync(this.streamingServerDir)) {
@@ -183,11 +207,10 @@ class StreamingServer {
                 mkdirSync(this.streamingServerDir, { recursive: true });
             }
 
-            // Check and download server.js
+            // Check if server.js exists (user must download manually)
             if (!existsSync(this.serverScriptPath)) {
-                this.logger.info("Downloading server.js from Stremio CDN...");
-                await this.downloadFile(this.SERVER_JS_URL, this.serverScriptPath);
-                this.logger.info("server.js downloaded successfully.");
+                this.logger.warn("server.js not found. User needs to download it manually.");
+                return "missing_server_js";
             }
 
             // Check if we need to download ffmpeg/ffprobe
@@ -211,23 +234,17 @@ class StreamingServer {
                     const success = await this.downloadAndExtractFFmpeg();
                     if (!success) {
                         this.logger.error("Failed to download FFmpeg binaries and system ffmpeg not available.");
-                        return false;
+                        return "missing_ffmpeg";
                     }
                 }
             }
 
-            // Verify server.js exists (ffmpeg paths will be resolved at runtime)
-            if (!existsSync(this.serverScriptPath)) {
-                this.logger.error("server.js not found after download attempt.");
-                return false;
-            }
-
             this.logger.info("All streaming server files are ready.");
-            return true;
+            return "ready";
 
         } catch (error) {
             this.logger.error(`Failed to ensure streaming server files: ${error}`);
-            return false;
+            return "missing_ffmpeg";
         }
     }
 
