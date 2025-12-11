@@ -1,5 +1,5 @@
 import { fork } from "child_process";
-import { createWriteStream, existsSync, mkdir, mkdirSync } from "fs";
+import { createWriteStream, existsSync, mkdirSync } from "fs";
 import { dirname, join } from "path";
 import { getLogger } from "./logger";
 import { app } from "electron";

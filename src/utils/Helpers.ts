@@ -1,6 +1,11 @@
 import { readFileSync } from "fs";
 import { dialog, BrowserWindow } from "electron";
 import logger from "./logger";
+import { TIMEOUTS } from "../constants";
+
+interface ParsedMetadata {
+    [key: string]: string;
+}
 
 class Helpers {
     private static instance: Helpers;
@@ -18,86 +23,89 @@ class Helpers {
     setMainWindow(mainWindow: BrowserWindow): void {
         this.mainWindow = mainWindow;
     }
-    
-    extractMetadataFromFile(filePath:string) {
-        try {
-            const fileContent = readFileSync(filePath, 'utf8');
-            
-            const commentBlockRegex = /\/\*\*([\s\S]*?)\*\//;
-            const commentBlockMatch = fileContent.match(commentBlockRegex);
-            
-            if (commentBlockMatch && commentBlockMatch[1]) {
-                const metadataRegex = /@(\w+)\s+([^\n\r]+)/g;
-                const metadataMatches = commentBlockMatch[1].matchAll(metadataRegex);
-                
-                const metadata:any = {};
-                
-                for (const match of metadataMatches) {
-                    metadata[match[1].trim()] = match[2].trim();
-                }
-                
-                return metadata;
-            } else {
-                logger.error('Meta data comments not found in the file: ' + filePath);
-                return null;
-            }
-        } catch (error) {
-            logger.error('Error reading the file:', error);
+
+    /**
+     * Parse metadata from a comment block in the format:
+     * /** @key value *\/
+     */
+    private parseMetadataFromContent(content: string): ParsedMetadata | null {
+        const commentBlockRegex = /\/\*\*([\s\S]*?)\*\//;
+        const match = content.match(commentBlockRegex);
+        
+        if (!match?.[1]) {
             return null;
         }
-    }
-    
-    extractMetadataFromText(textContent: string) {
-        try {
-            const commentBlockRegex = /\/\*\*([\s\S]*?)\*\//;
-            const commentBlockMatch = textContent.match(commentBlockRegex);
-            
-            if (commentBlockMatch && commentBlockMatch[1]) {
-                const metadataRegex = /@(\w+)\s+([^\n\r]+)/g;
-                const metadataMatches = commentBlockMatch[1].matchAll(metadataRegex);
-                
-                const metadata: any = {};
-                
-                for (const match of metadataMatches) {
-                    metadata[match[1].trim()] = match[2].trim();
-                }
-                
-                return metadata;
-            } else {
-                logger.error('Comment block not found in the provided text');
-                return null;
-            }
-        } catch (error) {
-            logger.error('Error processing the provided text:', error);
-            return null;
-        }
-    }
-    
-    async showAlert(alertType: 'info' | 'warning' | 'error', title: string, message: string, buttons: Array<string>) : Promise<number> {
-        const options: Electron.MessageBoxOptions = {
-            type: alertType,
-            title: title,
-            message: message,
-            buttons: buttons
+
+        const metadata: ParsedMetadata = {};
+        const metadataRegex = /@(\w+)\s+([^\n\r]+)/g;
+        
+        for (const [, key, value] of match[1].matchAll(metadataRegex)) {
+            metadata[key.trim()] = value.trim();
         }
         
+        return Object.keys(metadata).length > 0 ? metadata : null;
+    }
+    
+    extractMetadataFromFile(filePath: string): ParsedMetadata | null {
         try {
-            const response = await dialog.showMessageBox(this.mainWindow!, options)
+            const fileContent = readFileSync(filePath, 'utf8');
+            const metadata = this.parseMetadataFromContent(fileContent);
+            
+            if (!metadata) {
+                logger.error('Metadata comments not found in the file: ' + filePath);
+            }
+            
+            return metadata;
+        } catch (error) {
+            logger.error('Error reading the file: ' + (error as Error).message);
+            return null;
+        }
+    }
+    
+    extractMetadataFromText(textContent: string): ParsedMetadata | null {
+        const metadata = this.parseMetadataFromContent(textContent);
+        
+        if (!metadata) {
+            logger.error('Comment block not found in the provided text');
+        }
+        
+        return metadata;
+    }
+    
+    async showAlert(
+        alertType: 'info' | 'warning' | 'error', 
+        title: string, 
+        message: string, 
+        buttons: string[]
+    ): Promise<number> {
+        const options: Electron.MessageBoxOptions = {
+            type: alertType,
+            title,
+            message,
+            buttons
+        };
+        
+        try {
+            const response = await dialog.showMessageBox(this.mainWindow!, options);
             return response.response;
         } catch (error) {
-            logger.error('Error displaying alert:', error);
+            logger.error('Error displaying alert: ' + (error as Error).message);
             return -1; 
         }
     }
     
-    waitForElm(selector:string) {
+    waitForElm(selector: string, timeout: number = TIMEOUTS.ELEMENT_WAIT): Promise<Element> {
         return new Promise((resolve, reject) => {
-            if (document.querySelector(selector)) return resolve(document.querySelector(selector));
+            const existingElement = document.querySelector(selector);
+            if (existingElement) {
+                return resolve(existingElement);
+            }
             
             const observer = new MutationObserver(() => {
-                if (document.querySelector(selector)) {
-                    resolve(document.querySelector(selector));
+                const element = document.querySelector(selector);
+                if (element) {
                     observer.disconnect();
+                    resolve(element);
                 }
             });
             
@@ -109,26 +117,33 @@ class Helpers {
             setTimeout(() => {
                 observer.disconnect();
                 reject(new Error(`Timeout waiting for element with selector: ${selector}`));
-            }, 10000);
+            }, timeout);
         });
     }
 
-    waitForElmByXPath(xpath: string) {
+    waitForElmByXPath(xpath: string, timeout: number = TIMEOUTS.ELEMENT_WAIT): Promise<Node> {
         return new Promise((resolve, reject) => {
-            const evaluateXPath = () => {
-                const result = document.evaluate(xpath, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null);
+            const evaluateXPath = (): Node | null => {
+                const result = document.evaluate(
+                    xpath, 
+                    document, 
+                    null, 
+                    XPathResult.FIRST_ORDERED_NODE_TYPE, 
+                    null
+                );
                 return result.singleNodeValue;
             };
     
-            // If the element is already in the DOM, resolve immediately
             const existingElement = evaluateXPath();
-            if (existingElement) return resolve(existingElement);
+            if (existingElement) {
+                return resolve(existingElement);
+            }
             
             const observer = new MutationObserver(() => {
                 const element = evaluateXPath();
                 if (element) {
-                    resolve(element);
                     observer.disconnect();
+                    resolve(element);
                 }
             });
     
@@ -137,98 +152,123 @@ class Helpers {
                 subtree: true
             });
     
-            // Reject if the element is not found after 10 seconds
             setTimeout(() => {
                 observer.disconnect();
                 reject(new Error(`Timeout waiting for element with XPath: ${xpath}`));
-            }, 10000);
+            }, timeout);
         });
     }    
 
-    waitForTitleChange() {
+    waitForTitleChange(timeout: number = TIMEOUTS.ELEMENT_WAIT): Promise<string> {
         return new Promise((resolve, reject) => {
+            const headElement = document.querySelector('head');
+            if (!headElement) {
+                return reject(new Error('Head element not found'));
+            }
+
             const observer = new MutationObserver(() => {
-                resolve(document.title);
                 observer.disconnect();
+                resolve(document.title);
             });
             
-            observer.observe(document.querySelector('head'), {
+            observer.observe(headElement, {
                 subtree: true,
                 childList: true,
             });
             
-            const timeoutId = setTimeout(() => {
+            setTimeout(() => {
                 observer.disconnect();
                 reject(new Error('Timeout waiting for document.title to change'));
-            }, 10000);
-            
-            const titleChangeListener = () => {
-                clearTimeout(timeoutId);
-                observer.disconnect();
-                resolve(document.title);
-            };
-            
-            document.addEventListener('titlechange', titleChangeListener);
+            }, timeout);
         });
     }
 
-    public _eval(js: string): Promise<any> {
+    /**
+     * Execute JavaScript in the context of Stremio's core services
+     * @param js - JavaScript code to execute
+     * @returns Promise with the result of the execution
+     */
+    public _eval(js: string): Promise<unknown> {
         return new Promise((resolve, reject) => {
             try {
-                const eventName = 'stremio-enhanced'
-                const script = document.createElement('script')
+                const eventName = 'stremio-enhanced';
+                const script = document.createElement('script');
                 
-                window.addEventListener(
-                    eventName,
-                    (data) => {
-                        script.remove()
-                        resolve((data as CustomEvent).detail)
-                    },
-                    { once: true },
-                )
+                const handler = (data: Event) => {
+                    script.remove();
+                    resolve((data as CustomEvent).detail);
+                };
+
+                window.addEventListener(eventName, handler, { once: true });
                 
-                script.id = eventName
+                script.id = eventName;
                 script.appendChild(
                     document.createTextNode(`
                         var core = window.services.core;
                         var result = ${js};
                 
                         if (result instanceof Promise) {
-                        result.then((awaitedResult) => {
-                            window.dispatchEvent(new CustomEvent("${eventName}", { detail: awaitedResult }));
-                        });
+                            result.then((awaitedResult) => {
+                                window.dispatchEvent(new CustomEvent("${eventName}", { detail: awaitedResult }));
+                            });
                         } else {
-                        window.dispatchEvent(new CustomEvent("${eventName}", { detail: result }));
+                            window.dispatchEvent(new CustomEvent("${eventName}", { detail: result }));
                         }
                     `),
-                    )
+                );
                     
-                    document.head.appendChild(script)
+                document.head.appendChild(script);
             } catch (err) {
-                reject(err)
+                reject(err);
             }
-        })
+        });
     }
 
-    public getElementByXpath(path:string) {
-        return document.evaluate(path, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue;
+    public getElementByXpath(path: string): Node | null {
+        return document.evaluate(
+            path, 
+            document, 
+            null, 
+            XPathResult.FIRST_ORDERED_NODE_TYPE, 
+            null
+        ).singleNodeValue;
     }
 
     public getFileNameFromUrl(url: string): string {
         const parts = url.split('/');
-        return parts[parts.length - 1];
+        return parts[parts.length - 1] || '';
     }
 
-    public formatTime(seconds:number) {
+    public formatTime(seconds: number): string {
         const hours = Math.floor(seconds / 3600);
         const minutes = Math.floor((seconds % 3600) / 60);
         const remainingSeconds = Math.floor(seconds % 60);
         
         return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(remainingSeconds).padStart(2, '0')}`;
     }
+
+    /**
+     * Compare two semantic version strings
+     * @returns true if version1 > version2
+     */
+    public isNewerVersion(version1: string, version2: string): boolean {
+        const normalize = (v: string): number[] => 
+            v.replace(/^v/, '').split('.').map(n => parseInt(n, 10) || 0);
+        
+        const v1Parts = normalize(version1);
+        const v2Parts = normalize(version2);
+        const maxLength = Math.max(v1Parts.length, v2Parts.length);
+        
+        for (let i = 0; i < maxLength; i++) {
+            const v1 = v1Parts[i] ?? 0;
+            const v2 = v2Parts[i] ?? 0;
+            if (v1 > v2) return true;
+            if (v1 < v2) return false;
+        }
+        return false;
+    }
 }
 
 const helpersInstance = Helpers.getInstance();
-
 
 export default helpersInstance;

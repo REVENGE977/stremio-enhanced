@@ -1,7 +1,7 @@
-import { readFileSync } from 'fs';
+import TemplateCache from '../../utils/templateCache';
 
-export function getDefaultThemeTemplate(applied:boolean) {
-    let template = readFileSync(__dirname + '/default-theme.html', 'utf8');
+export function getDefaultThemeTemplate(applied: boolean): string {
+    const template = TemplateCache.load(__dirname, 'default-theme');
 
     return template
         .replace("{{ disabled }}", applied ? "disabled" : "")

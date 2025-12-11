@@ -1,6 +1,5 @@
-import { readFileSync } from 'fs';
+import TemplateCache from '../../utils/templateCache';
 
-export function getEnhancedNav() {
-    let template = readFileSync(__dirname + '/enhanced-nav.html', 'utf8');
-    return template;
+export function getEnhancedNav(): string {
+    return TemplateCache.load(__dirname, 'enhanced-nav');
 }

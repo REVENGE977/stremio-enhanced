@@ -4,6 +4,7 @@ import helpers from './utils/Helpers';
 import Updater from "./core/Updater";
 import Properties from "./core/Properties";
 import logger from "./utils/logger";
+import { IPC_CHANNELS, URLS } from "./constants";
 
 // Fix GTK 2/3 and GTK 4 conflict on Linux
 import { app } from 'electron';
@@ -39,9 +40,18 @@ async function createWindow() {
     mainWindow = new BrowserWindow({
         webPreferences: {
             preload: join(__dirname, "preload.js"),
+            // Security Note: These settings are required for the plugin/theme system
+            // to work properly. The app loads web.stremio.com and needs to:
+            // 1. Make cross-origin requests to local streaming server (webSecurity: false)
+            // 2. Access Node.js APIs for file operations (nodeIntegration: true)
+            // 3. Share context between preload and renderer (contextIsolation: false)
+            // TODO: Consider implementing a contextBridge-based architecture for better security
             webSecurity: false,
             nodeIntegration: true,
             contextIsolation: false,
+            // Additional security hardening
+            allowRunningInsecureContent: false,
+            experimentalFeatures: false,
         },
         width: 1500,
         height: 850,
@@ -58,25 +68,25 @@ async function createWindow() {
     });
 
     mainWindow.setMenu(null);
-    mainWindow.loadURL("https://web.stremio.com/");
+    mainWindow.loadURL(URLS.STREMIO_WEB);
     
     helpers.setMainWindow(mainWindow);
 
-    if(transparencyEnabled) {
+    if (transparencyEnabled) {
         mainWindow.on('enter-full-screen', () => {
-            mainWindow.webContents.send('fullscreen-changed', true);
+            mainWindow?.webContents.send(IPC_CHANNELS.FULLSCREEN_CHANGED, true);
         });
 
         mainWindow.on('leave-full-screen', () => {
-            mainWindow.webContents.send('fullscreen-changed', false);
+            mainWindow?.webContents.send(IPC_CHANNELS.FULLSCREEN_CHANGED, false);
         });
     }
 
-    ipcMain.on("minimize-window", () => {
-        if (mainWindow) mainWindow.minimize();
+    ipcMain.on(IPC_CHANNELS.MINIMIZE_WINDOW, () => {
+        mainWindow?.minimize();
     });
 
-    ipcMain.on("maximize-window", () => {
+    ipcMain.on(IPC_CHANNELS.MAXIMIZE_WINDOW, () => {
         if (mainWindow) {
             if (mainWindow.isMaximized()) {
                 mainWindow.unmaximize();
@@ -86,37 +96,40 @@ async function createWindow() {
         }
     });
 
-    ipcMain.on("close-window", () => {
-        if (mainWindow) mainWindow.close();
+    ipcMain.on(IPC_CHANNELS.CLOSE_WINDOW, () => {
+        mainWindow?.close();
     });
 
-    ipcMain.on('update-check-on-startup', async (_, checkForUpdatesOnStartup) => {
-        logger.info(`Checking for updates on startup: ${checkForUpdatesOnStartup == "true" ? "enabled" : "disabled"}.`);
-        if(checkForUpdatesOnStartup == "true") await Updater.checkForUpdates(false);
+    ipcMain.on(IPC_CHANNELS.UPDATE_CHECK_STARTUP, async (_, checkForUpdatesOnStartup: string) => {
+        logger.info(`Checking for updates on startup: ${checkForUpdatesOnStartup === "true" ? "enabled" : "disabled"}.`);
+        if (checkForUpdatesOnStartup === "true") {
+            await Updater.checkForUpdates(false);
+        }
     });
 
-    ipcMain.on('update-check-userrequest', async () => {
+    ipcMain.on(IPC_CHANNELS.UPDATE_CHECK_USER, async () => {
         logger.info("Checking for updates on user request.");
         await Updater.checkForUpdates(true);
     });
 
-    ipcMain.on("set-transparency", (_, enabled: boolean) => {
+    ipcMain.on(IPC_CHANNELS.SET_TRANSPARENCY, (_, enabled: boolean) => {
         if (enabled) {
             logger.info("Enabled window transparency");
             writeFileSync(transparencyFlagPath, "1");
         } else {
+            logger.info("Disabled window transparency");
             try {
-                logger.info("Disabled window transparency");
                 unlinkSync(transparencyFlagPath);
-            } catch {}
+            } catch {
+                // File may not exist, ignore
+            }
         }
 
         Helpers.showAlert("info", "Transparency setting changed", "Please restart the app to apply the changes.", ["OK"]);
     });
 
-    ipcMain.handle("get-transparency-status", () => {
-        const enableTransparentThemes = existsSync(transparencyFlagPath);
-        return enableTransparentThemes;
+    ipcMain.handle(IPC_CHANNELS.GET_TRANSPARENCY_STATUS, () => {
+        return existsSync(transparencyFlagPath);
     });
 
     // Opens links in external browser instead of opening them in the Electron app.
@@ -217,17 +230,17 @@ app.on('browser-window-created', (_, window) => {
     
             // Implements zooming in/out using shortcuts (Ctrl + =, Ctrl + -)
             case input.control && input.key === '=':
-                mainWindow.webContents.zoomFactor += 0.1;
+                if (mainWindow) mainWindow.webContents.zoomFactor += 0.1;
                 event.preventDefault();
                 break;
             case input.control && input.key === '-':
-                mainWindow.webContents.zoomFactor -= 0.1;
+                if (mainWindow) mainWindow.webContents.zoomFactor -= 0.1;
                 event.preventDefault();
                 break;
     
             // Implements reload on Ctrl + R
             case input.control && input.key === 'r':
-                mainWindow.reload();
+                mainWindow?.reload();
                 event.preventDefault();
                 break;
         }

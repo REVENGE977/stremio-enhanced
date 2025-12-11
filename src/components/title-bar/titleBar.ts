@@ -1,6 +1,5 @@
-import { readFileSync } from 'fs';
+import TemplateCache from '../../utils/templateCache';
 
-export function getTitleBarTemplate() {
-    let template = readFileSync(__dirname + '/title-bar.html', 'utf8');
-    return template;
+export function getTitleBarTemplate(): string {
+    return TemplateCache.load(__dirname, 'title-bar');
 }

@@ -1,53 +1,106 @@
 import { readFileSync } from "fs";
-//import { shell } from "electron";
 import helpers from '../utils/Helpers';
 import { getLogger } from "../utils/logger";
 import { join } from "path";
 import { getUpdateModalTemplate } from "../components/update-modal/updateModal";
+import { URLS } from "../constants";
 
 class Updater {
     private static logger = getLogger("Updater");
+    private static versionCache: string | null = null;
 
-    public static async checkForUpdates(noUpdatePrompt: boolean) {
+    /**
+     * Check for updates and show update modal if available
+     * @param showNoUpdatePrompt - Whether to show a message if no update is available
+     */
+    public static async checkForUpdates(showNoUpdatePrompt: boolean): Promise<boolean> {
         try {
-            let latestVersion = await this.getLatestVersion();
-            if(latestVersion > this.getCurrentVersion()) {
-                // let updatePrompt = await helpers.showAlert("info", "Update Available", "An update is available. Open latest release page?", ["Yes", "No"]);
-                // if(updatePrompt == 0) {
-                //     shell.openExternal("https://github.com/REVENGE977/stremio-enhanced-community/releases/latest");
-                //     return true;
-                // }
-
-                document.getElementsByClassName("modals-container")[0].innerHTML = await getUpdateModalTemplate();
-            } else if(noUpdatePrompt) {
-                await helpers.showAlert("info", "No update available!", "You seem to have the latest version.", ["OK"]);
-                return false;
+            const latestVersion = await this.getLatestVersion();
+            const currentVersion = this.getCurrentVersion();
+            
+            if (helpers.isNewerVersion(latestVersion, currentVersion)) {
+                this.logger.info(`Update available: v${latestVersion} (current: v${currentVersion})`);
+                
+                const modalsContainer = document.getElementsByClassName("modals-container")[0];
+                if (modalsContainer) {
+                    modalsContainer.innerHTML = await getUpdateModalTemplate();
+                }
+                return true;
+            } else if (showNoUpdatePrompt) {
+                await helpers.showAlert(
+                    "info", 
+                    "No update available!", 
+                    `You're running the latest version (v${currentVersion}).`, 
+                    ["OK"]
+                );
             }
-        } catch(e) {
-            this.logger.info(e);
+            return false;
+        } catch (error) {
+            this.logger.error(`Failed to check for updates: ${(error as Error).message}`);
+            if (showNoUpdatePrompt) {
+                await helpers.showAlert(
+                    "error",
+                    "Update check failed",
+                    "Could not check for updates. Please check your internet connection.",
+                    ["OK"]
+                );
+            }
             return false;
         }
     }
 
-    public static async getLatestVersion() {
-        const request = await fetch("https://github.com/REVENGE977/stremio-enhanced-community/raw/main/version");
-        const response = await request.text();
-
-        this.logger.info(`Latest version available is v${response}.`);
-        return response;
+    /**
+     * Fetch the latest version from GitHub
+     */
+    public static async getLatestVersion(): Promise<string> {
+        const response = await fetch(URLS.VERSION_CHECK);
+        
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        
+        const version = (await response.text()).trim();
+        this.logger.info(`Latest version available: v${version}`);
+        return version;
     }
 
-    public static getCurrentVersion() {
-        const currentVersion = readFileSync(join(__dirname, "../", "../", "version"), "utf-8");
-        return currentVersion;
+    /**
+     * Get the current installed version
+     */
+    public static getCurrentVersion(): string {
+        if (this.versionCache) {
+            return this.versionCache;
+        }
+        
+        try {
+            this.versionCache = readFileSync(
+                join(__dirname, "../", "../", "version"), 
+                "utf-8"
+            ).trim();
+            return this.versionCache;
+        } catch (error) {
+            this.logger.error(`Failed to read version file: ${(error as Error).message}`);
+            return "0.0.0";
+        }
     }
 
-    public static async getReleaseNotes() {
-        const request = await fetch("https://api.github.com/repos/REVENGE977/stremio-enhanced-community/releases/latest");
-        const response = await request.json();
-
-        const releaseNotes = response.body;
-        return releaseNotes;
+    /**
+     * Fetch release notes from GitHub API
+     */
+    public static async getReleaseNotes(): Promise<string> {
+        try {
+            const response = await fetch(URLS.RELEASES_API);
+            
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            
+            const data = await response.json();
+            return data.body || "No release notes available.";
+        } catch (error) {
+            this.logger.error(`Failed to fetch release notes: ${(error as Error).message}`);
+            return "Could not load release notes.";
+        }
     }
 }
 

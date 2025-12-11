@@ -23,6 +23,9 @@ class StremioService {
                 switch (process.platform) {
                     case "win32": 
                         const exe = this.findExecutable();
+                        if (!exe) {
+                            return reject(new Error("Could not find Stremio Service executable"));
+                        }
                         child = spawn(exe, [], { detached: true, stdio: "ignore" });
                         break;
                     case "darwin": 
@@ -170,8 +173,8 @@ class StremioService {
 
         if (platform === "win32") {
             return new Promise(resolve => {
-                execFile("tasklist", ["/FI", 'IMAGENAME eq stremio-service.exe'], (err, stdout) => {
-                    resolve(stdout && stdout.includes("stremio-service.exe"));
+                execFile("tasklist", ["/FI", 'IMAGENAME eq stremio-service.exe'], (_err, stdout) => {
+                    resolve(Boolean(stdout && stdout.includes("stremio-service.exe")));
                 });
             });
         }
@@ -306,7 +309,7 @@ class StremioService {
                 return 1;
             }
         } catch (e) {
-            this.logger.error(e);
+            this.logger.error(`Error terminating service: ${(e as Error).message}`);
             return 2; 
         }
     }
@@ -359,9 +362,9 @@ class StremioService {
         return null;
     }
 
-    public static findExecutable() {
+    public static findExecutable(): string | null {
         const localPath = resolve('./stremio-service.exe');
-        if(existsSync(localPath)) {
+        if (existsSync(localPath)) {
             this.logger.info("StremioService executable found in the current directory.");
             return localPath;
         }
@@ -379,8 +382,10 @@ class StremioService {
                 this.logger.warn(`StremioService executable not found at ${fullPath}`);
             }
         } catch (error) {
-            this.logger.error(`Error checking StremioService existence in ${fullPath}:` + error.message);
+            this.logger.error(`Error checking StremioService existence in ${fullPath}: ${(error as Error).message}`);
         }
+        
+        return null;
     }
     
     public static async isProcessRunning(): Promise<boolean> {

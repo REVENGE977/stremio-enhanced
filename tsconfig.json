@@ -1,9 +1,17 @@
 {
   "compilerOptions": {
-    "lib": ["es5", "es6", "dom"],
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "module": "CommonJS",
+    "moduleResolution": "node",
+    "strict": true,
     "noImplicitAny": true,
-    "downlevelIteration": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,
+    "forceConsistentCasingInFileNames": true,
+    "exactOptionalPropertyTypes": false,
+    "noImplicitReturns": true,
     "sourceMap": true,
     "outDir": "dist",
     "skipLibCheck": true,
@@ -12,8 +20,16 @@
       "*": ["node_modules/*"]
     },
     "esModuleInterop": true,
+    "resolveJsonModule": true,
+    "declaration": false,
+    "declarationMap": false
   },
   "include": [
     "src/**/*"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "release-builds"
   ]
 }

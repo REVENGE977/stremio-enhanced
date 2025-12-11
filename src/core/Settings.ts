@@ -1,156 +1,195 @@
 import Helpers from "../utils/Helpers";
-import MetaData from "../interfaces/MetaData"
+import MetaData from "../interfaces/MetaData";
 import { getPluginItemTemplate } from "../components/plugin-item/pluginItem";
 import { getThemeItemTemplate } from "../components/theme-item/themeItem";
 import { getEnhancedNav } from "../components/enhanced-nav/enhancedNav";
 import { getLogger } from "../utils/logger";
 import ModManager from "./ModManager";
+import { SELECTORS, CLASSES, STORAGE_KEYS } from "../constants";
 
 class Settings {
     private static logger = getLogger("Settings");
 
-    public static addSection(sectionid:string, title:string) {
-        Helpers.waitForElm(`[class^="sections-container-"]`).then(() => {
-            this.logger.info("Adding section: " + sectionid + " with title: " + title);
-            // add section to settings panel
-            const settingsPanel = document.querySelector(`[class^="sections-container-"]`);
+    /**
+     * Add a new section to the settings panel
+     */
+    public static addSection(sectionId: string, title: string): void {
+        Helpers.waitForElm(SELECTORS.SECTIONS_CONTAINER).then(() => {
+            this.logger.info(`Adding section: ${sectionId} with title: ${title}`);
+            
+            const settingsPanel = document.querySelector(SELECTORS.SECTIONS_CONTAINER);
+            if (!settingsPanel) return;
 
-            const sectionClassName = document.querySelector(`[class^="section-"]`).className;
-            const titleClassName = document.querySelector(`[class^="label-wXG3e"]`).className;
+            const sectionElement = document.querySelector(SELECTORS.SECTION);
+            const labelElement = document.querySelector(SELECTORS.LABEL);
+            
+            if (!sectionElement || !labelElement) return;
+
+            const sectionClassName = sectionElement.className;
+            const titleClassName = labelElement.className;
 
             const sectionContainer = document.createElement("div");
             sectionContainer.className = sectionClassName;
-            sectionContainer.id = sectionid;
+            sectionContainer.id = sectionId;
 
             const sectionTitle = document.createElement("div");
             sectionTitle.className = titleClassName;
             sectionTitle.textContent = title;
 
             sectionContainer.appendChild(sectionTitle);
-
             settingsPanel.appendChild(sectionContainer);
 
-            // add section to nav
-            Helpers.waitForElm(`.menu-xeE06`).then(() => {
-                const nav = document.querySelector(`.menu-xeE06`);
+            // Add section to nav
+            Helpers.waitForElm(SELECTORS.NAV_MENU).then(() => {
+                const nav = document.querySelector(SELECTORS.NAV_MENU);
                 const shortcutsNav = document.querySelector('[title="Shortcuts"]');
+
+                if (!nav || !shortcutsNav) return;
 
                 const enhancedNavContainer = document.createElement("div");
                 enhancedNavContainer.innerHTML = getEnhancedNav();
                 
                 nav.insertBefore(enhancedNavContainer, shortcutsNav.nextSibling);
-            });
-        })
+            }).catch(err => this.logger.error(`Failed to add nav: ${err}`));
+        }).catch(err => this.logger.error(`Failed to add section: ${err}`));
     }
 
-    public static addCategory(title:string, sectionid:string, icon:string) {
-        Helpers.waitForElm(`[class^="sections-container-"]`).then(() => {
-            this.logger.info("Adding category: " + title + " to section: " + sectionid);
-            const categoryClass = document.querySelector(`.category-GP0hI`).className;
-            const categoryTitleClass = document.querySelector(`.label-N_O2v`).className;
-            let categoryIconClass:any = document.querySelector(`.icon-oZoyV`);
+    /**
+     * Add a category within a section
+     */
+    public static addCategory(title: string, sectionId: string, icon: string): void {
+        Helpers.waitForElm(SELECTORS.SECTIONS_CONTAINER).then(() => {
+            this.logger.info(`Adding category: ${title} to section: ${sectionId}`);
+            
+            const categoryElement = document.querySelector(SELECTORS.CATEGORY);
+            const categoryTitleElement = document.querySelector(SELECTORS.CATEGORY_LABEL);
+            let categoryIconElement = document.querySelector(SELECTORS.CATEGORY_ICON);
 
-            if (categoryIconClass instanceof SVGElement) {
-                categoryIconClass = categoryIconClass.className.baseVal;
-            } else if (categoryIconClass) {
-                categoryIconClass = categoryIconClass.className;
+            if (!categoryElement || !categoryTitleElement) return;
+
+            const categoryClass = categoryElement.className;
+            const categoryTitleClass = categoryTitleElement.className;
+            
+            let categoryIconClass = '';
+            if (categoryIconElement instanceof SVGElement) {
+                categoryIconClass = categoryIconElement.className.baseVal;
+            } else if (categoryIconElement) {
+                categoryIconClass = categoryIconElement.className;
             }
             
             icon = icon.replace(`class="icon"`, `class="${categoryIconClass}"`);
 
-            const section = document.getElementById(sectionid);
+            const section = document.getElementById(sectionId);
+            if (!section) return;
 
             const categoryDiv = document.createElement("div");
-            categoryDiv.classList.add(categoryClass);
+            categoryDiv.className = categoryClass;
             
             const titleDiv = document.createElement("div");
-            titleDiv.classList.add(categoryTitleClass);
+            titleDiv.className = categoryTitleClass;
             titleDiv.innerHTML = title;
 
             const headingDiv = document.createElement("div");
-            headingDiv.classList.add("heading-XePFl");
+            headingDiv.classList.add(SELECTORS.CATEGORY_HEADING.replace('.', ''));
             headingDiv.innerHTML += icon;
             headingDiv.appendChild(titleDiv);
             
             categoryDiv.appendChild(headingDiv);
             section.appendChild(categoryDiv);
-        })
+        }).catch(err => this.logger.error(`Failed to add category: ${err}`));
     }
 
-    public static addButton(title:string, id:string, query:string) {
+    /**
+     * Add a button to the settings
+     */
+    public static addButton(title: string, id: string, query: string): void {
         Helpers.waitForElm(query).then(() => {
             const element = document.querySelector(query);
+            if (!element) return;
 
             const optionDiv = document.createElement("div");
-            optionDiv.classList.add("option-vFOAS");
+            optionDiv.classList.add(CLASSES.OPTION);
 
             const contentDiv = document.createElement("div");
-            contentDiv.classList.add("content-P2T0i");
+            contentDiv.classList.add(CLASSES.CONTENT);
 
             const buttonDiv = document.createElement("div");
             buttonDiv.setAttribute("tabindex", "0");
             buttonDiv.setAttribute("title", title);
-            buttonDiv.classList.add("button-DNmYL", "button-container-zVLH6", "button");
+            buttonDiv.classList.add(CLASSES.BUTTON, CLASSES.BUTTON_CONTAINER, "button");
             buttonDiv.id = id;
             buttonDiv.textContent = title;
 
             contentDiv.appendChild(buttonDiv);
-
             optionDiv.appendChild(contentDiv);
-
             element.appendChild(optionDiv);
-        })
+        }).catch(err => this.logger.error(`Failed to add button: ${err}`));
     }
 
-    public static addItem(type: "theme" | "plugin", fileName:string, metaData:MetaData) {
-        // let addonClasses = this.getAddonClasses().replace(/\./g, "").trim();
-
-        this.logger.info("Adding " + type + ": " + fileName);
-        if (type == "theme") {
-            Helpers.waitForElm('#enhanced > div:nth-child(2)').then(() => {
+    /**
+     * Add a theme or plugin item to the settings
+     */
+    public static addItem(type: "theme" | "plugin", fileName: string, metaData: MetaData): void {
+        this.logger.info(`Adding ${type}: ${fileName}`);
+        
+        if (type === "theme") {
+            Helpers.waitForElm(SELECTORS.THEMES_CATEGORY).then(() => {
                 this.addTheme(fileName, metaData);
-            })
-        } else if (type == "plugin") {
-            Helpers.waitForElm('#enhanced > div:nth-child(3)').then(() => {
+            }).catch(err => this.logger.error(`Failed to add theme: ${err}`));
+        } else if (type === "plugin") {
+            Helpers.waitForElm(SELECTORS.PLUGINS_CATEGORY).then(() => {
                 this.addPlugin(fileName, metaData);
-            })
+            }).catch(err => this.logger.error(`Failed to add plugin: ${err}`));
         }        
     }
 
-    private static addPlugin(fileName:string, metaData:{name:string, description:string, author:string, version:string}) {
-        let enabledPlugins = JSON.parse(localStorage.getItem("enabledPlugins"));
+    private static addPlugin(fileName: string, metaData: MetaData): void {
+        const enabledPlugins: string[] = JSON.parse(
+            localStorage.getItem(STORAGE_KEYS.ENABLED_PLUGINS) || "[]"
+        );
 
         const pluginContainer = document.createElement("div");
         pluginContainer.innerHTML = getPluginItemTemplate(fileName, metaData, enabledPlugins.includes(fileName));
         pluginContainer.setAttribute("name", `${fileName}-box`);
 
-        document.querySelector(`#enhanced > div:nth-child(3)`).appendChild(pluginContainer);
+        const pluginsCategory = document.querySelector(SELECTORS.PLUGINS_CATEGORY);
+        pluginsCategory?.appendChild(pluginContainer);
+        
         ModManager.checkForItemUpdates(fileName);
     }
 
-    private static addTheme(fileName:string, metaData:{name:string, description:string, author:string, version:string}) {
-        let currentTheme = localStorage.getItem("currentTheme");
+    private static addTheme(fileName: string, metaData: MetaData): void {
+        const currentTheme = localStorage.getItem(STORAGE_KEYS.CURRENT_THEME);
 
         const themeContainer = document.createElement("div");
-        themeContainer.innerHTML = getThemeItemTemplate(fileName, metaData, currentTheme == fileName);
+        themeContainer.innerHTML = getThemeItemTemplate(fileName, metaData, currentTheme === fileName);
         themeContainer.setAttribute("name", `${fileName}-box`);
 
-        document.querySelector(`#enhanced > div:nth-child(2)`).appendChild(themeContainer);
+        const themesCategory = document.querySelector(SELECTORS.THEMES_CATEGORY);
+        themesCategory?.appendChild(themeContainer);
+        
         ModManager.checkForItemUpdates(fileName);
     }
 
-    public static removeItem(fileName:string) {
-        document.getElementsByName(`${fileName}-box`)[0].remove();
+    /**
+     * Remove an item from the settings
+     */
+    public static removeItem(fileName: string): void {
+        const element = document.getElementsByName(`${fileName}-box`)[0];
+        element?.remove();
     }
 
-    public static activeSection(element:Element) {
+    /**
+     * Set a navigation element as active
+     */
+    public static activeSection(element: Element): void {
+        // Remove selected class from all nav items
         for (let i = 0; i < 6; i++) {
-            try {
-                document.querySelector(`.menu-xeE06 > div:nth-child(${i})`).classList.remove("selected-S7SeK"); 
-            }catch {}
+            const navItem = document.querySelector(`${SELECTORS.NAV_MENU} > div:nth-child(${i})`);
+            navItem?.classList.remove(CLASSES.SELECTED);
         }
 
-        element.classList.add("selected-S7SeK");
+        element.classList.add(CLASSES.SELECTED);
     }
 }
 

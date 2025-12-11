@@ -1,6 +1,5 @@
-import { readFileSync } from 'fs';
+import TemplateCache from '../../utils/templateCache';
 
-export function getBackButton() {
-    let template = readFileSync(__dirname + '/back-btn.html', 'utf8');
-    return template;
+export function getBackButton(): string {
+    return TemplateCache.load(__dirname, 'back-btn');
 }

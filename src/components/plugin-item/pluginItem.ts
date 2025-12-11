@@ -1,20 +1,21 @@
-import { readFileSync } from 'fs';
+import TemplateCache from '../../utils/templateCache';
+import MetaData from '../../interfaces/MetaData';
 
-export function getPluginItemTemplate(filename: string, metaData: {
-    name: string,
-    description: string,
-    author: string,
-    version: string,
-}, checked: boolean) {
-    let template = readFileSync(__dirname + '/plugin-item.html', 'utf8');
+export function getPluginItemTemplate(
+    filename: string, 
+    metaData: MetaData,
+    checked: boolean
+): string {
+    let template = TemplateCache.load(__dirname, 'plugin-item');
     
-    Object.keys(metaData).forEach((key: keyof typeof metaData) => {
+    // Replace metadata placeholders
+    const metaKeys = ['name', 'description', 'author', 'version'] as const;
+    metaKeys.forEach(key => {
         const regex = new RegExp(`{{\\s*${key}\\s*}}`, 'g');
-        template = template.replace(regex, metaData[key] as string);
+        template = template.replace(regex, metaData[key] || '');
     });
 
     return template
         .replace("{{ checked }}", checked ? "checked" : "")
-        .replace("{{ fileName }}", filename)
-        .replace("{{ fileName }}", filename)
+        .replace(/\{\{\s*fileName\s*\}\}/g, filename);
 }

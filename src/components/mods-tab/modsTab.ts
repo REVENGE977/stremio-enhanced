@@ -1,6 +1,5 @@
-import { readFileSync } from 'fs';
+import TemplateCache from '../../utils/templateCache';
 
-export function getModsTabTemplate() {
-    let template = readFileSync(__dirname + '/mods-tab.html', 'utf8');
-    return template;
+export function getModsTabTemplate(): string {
+    return TemplateCache.load(__dirname, 'mods-tab');
 }

@@ -1,277 +1,351 @@
 import Settings from "./Settings";
 import { readFileSync, writeFileSync, readdirSync, statSync, existsSync, mkdirSync, unlinkSync } from "fs";
-import { exec } from "child_process";
-import properties from "./Properties"
-import helpers from "../utils/Helpers"
+import { shell } from "electron";
+import properties from "./Properties";
+import helpers from "../utils/Helpers";
 import MetaData from "../interfaces/MetaData";
 import { getLogger } from "../utils/logger";
 import Properties from "./Properties";
 import { getApplyThemeTemplate } from "../components/apply-theme/applyTheme";
 import { basename, join } from "path";
+import { STORAGE_KEYS, SELECTORS, CLASSES, URLS } from "../constants";
 
 class ModManager {
     private static logger = getLogger("ModManager");
     
-    public static loadPlugin(pluginName:string) {
-        if(document.getElementById(pluginName)) return;
-        let plugin = readFileSync(join(properties.pluginsPath, pluginName), "utf-8");
-        let script = document.createElement("script");
-        script.innerHTML = plugin
-        script.id = pluginName
+    /**
+     * Load and enable a plugin by filename
+     */
+    public static loadPlugin(pluginName: string): void {
+        if (document.getElementById(pluginName)) {
+            this.logger.info(`Plugin ${pluginName} is already loaded`);
+            return;
+        }
+
+        const pluginPath = join(properties.pluginsPath, pluginName);
+        
+        if (!existsSync(pluginPath)) {
+            this.logger.error(`Plugin file not found: ${pluginPath}`);
+            return;
+        }
+
+        const plugin = readFileSync(pluginPath, "utf-8");
+        const script = document.createElement("script");
+        script.innerHTML = plugin;
+        script.id = pluginName;
         
         document.body.appendChild(script);
         
-        let enabledPlugins = JSON.parse(localStorage.getItem("enabledPlugins"));
-        if(enabledPlugins.includes(pluginName) == false) {
-            enabledPlugins.push(pluginName)
-            localStorage.setItem("enabledPlugins", JSON.stringify(enabledPlugins));
+        const enabledPlugins: string[] = JSON.parse(
+            localStorage.getItem(STORAGE_KEYS.ENABLED_PLUGINS) || "[]"
+        );
+        
+        if (!enabledPlugins.includes(pluginName)) {
+            enabledPlugins.push(pluginName);
+            localStorage.setItem(STORAGE_KEYS.ENABLED_PLUGINS, JSON.stringify(enabledPlugins));
         }
         
         this.logger.info(`Plugin ${pluginName} loaded!`);
     }
     
-    public static unloadPlugin(pluginName:string) {
-        document.getElementById(pluginName).remove();
+    /**
+     * Unload and disable a plugin by filename
+     */
+    public static unloadPlugin(pluginName: string): void {
+        const pluginElement = document.getElementById(pluginName);
+        if (pluginElement) {
+            pluginElement.remove();
+        }
         
-        let enabledPlugins = JSON.parse(localStorage.getItem("enabledPlugins"));
-        enabledPlugins = enabledPlugins.filter((x:string) => x !== pluginName);
-        localStorage.setItem("enabledPlugins", JSON.stringify(enabledPlugins));
+        let enabledPlugins: string[] = JSON.parse(
+            localStorage.getItem(STORAGE_KEYS.ENABLED_PLUGINS) || "[]"
+        );
+        enabledPlugins = enabledPlugins.filter((x: string) => x !== pluginName);
+        localStorage.setItem(STORAGE_KEYS.ENABLED_PLUGINS, JSON.stringify(enabledPlugins));
         
         this.logger.info(`Plugin ${pluginName} unloaded!`);
     }
 
-    // Fetch mods from the registry repository
-    public static async fetchMods() {
-        let mods = await fetch("https://raw.githubusercontent.com/REVENGE977/stremio-enhanced-registry/refs/heads/main/registry.json");
-        return mods.json();
+    /**
+     * Fetch mods from the registry repository
+     */
+    public static async fetchMods(): Promise<{ plugins: unknown[]; themes: unknown[] }> {
+        const response = await fetch(URLS.REGISTRY);
+        return response.json();
     }
 
-    public static async downloadMod(modLink: string, type: "plugin" | "theme") {
-        try {
-            this.logger.info(`Downloading ${type} from: ${modLink}`);
+    /**
+     * Download and save a mod (plugin or theme)
+     */
+    public static async downloadMod(modLink: string, type: "plugin" | "theme"): Promise<string> {
+        this.logger.info(`Downloading ${type} from: ${modLink}`);
 
-            const response = await fetch(modLink);
-            if (!response.ok) throw new Error(`Failed to download: ${response.status} ${response.statusText}`);
-
-            const saveDir = type === "plugin" ? Properties.pluginsPath : Properties.themesPath;
-            if (!existsSync(saveDir)) mkdirSync(saveDir, { recursive: true });
-
-            const filename = basename(new URL(modLink).pathname) || `${type}-${Date.now()}`;
-            const filePath = join(saveDir, filename);
-
-            const buffer = Buffer.from(await response.arrayBuffer());
-            writeFileSync(filePath, buffer);
-
-            this.logger.info(`Downloaded ${type} saved to: ${filePath}`);
-            return filePath;
-        } catch (error) {
-            this.logger.error(`Error downloading ${type}: ` + error);
-            throw error;
+        const response = await fetch(modLink);
+        if (!response.ok) {
+            throw new Error(`Failed to download: ${response.status} ${response.statusText}`);
         }
+
+        const saveDir = type === "plugin" ? Properties.pluginsPath : Properties.themesPath;
+        if (!existsSync(saveDir)) {
+            mkdirSync(saveDir, { recursive: true });
+        }
+
+        const filename = basename(new URL(modLink).pathname) || `${type}-${Date.now()}`;
+        const filePath = join(saveDir, filename);
+
+        const buffer = Buffer.from(await response.arrayBuffer());
+        writeFileSync(filePath, buffer);
+
+        this.logger.info(`Downloaded ${type} saved to: ${filePath}`);
+        return filePath;
     }
 
-
-    public static async removeMod(fileName: string, type: "plugin" | "theme") {
+    /**
+     * Remove a mod file and clean up associated state
+     */
+    public static removeMod(fileName: string, type: "plugin" | "theme"): void {
         this.logger.info(`Removing ${type} file: ${fileName}`);
 
         switch (type) {
             case "plugin":
                 if (this.isPluginInstalled(fileName)) {
                     unlinkSync(join(Properties.pluginsPath, fileName));
-                    let enabledPlugins = JSON.parse(localStorage.getItem("enabledPlugins"));
-                    if(enabledPlugins.includes(fileName)) {
-                        enabledPlugins = enabledPlugins.filter((x:string) => x !== fileName);
-                        localStorage.setItem("enabledPlugins", JSON.stringify(enabledPlugins));
+                    let enabledPlugins: string[] = JSON.parse(
+                        localStorage.getItem(STORAGE_KEYS.ENABLED_PLUGINS) || "[]"
+                    );
+                    if (enabledPlugins.includes(fileName)) {
+                        enabledPlugins = enabledPlugins.filter((x: string) => x !== fileName);
+                        localStorage.setItem(STORAGE_KEYS.ENABLED_PLUGINS, JSON.stringify(enabledPlugins));
                     }
                 }
                 break;
             case "theme":
                 if (this.isThemeInstalled(fileName)) {
-                    if(localStorage.getItem("currentTheme") === fileName) {
-                        localStorage.setItem("currentTheme", "Default");
+                    if (localStorage.getItem(STORAGE_KEYS.CURRENT_THEME) === fileName) {
+                        localStorage.setItem(STORAGE_KEYS.CURRENT_THEME, "Default");
                     }
-
-                    document.getElementById("activeTheme").remove();
+                    document.getElementById("activeTheme")?.remove();
                     unlinkSync(join(Properties.themesPath, fileName));
                 }
                 break;
         }
     }
 
-    public static isThemeInstalled(fileName: string) {
-        const installedThemes = this.getInstalledThemes();
-        return installedThemes.includes(fileName);
+    public static isThemeInstalled(fileName: string): boolean {
+        return this.getInstalledThemes().includes(fileName);
     }
 
-    public static isPluginInstalled(fileName: string) {
-        const installedPlugins = this.getInstalledPlugins();
-        return installedPlugins.includes(fileName);
+    public static isPluginInstalled(fileName: string): boolean {
+        return this.getInstalledPlugins().includes(fileName);
     }
 
-    private static getInstalledThemes() {
+    private static getInstalledThemes(): string[] {
         const dirPath = Properties.themesPath;
+        if (!existsSync(dirPath)) return [];
+        
         return readdirSync(dirPath)
             .filter(file => statSync(join(dirPath, file)).isFile());
     }
 
-    private static getInstalledPlugins() {
+    private static getInstalledPlugins(): string[] {
         const dirPath = Properties.pluginsPath;
+        if (!existsSync(dirPath)) return [];
+        
         return readdirSync(dirPath)
             .filter(file => statSync(join(dirPath, file)).isFile());
     }
     
-    // not sure if this is the best way to do this, but hey at least it works.
-    public static togglePluginListener() {
-        helpers.waitForElm("#enhanced > div:nth-child(3)").then(() => {
+    /**
+     * Set up event listeners for plugin toggle checkboxes
+     */
+    public static togglePluginListener(): void {
+        helpers.waitForElm(SELECTORS.PLUGINS_CATEGORY).then(() => {
             this.logger.info("Listening to plugin checkboxes...");
-            let pluginCheckboxes = document.getElementsByClassName("plugin") as HTMLCollectionOf<HTMLInputElement>
+            const pluginCheckboxes = document.getElementsByClassName("plugin") as HTMLCollectionOf<HTMLElement>;
             
-            for(let i = 0; i < pluginCheckboxes.length; i++) {
+            for (let i = 0; i < pluginCheckboxes.length; i++) {
                 pluginCheckboxes[i].addEventListener("click", () => {
-                    pluginCheckboxes[i].classList.toggle("checked");
+                    pluginCheckboxes[i].classList.toggle(CLASSES.CHECKED);
                     const pluginName = pluginCheckboxes[i].getAttribute('name');
 
-                    if(pluginCheckboxes[i].classList.contains("checked")) {
+                    if (!pluginName) return;
+
+                    if (pluginCheckboxes[i].classList.contains(CLASSES.CHECKED)) {
                         this.loadPlugin(pluginName);
                     } else {
                         this.unloadPlugin(pluginName);
-
-                        if(!document.getElementById("plugin-reload-warning")) {
-                            this.logger.info("Plugin unloaded, adding reload warning.");
-                            const container = document.querySelector("#enhanced > div:nth-child(3)");
-
-                            const paragraph = document.createElement("p");
-                            paragraph.id = "plugin-reload-warning";
-                            paragraph.style.color = "white";
-                            
-                            const link = document.createElement("a");
-                            link.style.color = "cyan";
-                            link.textContent = "here";
-                            link.setAttribute("onclick", "window.location.href = '/'");
-                            
-                            paragraph.appendChild(document.createTextNode("Reload is required to disable plugins. Click "));
-                            paragraph.appendChild(link);
-                            paragraph.appendChild(document.createTextNode(" to reload."));
-                            
-                            container.appendChild(paragraph);
-                        }
+                        this.showReloadWarning();
                     }
-                })
+                });
             }
-        })
+        }).catch(err => this.logger.error(`Failed to setup plugin listeners: ${err}`));
+    }
+
+    private static showReloadWarning(): void {
+        if (document.getElementById("plugin-reload-warning")) return;
+        
+        this.logger.info("Plugin unloaded, adding reload warning.");
+        const container = document.querySelector(SELECTORS.PLUGINS_CATEGORY);
+        if (!container) return;
+
+        const paragraph = document.createElement("p");
+        paragraph.id = "plugin-reload-warning";
+        paragraph.style.color = "white";
+        
+        const link = document.createElement("a");
+        link.style.color = "cyan";
+        link.style.cursor = "pointer";
+        link.textContent = "here";
+        link.addEventListener("click", () => {
+            window.location.href = '/';
+        });
+        
+        paragraph.appendChild(document.createTextNode("Reload is required to disable plugins. Click "));
+        paragraph.appendChild(link);
+        paragraph.appendChild(document.createTextNode(" to reload."));
+        
+        container.appendChild(paragraph);
     }
     
-    public static openThemesFolder() {
+    public static openThemesFolder(): void {
         helpers.waitForElm("#openthemesfolderBtn").then(() => {
             const button = document.getElementById("openthemesfolderBtn");
             button?.addEventListener("click", () => {
                 this.openFolder(Properties.themesPath);
             });
-        });
+        }).catch(err => this.logger.error(`Failed to setup themes folder button: ${err}`));
     }
 
-    public static openPluginsFolder() {
+    public static openPluginsFolder(): void {
         helpers.waitForElm("#openpluginsfolderBtn").then(() => {
             const button = document.getElementById("openpluginsfolderBtn");
             button?.addEventListener("click", () => {
                 this.openFolder(Properties.pluginsPath);
             });
-        });
+        }).catch(err => this.logger.error(`Failed to setup plugins folder button: ${err}`));
     }
 
-    private static openFolder(folderPath: string) {
-        let command: string;
-
-        switch (process.platform) {
-            case "win32":
-                command = `start "" "${folderPath}"`;
-                break;
-            case "darwin":
-                command = `open "${folderPath}"`;
-                break;
-            default:
-                command = `xdg-open "${folderPath}"`;
-                break;
-        }
-
-        exec(command, (error) => {
+    /**
+     * Open a folder in the system file explorer
+     */
+    private static openFolder(folderPath: string): void {
+        shell.openPath(folderPath).then(error => {
             if (error) {
-                console.error(`Failed to open folder: ${folderPath}`, error);
+                this.logger.error(`Failed to open folder ${folderPath}: ${error}`);
             }
         });
     }
         
-    public static scrollListener() {
+    public static scrollListener(): void {
         helpers.waitForElm(".menu-xeE06 > div:nth-child(5) > div").then(() => {
-            let enhanced = document.getElementById('enhanced');
-            let enhancedNav = document.querySelector('.menu-xeE06 > div:nth-child(5) > div');
+            const enhanced = document.getElementById('enhanced');
+            const enhancedNav = document.querySelector('.menu-xeE06 > div:nth-child(5) > div');
+
+            if (!enhanced || !enhancedNav) return;
 
             enhancedNav.addEventListener("click", () => {
-                document.querySelector("#enhanced > div").scrollIntoView({
+                const firstChild = document.querySelector("#enhanced > div");
+                firstChild?.scrollIntoView({
                     behavior: 'smooth',
                     block: 'start'
                 });
                 
                 Settings.activeSection(enhancedNav);
-            })
+            });
             
             const observer = new IntersectionObserver((entries) => {
                 entries.forEach(entry => {
                     if (entry.isIntersecting) {
                         Settings.activeSection(enhancedNav);
                     } else {
-                        enhancedNav.classList.remove("selected-S7SeK");
+                        enhancedNav.classList.remove(CLASSES.SELECTED);
                     }
                 });
             }, { threshold: 0.1 });
         
             observer.observe(enhanced);
-        })
+        }).catch(err => this.logger.error(`Failed to setup scroll listener: ${err}`));
     }
     
-    public static addApplyThemeFunction() {
-        let applyThemeScript = getApplyThemeTemplate();
-        let script = document.createElement("script");  
+    /**
+     * Add the applyTheme function to the page
+     */
+    public static addApplyThemeFunction(): void {
+        const applyThemeScript = getApplyThemeTemplate();
+        const script = document.createElement("script");  
         script.innerHTML = applyThemeScript;
         
         document.body.appendChild(script);
     }
     
-    public static async checkForItemUpdates(itemFile: string) {
+    /**
+     * Check for updates for a specific plugin or theme
+     */
+    public static async checkForItemUpdates(itemFile: string): Promise<void> {
         this.logger.info('Checking for updates for ' + itemFile);
-        let pluginOrTheme:'theme'|'plugin';
-        let itemBox = document.getElementsByName(`${itemFile}-box`)[0];
-        if(!itemBox) return this.logger.warn(`${itemFile}-box element not found.`);
-
-        if(itemFile.endsWith(".theme.css")) pluginOrTheme = "theme";
-        else pluginOrTheme = "plugin";
-
-        const itemPath = join(pluginOrTheme === "theme" ? properties.themesPath : properties.pluginsPath, itemFile);
         
-        let installedItemMetaData:MetaData = helpers.extractMetadataFromFile(itemPath);
-        if (installedItemMetaData && Object.keys(installedItemMetaData).length > 0) {
-            let updateUrl = installedItemMetaData.updateUrl;
-            if(updateUrl) {
-                if(updateUrl == "none") return this.logger.info(`No update URL is provided in the metadata of ${pluginOrTheme} (${installedItemMetaData.name})`);
-                let request = await fetch(updateUrl);
-                let response = await request.text();
-                
-                if(request.status == 200) {
-                    let extractedMetaData:MetaData = helpers.extractMetadataFromText(response);
-                    if(extractedMetaData) {
-                        if(extractedMetaData.version > installedItemMetaData.version) {
-                            this.logger.info(`An update exists for ${pluginOrTheme} (${installedItemMetaData.name}). New version: ${extractedMetaData.version} | Current version: ${installedItemMetaData.version}`);
+        const itemBox = document.getElementsByName(`${itemFile}-box`)[0];
+        if (!itemBox) {
+            this.logger.warn(`${itemFile}-box element not found.`);
+            return;
+        }
 
-                            document.getElementById(`${itemFile}-update`).style.display = "flex";
-                            document.getElementById(`${itemFile}-update`).addEventListener("click", () => {
-                                writeFileSync(itemPath, response, 'utf-8');
-                                Settings.removeItem(itemFile);
-                                Settings.addItem(pluginOrTheme, itemFile, extractedMetaData);
-                            })
-                        } else this.logger.info(`No update available for ${pluginOrTheme} (${installedItemMetaData.name}). Current version: ${installedItemMetaData.version}`);
-                    } else this.logger.warn(`Failed to extract metadata from response for ${pluginOrTheme} (${installedItemMetaData.name}). Possibly invalid updateUrl provided.`);
-                }
+        const pluginOrTheme: 'theme' | 'plugin' = itemFile.endsWith(".theme.css") ? "theme" : "plugin";
+        const itemPath = join(
+            pluginOrTheme === "theme" ? properties.themesPath : properties.pluginsPath, 
+            itemFile
+        );
+        
+        const installedItemMetaData = helpers.extractMetadataFromFile(itemPath) as MetaData | null;
+        
+        if (!installedItemMetaData || Object.keys(installedItemMetaData).length === 0) {
+            return;
+        }
+
+        const updateUrl = installedItemMetaData.updateUrl;
+        if (!updateUrl || updateUrl === "none") {
+            this.logger.info(`No update URL provided for ${pluginOrTheme} (${installedItemMetaData.name})`);
+            return;
+        }
+
+        try {
+            const request = await fetch(updateUrl);
+            if (request.status !== 200) {
+                this.logger.warn(`Failed to fetch update for ${itemFile}: HTTP ${request.status}`);
+                return;
             }
+
+            const response = await request.text();
+            const extractedMetaData = helpers.extractMetadataFromText(response) as MetaData | null;
+            
+            if (!extractedMetaData) {
+                this.logger.warn(`Failed to extract metadata from response for ${pluginOrTheme} (${installedItemMetaData.name})`);
+                return;
+            }
+
+            if (helpers.isNewerVersion(extractedMetaData.version, installedItemMetaData.version)) {
+                this.logger.info(
+                    `Update available for ${pluginOrTheme} (${installedItemMetaData.name}): ` +
+                    `v${installedItemMetaData.version} -> v${extractedMetaData.version}`
+                );
+
+                const updateButton = document.getElementById(`${itemFile}-update`);
+                if (updateButton) {
+                    updateButton.style.display = "flex";
+                    updateButton.addEventListener("click", () => {
+                        writeFileSync(itemPath, response, 'utf-8');
+                        Settings.removeItem(itemFile);
+                        Settings.addItem(pluginOrTheme, itemFile, extractedMetaData);
+                    });
+                }
+            } else {
+                this.logger.info(
+                    `No update available for ${pluginOrTheme} (${installedItemMetaData.name}). ` +
+                    `Current version: v${installedItemMetaData.version}`
+                );
+            }
+        } catch (error) {
+            this.logger.error(`Error checking updates for ${itemFile}: ${(error as Error).message}`);
         }
     }
 }
