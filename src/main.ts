@@ -212,56 +212,8 @@ app.on("ready", async () => {
                 logger.info("Launching local streaming server.");
                 StreamingServer.start();
             } else if(filesStatus === "missing_server_js") {
-                // server.js is missing - show instructions to the user in a loop
-                logger.info("server.js not found. Showing download instructions to user...");
-                const serverDir = StreamingServer.getStreamingServerDir();
-                const downloadUrl = StreamingServer.getServerJsUrl();
-
-                let serverJsFound = false;
-                while (!serverJsFound) {
-                    const result = await Helpers.showAlert(
-                        "info",
-                        "Streaming Server Setup Required",
-                        `To enable video playback, you need to download the Stremio streaming server file (server.js).\n\n` +
-                        `1. Download server.js from:\n${downloadUrl}\n\n` +
-                        `2. Right click the page and select "Save As" or "Save Link As" and save it as "server.js".\n\n` +
-                        `3. Place it in:\n${serverDir}\n\n` +
-                        `Click "Open Folder" to open the destination folder, or "Download" to open the download link in your browser.`,
-                        ["Open Folder", "Download", "Close"]
-                    );
-
-                    if (result === 0) {
-                        // Open the folder
-                        StreamingServer.openStreamingServerDir();
-                    } else if (result === 1) {
-                        // Open the download URL in browser
-                        shell.openExternal(downloadUrl);
-                    } else {
-                        // User clicked Close - check if file exists now
-                        if (StreamingServer.serverJsExists()) {
-                            serverJsFound = true;
-                            logger.info("server.js found after user action. Proceeding with streaming server setup...");
-                            // Re-run the setup to also check/download ffmpeg
-                            const retryStatus = await StreamingServer.ensureStreamingServerFiles();
-                            if (retryStatus === "ready") {
-                                logger.info("Launching local streaming server.");
-                                StreamingServer.start();
-                            } else {
-                                // FFmpeg issue - fall back to Stremio Service
-                                logger.info("FFmpeg not available after server.js setup. Falling back to Stremio Service...");
-                                await fallbackToStremioService();
-                            }
-                        } else {
-                            // File still not there - warn and show dialog again
-                            await Helpers.showAlert(
-                                "warning",
-                                "File Not Found",
-                                `server.js was not found in:\n${serverDir}\n\nPlease download the file and place it in the correct location.`,
-                                ["OK"]
-                            );
-                        }
-                    }
-                }
+                // server.js is missing - skip streaming server and proceed without it
+                logger.warn("server.js not found. Proceeding without local streaming server.");
             } else {
                 // FFmpeg download failed - fall back to Stremio Service
                 logger.info("FFmpeg not available. Falling back to Stremio Service...");
