@@ -14,6 +14,8 @@ class Properties {
 
     public static themesPath = join(Properties.enhancedPath, "themes");
     public static pluginsPath = join(Properties.enhancedPath, "plugins");
+    public static pepperPluginsPath = join(Properties.enhancedPath, "pepper-plugins");
+    public static pepperConfigFile = join(Properties.enhancedPath, "pepper-plugins.json");
 }
 
 export default Properties;

@@ -1,5 +1,6 @@
 import { join } from "path";
-import { mkdirSync, existsSync, writeFileSync, unlinkSync } from "fs";
+import { mkdirSync, existsSync, writeFileSync, unlinkSync, readFileSync } from "fs";
+import { PepperPluginEntry, PepperPluginConfig } from "./interfaces/PepperPluginConfig";
 import helpers from './utils/Helpers';
 import Updater from "./core/Updater";
 import Properties from "./core/Properties";
@@ -32,8 +33,42 @@ if(process.platform === "darwin") {
     app.commandLine.appendSwitch('disable-software-rasterizer'); 
 }
 
-app.commandLine.appendSwitch('enable-zero-copy'); 
+app.commandLine.appendSwitch('enable-zero-copy');
 app.commandLine.appendSwitch('disable-features', 'BlockInsecurePrivateNetworkRequests,PrivateNetworkAccessSendPreflights');
+
+// PPAPI (Pepper Plugin) Support
+app.commandLine.appendSwitch('enable-plugins');
+
+// Load and register custom pepper plugins from configuration
+function loadPepperPluginConfig(): PepperPluginEntry[] {
+    try {
+        if (existsSync(Properties.pepperConfigFile)) {
+            const configData = readFileSync(Properties.pepperConfigFile, "utf-8");
+            const config: PepperPluginConfig = JSON.parse(configData);
+
+            return config.plugins.filter(plugin => {
+                if (!plugin.enabled) return false;
+                if (!existsSync(plugin.path)) {
+                    logger.warn(`PPAPI plugin not found: ${plugin.name} at ${plugin.path}`);
+                    return false;
+                }
+                return true;
+            });
+        }
+    } catch (error) {
+        logger.error("Failed to load pepper plugin config: " + error);
+    }
+    return [];
+}
+
+const pepperPlugins = loadPepperPluginConfig();
+if (pepperPlugins.length > 0) {
+    const pluginArgs = pepperPlugins
+        .map(p => `${p.path};${p.mimeType}`)
+        .join(',');
+    app.commandLine.appendSwitch('register-pepper-plugins', pluginArgs);
+    logger.info(`Registered PPAPI plugins: ${pluginArgs}`);
+}
 
 async function createWindow() {
     mainWindow = new BrowserWindow({
@@ -42,6 +77,7 @@ async function createWindow() {
             webSecurity: false,
             nodeIntegration: true,
             contextIsolation: false,
+            plugins: true,
         },
         width: 1500,
         height: 850,
@@ -119,6 +155,58 @@ async function createWindow() {
         return enableTransparentThemes;
     });
 
+    // Pepper plugin configuration IPC handlers
+    ipcMain.handle("get-pepper-plugins", () => {
+        try {
+            if (existsSync(Properties.pepperConfigFile)) {
+                const configData = readFileSync(Properties.pepperConfigFile, "utf-8");
+                return JSON.parse(configData);
+            }
+        } catch (error) {
+            logger.error("Failed to read pepper plugin config: " + error);
+        }
+        return { plugins: [] };
+    });
+
+    ipcMain.handle("save-pepper-plugin", (_, plugin: PepperPluginEntry) => {
+        try {
+            let config: PepperPluginConfig = { plugins: [] };
+
+            if (existsSync(Properties.pepperConfigFile)) {
+                config = JSON.parse(readFileSync(Properties.pepperConfigFile, "utf-8"));
+            }
+
+            const existingIndex = config.plugins.findIndex(p => p.name === plugin.name);
+            if (existingIndex >= 0) {
+                config.plugins[existingIndex] = plugin;
+            } else {
+                config.plugins.push(plugin);
+            }
+
+            writeFileSync(Properties.pepperConfigFile, JSON.stringify(config, null, 2));
+            Helpers.showAlert("info", "Pepper plugin saved", "Please restart the app to apply changes.", ["OK"]);
+            return { success: true };
+        } catch (error) {
+            logger.error("Failed to save pepper plugin config: " + error);
+            return { success: false, message: String(error) };
+        }
+    });
+
+    ipcMain.handle("remove-pepper-plugin", (_, pluginName: string) => {
+        try {
+            if (existsSync(Properties.pepperConfigFile)) {
+                const config: PepperPluginConfig = JSON.parse(readFileSync(Properties.pepperConfigFile, "utf-8"));
+                config.plugins = config.plugins.filter(p => p.name !== pluginName);
+                writeFileSync(Properties.pepperConfigFile, JSON.stringify(config, null, 2));
+                return { success: true };
+            }
+            return { success: false, message: "Config file not found" };
+        } catch (error) {
+            logger.error("Failed to remove pepper plugin: " + error);
+            return { success: false, message: String(error) };
+        }
+    });
+
     // Opens links in external browser instead of opening them in the Electron app.
     mainWindow.webContents.setWindowOpenHandler((edata:any) => {
         shell.openExternal(edata.url);
@@ -165,10 +253,11 @@ app.on("ready", async () => {
     logger.info("User data path: " + app.getPath("userData"));
     logger.info("Themes path: " + Properties.themesPath);
     logger.info("Plugins path: " + Properties.pluginsPath);
+    logger.info("Pepper plugins path: " + Properties.pepperPluginsPath);
 
     try {
         const basePath = Properties.enhancedPath;
-    
+
         if (!existsSync(basePath)) {
             mkdirSync(basePath, { recursive: true });
         }
@@ -177,6 +266,24 @@ app.on("ready", async () => {
         }
         if (!existsSync(Properties.pluginsPath)) {
             mkdirSync(Properties.pluginsPath, { recursive: true });
+        }
+        if (!existsSync(Properties.pepperPluginsPath)) {
+            mkdirSync(Properties.pepperPluginsPath, { recursive: true });
+        }
+
+        // Create default pepper plugins config if not exists
+        if (!existsSync(Properties.pepperConfigFile)) {
+            const defaultConfig: PepperPluginConfig = {
+                plugins: [{
+                    name: "Widevine CDM",
+                    path: "",
+                    mimeType: "application/x-ppapi-widevine-cdm",
+                    enabled: false,
+                    description: "Content Decryption Module for protected media playback"
+                }]
+            };
+            writeFileSync(Properties.pepperConfigFile, JSON.stringify(defaultConfig, null, 2));
+            logger.info("Created default pepper plugins configuration");
         }
     } catch (err) {
         logger.error("Failed to create necessary directories: " + err);
