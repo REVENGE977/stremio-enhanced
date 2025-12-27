@@ -44,6 +44,7 @@
 	- [🖌️ Installing Themes](#️-installing-themes)
 	- [🛠️ Installing Plugins](#️-installing-plugins)
 	- [🌐 Community Plugins \& Themes](#-community-plugins--themes)
+- [🔌 PPAPI (Pepper) Plugins](#-ppapi-pepper-plugins)
 - [❓ What Is the Difference Between Plugins and Addons?](#-what-is-the-difference-between-plugins-and-addons)
 - [📜 Creating Your Own Plugin](#-creating-your-own-plugin)
 - [🎨 Creating Your Own Theme](#-creating-your-own-theme)
@@ -130,6 +131,56 @@ You can also use the new community tab.
 ![community_tab](./images/communitytab.png)
 
 These plugins and themes are fetched from the [Stremio Enhanced Registry](https://github.com/REVENGE977/stremio-enhanced-registry) repository. If you're a developer you can submit your work there.
+
+## 🔌 PPAPI (Pepper) Plugins
+
+Stremio Enhanced supports PPAPI (Pepper Plugin API) plugins, which enables native browser plugins like Widevine CDM for DRM-protected content playback.
+
+### Configuration
+
+PPAPI plugins are configured via a JSON file located in your application data directory:
+
+| Platform | Path |
+|----------|------|
+| **Windows** | `%APPDATA%\stremio-enhanced\pepper-plugins.json` |
+| **macOS** | `~/Library/Application Support/stremio-enhanced/pepper-plugins.json` |
+| **Linux** | `~/.config/stremio-enhanced/pepper-plugins.json` |
+
+### Configuration Format
+
+```json
+{
+  "plugins": [
+    {
+      "name": "Widevine CDM",
+      "path": "/path/to/libwidevinecdm.so",
+      "mimeType": "application/x-ppapi-widevine-cdm",
+      "enabled": true,
+      "description": "Content Decryption Module for protected media playback"
+    }
+  ]
+}
+```
+
+### Configuration Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `name` | string | Human-readable name for the plugin |
+| `path` | string | Absolute path to the plugin file (`.so` on Linux, `.dll` on Windows, `.plugin` on macOS) |
+| `mimeType` | string | MIME type for the plugin (e.g., `application/x-ppapi-widevine-cdm`) |
+| `enabled` | boolean | Set to `true` to load this plugin |
+| `description` | string | Optional description of the plugin |
+
+### Common Widevine CDM Locations
+
+| Platform | Typical Path |
+|----------|--------------|
+| **Windows** | `C:\Program Files\Google\Chrome\Application\<version>\WidevineCdm\_platform_specific\win_x64\widevinecdm.dll` |
+| **macOS** | `/Applications/Google Chrome.app/Contents/Frameworks/Google Chrome Framework.framework/Libraries/WidevineCdm/_platform_specific/mac_x64/libwidevinecdm.dylib` |
+| **Linux** | `/opt/google/chrome/WidevineCdm/_platform_specific/linux_x64/libwidevinecdm.so` |
+
+> **Note:** A restart is required after modifying the pepper plugins configuration. PPAPI is deprecated by Google; Widevine CDM is the main use case still supported.
 
 ## ❓ What Is the Difference Between Plugins and Addons?
 - **Addons** are available on the normal version of Stremio. They add catalogs and streams for Stremio.

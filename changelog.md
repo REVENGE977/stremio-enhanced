@@ -1,3 +1,10 @@
+## Update v1.0.2
+- **Added PPAPI (Pepper Plugin) support**:
+  - Enables loading of native browser plugins like Widevine CDM for DRM-protected content playback.
+  - Configure plugins via `pepper-plugins.json` in your application data directory.
+  - Includes IPC handlers for programmatic plugin management.
+  - See the [PPAPI Plugins documentation](#-ppapi-pepper-plugins) in the README for configuration details.
+
 ## Update v0.3
 - Now relies on [Stremio Service](https://github.com/Stremio/stremio-service) to run (if stremio service isn't installed it will guide the user to install it). This is means you will get a similar streaming experience to the official app.
 - Checks if the installed version is the latest version or not. Startup checking can be disabled from the settings (not tested yet).
