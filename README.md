@@ -64,9 +64,9 @@ Stremio Enhanced is an Electron-based [Stremio](https://www.stremio.com/) client
 
 ### ✨ Features  
 - **Themes** – Customize the look and feel of Stremio with different themes to match your style.  
-  - Example: **AMOLED Theme** – A pitch black theme.  
-    ![blacktheme](https://github.com/REVENGE977/stremio-enhanced/raw/main/images/amoled_screenshot.png)  
-    *(This theme can be found in [StremioAmoledTheme](https://github.com/REVENGE977/StremioAmoledTheme).)*  
+  - Example: **Modern Glass Theme** – A modern glass-like aesthetic theme
+	![modernglasstheme](./images/modernglass_preview.png)
+	*(This community-made theme by Fxy6969 and can be found in [Stremio-Glass-Theme](https://github.com/Fxy6969/Stremio-Glass-Theme))*
 
 - **Plugins** – Extend Stremio’s functionality with JavaScript plugins for more features.
   - Example: **AniSkip Integration** – A plugin to integrate [AniSkip](https://github.com/aniskip) to autoskip anime openings and endings.
@@ -80,12 +80,12 @@ Stremio Enhanced is an Electron-based [Stremio](https://www.stremio.com/) client
 ## 📥 Downloads
 You can download the latest version from [the releases tab](https://github.com/REVENGE977/stremio-enhanced/releases). 
 
-If you're on **Windows**, you can also install through winget:
+If you're on **Windows**, you can also install via winget:
 ```
 winget install REVENGE.StremioEnhanced
 ```
 
-You can also install Stremio Service (which is required for Stremio Enhanced to stream content) from winget:
+You can also install Stremio Service (which is required for Stremio Enhanced to stream content) via winget:
 ```
 winget install Stremio.StremioService
 ```
