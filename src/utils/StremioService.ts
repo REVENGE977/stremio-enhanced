@@ -155,7 +155,11 @@ class StremioService {
             const installed = await this.isServiceInstalled();
             if (installed) {
                 this.start();
-                if(installerPath && existsSync(installerPath)) unlinkSync(installerPath); // delete installer file after successful install
+                if(installerPath && existsSync(installerPath)) {
+                    try {
+                        unlinkSync(installerPath); // delete installer file after successful install
+                    } catch {}
+                }
                 return true;
             }
             

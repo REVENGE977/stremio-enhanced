@@ -138,7 +138,7 @@ class StreamingServer {
 
     private static async downloadAndExtractFFmpeg(): Promise<boolean> {
         const tarballUrl = this.getFFmpegTarballUrl();
-        const tarballPath = join(this.streamingServerDir, "ffmpeg-release.tar.xz");
+        const tarballPath = join(this.streamingServerDir, process.platform == "win32" ? "ffmpeg-release.zip" : "ffmpeg-release.tar.xz");
         const ffmpegPath = process.platform == "win32"
             ? join(this.streamingServerDir, "ffmpeg.exe")
             : join(this.streamingServerDir, "ffmpeg");
@@ -183,7 +183,15 @@ class StreamingServer {
                 return true;
             } else if (process.platform === "win32") {
                 // Handle Windows zip file
+                // Extract the whole archive first
                 execSync(`powershell -Command "Expand-Archive -Path '${tarballPath}' -DestinationPath '${this.streamingServerDir}' -Force"`, { encoding: "utf8" });
+                
+                // Move bin folder contents to the streamingserver directory
+                execSync(`powershell -Command "Move-Item -Path '${this.streamingServerDir}\\ffmpeg-master-latest-win64-gpl\\bin\\*' -Destination '${this.streamingServerDir}' -Force"`, { encoding: "utf8" });
+                
+                // Cleanup: remove extracted directory
+                execSync(`powershell -Command "Remove-Item -Recurse -Force '${this.streamingServerDir}\\ffmpeg-master-latest-win64-gpl'"`, { encoding: "utf8" });
+
                 unlinkSync(tarballPath);
                 return true;
             }
