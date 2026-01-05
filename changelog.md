@@ -178,3 +178,12 @@ xattr -d com.apple.quarantine /path/to/Stremio.Enhanced.app
 
 - Fixed the transparent window toggle (still experimental, but it should actually work now).
 
+## Update v1.0.2
+- **Option between using Stremio Service or server.js directly** Now if you're on Windows, you will be given a choice between using Stremio Service or running server.js directly. If you do choose to run server.js directly, you will be given instructions on how to download server.js and where to place the file (you'll have to do it manually. I'm not allowed to automate the downloading process of server.js as per Stremio's request). FFmpeg downloading is automated. You will only be asked to choose once and whatever option you choose will be saved for future app launches. 
+
+  If you're on Linux or macOS, you'll just be asked to use server.js and follow the instructions on how to download it. Though if you wish to use Stremio Service, you can. Just launch Stremio Service before launching Stremio Enhanced.
+
+(PR https://github.com/REVENGE977/stremio-enhanced/pull/63)
+
+- **HVEC decoding support** Enabled HEVC hardware decoding support (PR https://github.com/REVENGE977/stremio-enhanced/pull/69) 
+- **Improved codebase** Improved code quality, type safety, and maintainability (PR https://github.com/REVENGE977/stremio-enhanced/pull/67)
