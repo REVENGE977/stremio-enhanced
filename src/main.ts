@@ -22,10 +22,40 @@ const useStremioServiceFlagPath = join(app.getPath("userData"), "use_stremio_ser
 const useServerJSFlagPath = join(app.getPath("userData"), "use_server_js_for_streaming");
 const transparencyEnabled = existsSync(transparencyFlagPath);
 
-app.commandLine.appendSwitch('enable-features', 'VaapiVideoDecoder,PlatformHEVCDecoderSupport')
-app.commandLine.appendSwitch('ignore-gpu-blocklist'); 
-app.commandLine.appendSwitch('enable-zero-copy'); 
-app.commandLine.appendSwitch('disable-features', 'BlockInsecurePrivateNetworkRequests,PrivateNetworkAccessSendPreflights');
+if(process.platform === "darwin") {
+    logger.info(`Running on macOS, using Metal for rendering`);
+    app.commandLine.appendSwitch('use-angle', 'metal');
+} else if(process.platform === "win32") {
+    logger.info(`Running on Windows, using D3D11 for rendering`);
+    app.commandLine.appendSwitch('use-angle', 'd3d11');
+    app.commandLine.appendSwitch('enable-gpu-rasterization');
+    app.commandLine.appendSwitch('ignore-gpu-blocklist');
+    app.commandLine.appendSwitch('disable-software-rasterizer');
+} else {
+    logger.info(`Running on ${process.platform}, using OpenGL for rendering`);
+    app.commandLine.appendSwitch('use-angle', 'gl');
+    app.commandLine.appendSwitch('enable-gpu-rasterization');
+    app.commandLine.appendSwitch('ignore-gpu-blocklist');
+    app.commandLine.appendSwitch('disable-software-rasterizer');
+}
+
+app.commandLine.appendSwitch('enable-zero-copy');
+
+// HEVC/H.265 hardware decoding support
+if(process.platform === "win32") {
+    // Windows: Use MediaFoundation for HEVC decoding
+    app.commandLine.appendSwitch('enable-features', 'PlatformHEVCDecoderSupport,PlatformHEVCEncoderSupport,MediaFoundationD3D11VideoCapture,MediaFoundationClearPlayback');
+} else if(process.platform === "linux") {
+    // Linux: Use VAAPI for hardware decoding
+    app.commandLine.appendSwitch('enable-features', 'PlatformHEVCDecoderSupport,VaapiVideoDecoder,VaapiVideoEncoder,VaapiVideoDecodeLinuxGL');
+} else {
+    // macOS and others
+    app.commandLine.appendSwitch('enable-features', 'PlatformHEVCDecoderSupport,PlatformHEVCEncoderSupport');
+}
+
+app.commandLine.appendSwitch('disable-features', 'BlockInsecurePrivateNetworkRequests,PrivateNetworkAccessSendPreflights,UseChromeOSDirectVideoDecoder');
+app.commandLine.appendSwitch('enable-accelerated-video-decode');
+app.commandLine.appendSwitch('enable-accelerated-video-encode');
 
 async function createWindow() {
     mainWindow = new BrowserWindow({
