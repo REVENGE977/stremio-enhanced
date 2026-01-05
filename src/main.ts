@@ -249,7 +249,7 @@ async function useServerJS() {
                 `1. Download server.js from:\n${downloadUrl}\n\n` +
                 `2. Right click the page and select "Save As" and save it as "server.js".\n\n` +
                 `3. Place it in:\n${serverDir}\n\n` +
-                `Click "Open Folder" to open the destination folder, or "Download" to open the download link in your browser. Click "Close" when you have placed the file in the correct location and FFmpeg will be downloaded automatically.`,
+                `Click "Open Folder" to open the destination folder, or "Download" to open the download link in your browser. Click "Close" when you have placed the file in the correct location and FFmpeg will be downloaded automatically if needed.`,
                 ["Open Folder", "Download", "Close"]
             );
 
@@ -268,7 +268,7 @@ async function useServerJS() {
                     const retryStatus = await StreamingServer.ensureStreamingServerFiles();
                     if (retryStatus === "ready") {
                         logger.info("Launching local streaming server.");
-                        await Helpers.showAlert("info", "Streaming Server Setup Complete", "FFmpeg has been automatically downloaded. The streaming server has been set up successfully and will now start.", ["OK"]);
+                        await Helpers.showAlert("info", "Streaming Server Setup Complete", "The streaming server has been set up successfully and will now start.", ["OK"]);
                         StreamingServer.start();
                     } else {
                         // FFmpeg issue - fall back to Stremio Service
