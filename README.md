@@ -94,8 +94,7 @@ winget install Stremio.StremioService
 1. Clone the repository: `git clone https://github.com/REVENGE977/stremio-enhanced.git`
 2. Navigate to the project directory: `cd stremio-enhanced`
 3. Install dependencies: `npm install`
-4. Compile TypeScript: `npm run dist`
-5. Build the project with electron-builder: 
+4. Build the project with electron-builder: 
     - For Windows: `npm run build:win`
     - For Linux (x64): `npm run build:linux:x64`
     - For Linux (arm64): `npm run build:linux:arm64`

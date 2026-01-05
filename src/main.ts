@@ -206,7 +206,7 @@ async function chooseStreamingServer() {
     const result = await Helpers.showAlert(
         "info",
         "Stremio Streaming Server",
-        "Stremio Enhanced requires a Stremio Streaming Server for playback to function properly. You can either use the Stremio Service or set up a local streaming server manually.\nThe option you choose will be saved for future app launches.\n\n" +
+        "Stremio Enhanced requires a Stremio Streaming Server for playback to function properly. You can either use the Stremio Service or set up a local streaming server manually.\nThis is a one-time setup. The option you choose will be saved for future app launches.\n\n" +
         "Would you like to use the Stremio Service for streaming?\n\n" +
         "Click 'No' to attempt using server.js directly",
         ["Yes, use Stremio Service (recommended on Windows)", "No, use server.js directly (manual setup required)"]
@@ -247,9 +247,9 @@ async function useServerJS() {
                 "Streaming Server Setup Required",
                 `To enable video playback, you need to download the Stremio streaming server file (server.js).\n\n` +
                 `1. Download server.js from:\n${downloadUrl}\n\n` +
-                `2. Right click the page and select "Save As" or "Save Link As" and save it as "server.js".\n\n` +
+                `2. Right click the page and select "Save As" and save it as "server.js".\n\n` +
                 `3. Place it in:\n${serverDir}\n\n` +
-                `Click "Open Folder" to open the destination folder, or "Download" to open the download link in your browser.`,
+                `Click "Open Folder" to open the destination folder, or "Download" to open the download link in your browser. Click "Close" when you have placed the file in the correct location and FFmpeg will be downloaded automatically.`,
                 ["Open Folder", "Download", "Close"]
             );
 
@@ -268,10 +268,12 @@ async function useServerJS() {
                     const retryStatus = await StreamingServer.ensureStreamingServerFiles();
                     if (retryStatus === "ready") {
                         logger.info("Launching local streaming server.");
+                        await Helpers.showAlert("info", "Streaming Server Setup Complete", "FFmpeg has been automatically downloaded. The streaming server has been set up successfully and will now start.", ["OK"]);
                         StreamingServer.start();
                     } else {
                         // FFmpeg issue - fall back to Stremio Service
                         logger.info("FFmpeg not available after server.js setup. Falling back to Stremio Service...");
+                        await Helpers.showAlert("error", "Failed to download FFmpeg", "Failed to automatically download FFmpeg. FFmpeg is required for the streaming server to function properly. The app will now use Stremio Service for streaming instead for this instance.", ["OK"]);
                         await useStremioService();
                     }
                 } else {
