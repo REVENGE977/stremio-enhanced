@@ -7,6 +7,7 @@ interface ModMetaData {
     version: string;
     preview?: string;
     download: string;
+    repo: string;
 }
 
 export function getModItemTemplate(
@@ -37,6 +38,7 @@ export function getModItemTemplate(
         .replace(/\{\{\s*actionbtnTitle\s*\}\}/g, installed ? "Uninstall" : "Install")
         .replace("{{ actionbtnClass }}", installed ? "uninstall-button-container-oV4Yo" : "install-button-container-yfcq5")
         .replace("{{ download }}", metaData.download)
+        .replace("{{ repo }}", metaData.repo)
         .replace("<!-- theme preview here -->", logoBlock)
         .replace("<!-- plugin icon here -->", ""); 
 }

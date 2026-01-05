@@ -244,6 +244,7 @@ async function browseMods(): Promise<void> {
         version: string;
         preview?: string;
         download: string;
+        repo: string;
     }
 
     // Add plugins
