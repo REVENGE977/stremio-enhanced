@@ -1,12 +1,16 @@
-import { readFileSync } from 'fs';
+import TemplateCache from '../../utils/templateCache';
 
-export function getAboutCategoryTemplate(version: string, checkForUpdatesOnStartup: boolean, discordrichpresence: boolean, enableTransparentThemes: boolean) {
-    let template = readFileSync(__dirname + '/about-category.html', 'utf8');
+export function getAboutCategoryTemplate(
+    version: string, 
+    checkForUpdatesOnStartup: boolean, 
+    discordRichPresence: boolean, 
+    enableTransparentThemes: boolean
+): string {
+    let template = TemplateCache.load(__dirname, 'about-category');
     
-    template = template.replace("{{ version }}", version);
-    template = template.replace("{{ checkForUpdatesOnStartup }}", checkForUpdatesOnStartup ? "checked" : "");
-    template = template.replace("{{ discordrichpresence }}", discordrichpresence ? "checked" : "");
-    template = template.replace("{{ enableTransparentThemes }}", enableTransparentThemes ? "checked" : "");
-
-    return template;
+    return template
+        .replace("{{ version }}", version)
+        .replace("{{ checkForUpdatesOnStartup }}", checkForUpdatesOnStartup ? "checked" : "")
+        .replace("{{ discordrichpresence }}", discordRichPresence ? "checked" : "")
+        .replace("{{ enableTransparentThemes }}", enableTransparentThemes ? "checked" : "");
 }
