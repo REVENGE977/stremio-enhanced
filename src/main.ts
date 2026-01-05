@@ -1,5 +1,5 @@
 import { join } from "path";
-import { mkdirSync, existsSync, writeFileSync, unlinkSync, writeFile } from "fs";
+import { mkdirSync, existsSync, writeFileSync, unlinkSync } from "fs";
 import helpers from './utils/Helpers';
 import Updater from "./core/Updater";
 import Properties from "./core/Properties";
@@ -45,7 +45,7 @@ app.commandLine.appendSwitch('enable-zero-copy');
 // HEVC/H.265 hardware decoding support
 if(process.platform === "win32") {
     // Windows: Use MediaFoundation for HEVC decoding
-    app.commandLine.appendSwitch('enable-features', 'PlatformHEVCDecoderSupport,PlatformHEVCEncoderSupport,MediaFoundationD3D11VideoCapture,MediaFoundationClearPlayback');
+    app.commandLine.appendSwitch('enable-features', 'PlatformHEVCDecoderSupport,PlatformHEVCEncoderSupport,MediaFoundationD3D11VideoCapture');
 } else if(process.platform === "linux") {
     // Linux: Use VAAPI for hardware decoding
     app.commandLine.appendSwitch('enable-features', 'PlatformHEVCDecoderSupport,VaapiVideoDecoder,VaapiVideoEncoder,VaapiVideoDecodeLinuxGL');
