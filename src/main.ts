@@ -311,7 +311,7 @@ async function useServerJS() {
                     const retryStatus = await StreamingServer.ensureStreamingServerFiles();
                     if (retryStatus === "ready") {
                         logger.info("Launching local streaming server.");
-                        await Helpers.showAlert("info", "Streaming Server Setup Complete", "The streaming server has been set up successfully and will now start.", ["OK"]);
+                        await Helpers.showAlert("info", "Streaming Server Setup Complete", "The streaming server has been set up successfully and will now start. You may need to reload the streaming server from the settings.", ["OK"]);
                         StreamingServer.start();
                     } else {
                         // FFmpeg issue - fall back to Stremio Service
