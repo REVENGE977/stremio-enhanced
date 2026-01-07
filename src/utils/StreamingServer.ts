@@ -33,7 +33,7 @@ class StreamingServer {
         }
     }
 
-    private static getMacOSFFProbeUrl(): string {
+    private static getMacOSFFprobeUrl(): string {
         if(process.arch === "x64") 
             return "https://ffmpeg.martin-riedl.de/download/macos/amd64/1766437297_8.0.1/ffprobe.zip";
         else 
@@ -192,9 +192,12 @@ class StreamingServer {
                 chmodSync(ffmpegPath, 0o755);
                 unlinkSync(archivePath);
 
-                const ffprobeArchivePath = join(this.streamingServerDir, "ffprobe-release.zip");
-                await this.downloadFile(this.getMacOSFFProbeUrl(), ffprobeArchivePath);
+                this.logger.info(`FFmpeg extracted successfully. Downloading FFprobe from ${this.getMacOSFFprobeUrl()}...`);
 
+                const ffprobeArchivePath = join(this.streamingServerDir, "ffprobe-release.zip");
+                await this.downloadFile(this.getMacOSFFprobeUrl(), ffprobeArchivePath);
+                this.logger.info("FFprobe archive downloaded. Extracting...");
+                
                 // Extract ffprobe
                 execSync(`unzip -o "${ffprobeArchivePath}" -d "${this.streamingServerDir}"`, { encoding: "utf8" });
                 chmodSync(ffprobePath, 0o755);
