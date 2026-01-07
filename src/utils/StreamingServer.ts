@@ -5,6 +5,7 @@ import { getLogger } from "./logger";
 import Properties from "../core/Properties";
 import https from "https";
 import { shell } from "electron";
+import { FFMPEG_URLS, SERVER_JS_URL, MACOS_FFPROBE_URLS } from "../constants";
 
 class StreamingServer {
     private static logger = getLogger("StreamingServer");
@@ -14,33 +15,20 @@ class StreamingServer {
     private static serverScriptPath = join(this.streamingServerDir, "server.js");
     private static logFilePath = join(Properties.enhancedPath, "stremio-server.log");
 
-    // Download URL for server.js (user must download manually due to licensing)
-    private static SERVER_JS_URL = "https://dl.strem.io/server/v4.20.12/desktop/server.js";
-
-    // FFmpeg builds from John Van Sickle (includes both ffmpeg and ffprobe)
     private static getFFmpegUrl(): string {
-        switch (process.platform) {
-            case "win32":
-                // For Windows, use BtbN builds
-                if(process.arch === "x64")
-                    return "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-win64-gpl.zip";
-                else
-                    return "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-winarm64-gpl.zip";
-            case "darwin":
-                if(process.arch === "x64") 
-                    return "https://ffmpeg.martin-riedl.de/download/macos/amd64/1766437297_8.0.1/ffmpeg.zip";
-                else 
-                    return "https://ffmpeg.martin-riedl.de/download/macos/arm64/1766430132_8.0.1/ffmpeg.zip";
-            default: // linux
-                return "https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-amd64-static.tar.xz";
-        }
+        const platform =
+            process.platform === "win32" || process.platform === "darwin"
+                ? process.platform
+                : "linux";
+
+        if (process.arch !== "x64" && process.arch !== "arm64") throw new Error(`Unsupported architecture: ${process.arch}`);
+
+        return FFMPEG_URLS[platform][process.arch];
     }
 
     private static getMacOSFFprobeUrl(): string {
-        if(process.arch === "x64") 
-            return "https://ffmpeg.martin-riedl.de/download/macos/amd64/1766437297_8.0.1/ffprobe.zip";
-        else 
-            return "https://ffmpeg.martin-riedl.de/download/macos/arm64/1766430132_8.0.1/ffprobe.zip";
+        if (process.arch !== "x64" && process.arch !== "arm64") throw new Error(`Unsupported architecture: ${process.arch}`);
+        return MACOS_FFPROBE_URLS[process.arch];
     }
 
     // Get the directory where server.js should be placed
@@ -50,7 +38,7 @@ class StreamingServer {
 
     // Get the download URL for server.js
     public static getServerJsUrl(): string {
-        return this.SERVER_JS_URL;
+        return SERVER_JS_URL;
     }
 
     // Check if server.js exists

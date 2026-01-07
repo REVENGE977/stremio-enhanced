@@ -78,6 +78,31 @@ export const URLS = {
     RELEASES_PAGE: 'https://github.com/REVENGE977/stremio-enhanced-community/releases/latest',
 } as const;
 
+// server.js (Stremio streaming server) Download URL
+export const SERVER_JS_URL = "https://dl.strem.io/server/v4.20.12/desktop/server.js";
+
+// FFmpeg Download URLs
+export const FFMPEG_URLS = {
+    win32: {
+        x64: "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-win64-gpl.zip",
+        arm64: "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-winarm64-gpl.zip",
+    },
+    darwin: {
+        x64: "https://ffmpeg.martin-riedl.de/download/macos/amd64/1766437297_8.0.1/ffmpeg.zip",
+        arm64: "https://ffmpeg.martin-riedl.de/download/macos/arm64/1766430132_8.0.1/ffmpeg.zip",
+    },
+    linux: {
+        x64: "https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-amd64-static.tar.xz",
+        arm64: "https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-arm64-static.tar.xz",
+    },
+} as const;
+
+// FFprobe Download URLs for macOS
+export const MACOS_FFPROBE_URLS = {
+    x64: "https://ffmpeg.martin-riedl.de/download/macos/amd64/1766437297_8.0.1/ffprobe.zip",
+    arm64: "https://ffmpeg.martin-riedl.de/download/macos/arm64/1766430132_8.0.1/ffprobe.zip",
+};
+
 // Discord RPC
 export const DISCORD = {
     CLIENT_ID: '1200186750727893164',
@@ -94,4 +119,3 @@ export const TIMEOUTS = {
     RETRY_INTERVAL: 1000,
     MAX_RETRIES: 30,
 } as const;
-
