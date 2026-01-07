@@ -56,7 +56,7 @@
 
 ## ❓ What is Stremio Enhanced?
 
-Stremio Enhanced is an Electron-based [Stremio](https://www.stremio.com/) client with support for plugins and themes. It enhances the default Stremio experience by adding more customization options and integrations.  
+Stremio Enhanced is an Electron-based [Stremio](https://www.stremio.com/) desktop client with support for plugins and themes. It enhances the default Stremio experience by adding more customization options and integrations.  
 
 ### 🛠 How It Works  
 - It runs the Stremio streaming server automatically in the background.
@@ -177,7 +177,7 @@ If you'd like to go the extra mile, you can also support me by sponsoring the pr
 
 ## 📊 Repository Stats
 
-![Repo Stats](https://repobeats.axiom.co/api/embed/ffcb702620c8a5356a655a21e58442be5648de67.svg "Repobeats analytics image")
+![Repo Stats](https://repobeats.axiom.co/api/embed/12eac6094c2e78fdff7110d7c850d15279f1cb05.svg "Repobeats analytics image")
 
 ## 🚨 Important Notice
 **This project is not affiliated in any way with Stremio.**
