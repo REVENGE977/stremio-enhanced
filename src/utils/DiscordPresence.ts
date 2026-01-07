@@ -255,7 +255,7 @@ class DiscordPresence {
     }
     
     private static async getMetaDetails(): Promise<MetaDetails | null> {
-        for (let attempt = 0; attempt < TIMEOUTS.MAX_RETRIES; attempt++) {
+        for (let attempt = 0; attempt < TIMEOUTS.DISCORDRPC_MAX_RETRIES; attempt++) {
             try {
                 const metaDetailsState = await Helpers._eval('core.transport.getState("meta_details")') as {
                     metaItem?: { content?: { content?: MetaDetails } }
@@ -268,7 +268,7 @@ class DiscordPresence {
                 this.logger.warn(`Attempt ${attempt + 1} failed to fetch meta details: ${err}`);
             }
             
-            await new Promise(resolve => setTimeout(resolve, TIMEOUTS.RETRY_INTERVAL));
+            await new Promise(resolve => setTimeout(resolve, TIMEOUTS.DISCORDRPC_RETRY_INTERVAL));
         }
         
         this.logger.error('Max retries exceeded for getMetaDetails');
@@ -276,7 +276,7 @@ class DiscordPresence {
     }
 
     private static async getPlayerState(): Promise<PlayerState | null> {
-        for (let attempt = 0; attempt < TIMEOUTS.MAX_RETRIES; attempt++) {
+        for (let attempt = 0; attempt < TIMEOUTS.DISCORDRPC_MAX_RETRIES; attempt++) {
             try {
                 const playerState = await Helpers._eval('core.transport.getState("player")') as {
                     seriesInfo?: SeriesInfo;
@@ -293,7 +293,7 @@ class DiscordPresence {
                 this.logger.warn(`Attempt ${attempt + 1} failed to fetch player state: ${err}`);
             }
         
-            await new Promise(resolve => setTimeout(resolve, TIMEOUTS.RETRY_INTERVAL));
+            await new Promise(resolve => setTimeout(resolve, TIMEOUTS.DISCORDRPC_RETRY_INTERVAL));
         }
         
         this.logger.error('Max retries exceeded for getPlayerState');

@@ -7,6 +7,7 @@ import * as process from 'process';
 import { homedir } from 'os';
 import { app } from "electron";
 import https from "https";
+import { TIMEOUTS } from "../constants/index";
 
 class StremioService {
     private static API_URL = "https://api.github.com/repos/Stremio/stremio-service/releases/latest";
@@ -148,7 +149,7 @@ class StremioService {
         });
     }
     
-    private static async waitForInstallCompletion(timeoutMs = 120000, installerPath?: string): Promise<boolean> {
+    private static async waitForInstallCompletion(timeoutMs = TIMEOUTS.INSTALL_COMPLETION, installerPath?: string): Promise<boolean> {
         const start = Date.now();
         
         while (Date.now() - start < timeoutMs) {
@@ -161,12 +162,14 @@ class StremioService {
                 if(installerPath && existsSync(installerPath)) {
                     try {
                         unlinkSync(installerPath); // delete installer file after successful install
-                    } catch {}
+                    } catch (err) {
+                        this.logger.warn("Failed to delete installer file: " + (err as Error).message);
+                    }
                 }
                 return true;
             }
             
-            await new Promise(r => setTimeout(r, 5000)); // check every 5s
+            await new Promise(r => setTimeout(r, TIMEOUTS.SERVICE_CHECK_INTERVAL));
         }
         
         return false;
@@ -238,7 +241,7 @@ class StremioService {
         });
         
         this.logger.info("Waiting for Stremio Service installation to finish...");
-        const success = await this.waitForInstallCompletion(120000, filePath); // 2 mins timeout
+        const success = await this.waitForInstallCompletion(TIMEOUTS.INSTALL_COMPLETION, filePath);
         
         if (success) {
             this.logger.info("Stremio Service detected as installed or running.");
@@ -259,7 +262,7 @@ class StremioService {
         }
 
         this.logger.info("Waiting for Stremio Service installation to finish...");
-        const success = await this.waitForInstallCompletion(120000, filePath); // 2 mins timeout
+        const success = await this.waitForInstallCompletion(TIMEOUTS.INSTALL_COMPLETION, filePath); 
 
         if (success) {
             this.logger.info("Stremio Service detected as installed or running.");
@@ -287,7 +290,7 @@ class StremioService {
             this.logger.info(`Installing Stremio Service from ${filePath}`);
             await this.execFileAsync("flatpak", ["install", "--user", "-y", filePath]);
 
-            const success = await this.waitForInstallCompletion(120000, filePath); // 2 mins timeout
+            const success = await this.waitForInstallCompletion(TIMEOUTS.INSTALL_COMPLETION, filePath);
 
             if (success) {
                 this.logger.info("Stremio Service detected as installed or running.");
