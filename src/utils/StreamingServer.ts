@@ -22,7 +22,10 @@ class StreamingServer {
         switch (process.platform) {
             case "win32":
                 // For Windows, use BtbN builds
-                return "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-win64-gpl.zip";
+                if(process.arch === "x64")
+                    return "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-win64-gpl.zip";
+                else
+                    return "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-winarm64-gpl.zip";
             case "darwin":
                 if(process.arch === "x64") 
                     return "https://ffmpeg.martin-riedl.de/download/macos/amd64/1766437297_8.0.1/ffmpeg.zip";
