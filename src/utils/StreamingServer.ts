@@ -18,17 +18,26 @@ class StreamingServer {
     private static SERVER_JS_URL = "https://dl.strem.io/server/v4.20.12/desktop/server.js";
 
     // FFmpeg builds from John Van Sickle (includes both ffmpeg and ffprobe)
-    private static getFFmpegTarballUrl(): string {
+    private static getFFmpegUrl(): string {
         switch (process.platform) {
             case "win32":
                 // For Windows, use BtbN builds
                 return "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-win64-gpl.zip";
             case "darwin":
-                // For macOS, use evermeet.cx builds
-                return "https://evermeet.cx/ffmpeg/getrelease/zip";
+                if(process.arch === "x64") 
+                    return "https://ffmpeg.martin-riedl.de/download/macos/amd64/1766437297_8.0.1/ffmpeg.zip";
+                else 
+                    return "https://ffmpeg.martin-riedl.de/download/macos/arm64/1766430132_8.0.1/ffmpeg.zip";
             default: // linux
                 return "https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-amd64-static.tar.xz";
         }
+    }
+
+    private static getMacOSFFProbeUrl(): string {
+        if(process.arch === "x64") 
+            return "https://ffmpeg.martin-riedl.de/download/macos/amd64/1766437297_8.0.1/ffprobe.zip";
+        else 
+            return "https://ffmpeg.martin-riedl.de/download/macos/arm64/1766430132_8.0.1/ffprobe.zip";
     }
 
     // Get the directory where server.js should be placed
@@ -107,8 +116,9 @@ class StreamingServer {
                 https.get(downloadUrl, { headers: { "User-Agent": "Stremio-Enhanced" } }, (res) => {
                     // Handle redirects (GitHub releases use redirects)
                     if (res.statusCode && res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
-                        this.logger.info(`Following redirect to: ${res.headers.location}`);
-                        request(res.headers.location);
+                        const redirectUrl = new URL(res.headers.location, downloadUrl).toString();
+                        this.logger.info(`Following redirect to: ${redirectUrl}`);
+                        request(redirectUrl);
                         return;
                     }
 
@@ -137,8 +147,9 @@ class StreamingServer {
     }
 
     private static async downloadAndExtractFFmpeg(): Promise<boolean> {
-        const tarballUrl = this.getFFmpegTarballUrl();
-        const tarballPath = join(this.streamingServerDir, process.platform == "win32" ? "ffmpeg-release.zip" : "ffmpeg-release.tar.xz");
+        const archiveUrl = this.getFFmpegUrl();
+        const archivePath = join(this.streamingServerDir, (process.platform == "win32" || process.platform == "darwin") ? "ffmpeg-release.zip" : "ffmpeg-release.tar.xz");
+        
         const ffmpegPath = process.platform == "win32"
             ? join(this.streamingServerDir, "ffmpeg.exe")
             : join(this.streamingServerDir, "ffmpeg");
@@ -147,18 +158,18 @@ class StreamingServer {
             : join(this.streamingServerDir, "ffprobe");
 
         try {
-            this.logger.info(`Downloading FFmpeg from ${tarballUrl}...`);
-            await this.downloadFile(tarballUrl, tarballPath);
+            this.logger.info(`Downloading FFmpeg from ${archiveUrl}...`);
+            await this.downloadFile(archiveUrl, archivePath);
             this.logger.info("FFmpeg archive downloaded. Extracting...");
 
             if (process.platform === "linux") {
                 // Extract tar.xz archive
                 // First, list contents to find the directory name
-                const listOutput = execSync(`tar -tf "${tarballPath}" | head -1`, { encoding: "utf8" });
+                const listOutput = execSync(`tar -tf "${archivePath}" | head -1`, { encoding: "utf8" });
                 const extractDir = listOutput.trim().split("/")[0];
 
                 // Extract the archive
-                execSync(`tar -xf "${tarballPath}" -C "${this.streamingServerDir}"`, { encoding: "utf8" });
+                execSync(`tar -xf "${archivePath}" -C "${this.streamingServerDir}"`, { encoding: "utf8" });
 
                 // Move ffmpeg and ffprobe to the streamingserver directory
                 const extractedDir = join(this.streamingServerDir, extractDir);
@@ -169,22 +180,30 @@ class StreamingServer {
                 chmodSync(ffmpegPath, 0o755);
                 chmodSync(ffprobePath, 0o755);
 
-                // Cleanup: remove extracted directory and tarball
+                // Cleanup: remove extracted directory and archive
                 execSync(`rm -rf "${extractedDir}"`, { encoding: "utf8" });
-                unlinkSync(tarballPath);
+                unlinkSync(archivePath);
 
                 this.logger.info("FFmpeg and FFprobe extracted successfully.");
                 return true;
             } else if (process.platform === "darwin") {
                 // Handle macOS zip file
-                execSync(`unzip -o "${tarballPath}" -d "${this.streamingServerDir}"`, { encoding: "utf8" });
+                execSync(`unzip -o "${archivePath}" -d "${this.streamingServerDir}"`, { encoding: "utf8" });
                 chmodSync(ffmpegPath, 0o755);
-                unlinkSync(tarballPath);
+                unlinkSync(archivePath);
+
+                const ffprobeArchivePath = join(this.streamingServerDir, "ffprobe-release.zip");
+                await this.downloadFile(this.getMacOSFFProbeUrl(), ffprobeArchivePath);
+
+                // Extract ffprobe
+                execSync(`unzip -o "${ffprobeArchivePath}" -d "${this.streamingServerDir}"`, { encoding: "utf8" });
+                chmodSync(ffprobePath, 0o755);
+                unlinkSync(ffprobeArchivePath);
                 return true;
             } else if (process.platform === "win32") {
                 // Handle Windows zip file
                 // Extract the whole archive first
-                execSync(`powershell -Command "Expand-Archive -Path '${tarballPath}' -DestinationPath '${this.streamingServerDir}' -Force"`, { encoding: "utf8" });
+                execSync(`powershell -Command "Expand-Archive -Path '${archivePath}' -DestinationPath '${this.streamingServerDir}' -Force"`, { encoding: "utf8" });
                 
                 // Move bin folder contents to the streamingserver directory
                 execSync(`powershell -Command "Move-Item -Path '${this.streamingServerDir}\\ffmpeg-master-latest-win64-gpl\\bin\\*' -Destination '${this.streamingServerDir}' -Force"`, { encoding: "utf8" });
@@ -192,7 +211,7 @@ class StreamingServer {
                 // Cleanup: remove extracted directory
                 execSync(`powershell -Command "Remove-Item -Recurse -Force '${this.streamingServerDir}\\ffmpeg-master-latest-win64-gpl'"`, { encoding: "utf8" });
 
-                unlinkSync(tarballPath);
+                unlinkSync(archivePath);
                 return true;
             }
 
@@ -200,8 +219,8 @@ class StreamingServer {
         } catch (error) {
             this.logger.error(`Failed to download/extract FFmpeg: ${error}`);
             // Cleanup on failure
-            if (existsSync(tarballPath)) {
-                try { unlinkSync(tarballPath); } catch {}
+            if (existsSync(archivePath)) {
+                try { unlinkSync(archivePath); } catch {}
             }
             return false;
         }
