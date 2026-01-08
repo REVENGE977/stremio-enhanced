@@ -24,16 +24,15 @@ export function getModItemTemplate(
         if(!metaData.preview) {
             // If no preview is provided for theme, use a placeholder
             logoBlock = `
-        <svg class="logo-WrsGF" viewBox="0 0 24 24">
-            <g>
-                <path d="M4 3h16a1 1 0 0 1 1 1v5a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1zm2 9h6a1 1 0 0 1 1 1v3h1v6h-4v-6h1v-2H5a1 1 0 0 1-1-1v-2h2v1zm11.732 1.732l1.768-1.768 1.768 1.768a2.5 2.5 0 1 1-3.536 0z" style="fill: white;"></path>
-            </g>
+        <svg class="icon-GxVbY" viewBox="0 0 24 24">
+            <path d="M4 3h16a1 1 0 0 1 1 1v5a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1zm2 9h6a1 1 0 0 1 1 1v3h1v6h-4v-6h1v-2H5a1 1 0 0 1-1-1v-2h2v1zm11.732 1.732l1.768-1.768 1.768 1.768a2.5 2.5 0 1 1-3.536 0z" style="fill: currentcolor;"></path>
         </svg>`;
         } else {
             // Use the preview image for theme logo
-            logoBlock = `<a href="${metaData.preview || ""}" target="_blank" rel="noreferrer">
-            <img class="logo-WrsGF" src="${metaData.preview || ""}" alt="Theme Preview" loading="lazy">
-           </a>`;
+            logoBlock = `
+            <a href="${metaData.preview}" target="_blank" rel="noreferrer">
+                <img class="logo-WrsGF" src="${metaData.preview}" alt="Theme Preview" loading="lazy">
+            </a>`;
         }
     } else {
         logoBlock = `
