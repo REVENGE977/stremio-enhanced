@@ -81,15 +81,11 @@ class ModManager {
         this.logger.info(`Downloading ${type} from: ${modLink}`);
 
         const response = await fetch(modLink);
-        if (!response.ok) {
-            throw new Error(`Failed to download: ${response.status} ${response.statusText}`);
-        }
-
+        if (!response.ok) throw new Error(`Failed to download: ${response.status} ${response.statusText}`);
+        
         const saveDir = type === "plugin" ? Properties.pluginsPath : Properties.themesPath;
-        if (!existsSync(saveDir)) {
-            mkdirSync(saveDir, { recursive: true });
-        }
-
+        if (!existsSync(saveDir)) mkdirSync(saveDir, { recursive: true });
+        
         const filename = basename(new URL(modLink).pathname) || `${type}-${Date.now()}`;
         const filePath = join(saveDir, filename);
 

@@ -76,6 +76,7 @@ export const URLS = {
     VERSION_CHECK: 'https://github.com/REVENGE977/stremio-enhanced-community/raw/main/version',
     RELEASES_API: 'https://api.github.com/repos/REVENGE977/stremio-enhanced-community/releases/latest',
     RELEASES_PAGE: 'https://github.com/REVENGE977/stremio-enhanced-community/releases/latest',
+    STREMIO_SERVICE_GITHUB_API: "https://api.github.com/repos/Stremio/stremio-service/releases/latest"
 } as const;
 
 // server.js (Stremio streaming server) Download URL

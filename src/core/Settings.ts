@@ -45,6 +45,7 @@ class Settings {
                 const shortcutsNav = document.querySelector('[title="Shortcuts"]');
 
                 if (!nav || !shortcutsNav) return;
+                if(document.getElementById(`nav-${sectionId}`)) return; // Nav item already exists
 
                 const enhancedNavContainer = document.createElement("div");
                 enhancedNavContainer.innerHTML = getEnhancedNav();

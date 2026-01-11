@@ -18,7 +18,7 @@ interface SeriesInfo {
 }
 
 interface PlayerState {
-    seriesInfoDetails: SeriesInfo;
+    seriesInfoDetails: SeriesInfo | null;
     metaDetails: MetaDetails;
 }
 
@@ -124,7 +124,7 @@ class DiscordPresence {
                 
                 if (metaDetails.type === "series") {
                     const { seriesInfoDetails } = playerState;
-                    const { episode, season } = seriesInfoDetails;
+                    const { episode, season } = seriesInfoDetails!;
                     const isKitsu = metaDetails.id.startsWith("kitsu:");
 
                     this.updateActivity({ 
@@ -163,7 +163,7 @@ class DiscordPresence {
                 const formattedTime = Helpers.formatTime(video.currentTime);
 
                 if (pausedMeta.type === "series") {
-                    const { episode, season } = currentState.seriesInfoDetails;
+                    const { episode, season } = currentState.seriesInfoDetails!;
                     const isKitsu = pausedMeta.id.startsWith("kitsu:");
 
                     this.updateActivity({
@@ -283,12 +283,13 @@ class DiscordPresence {
                     metaItem?: { content?: MetaDetails }
                 };
                 
-                if (playerState?.seriesInfo && playerState?.metaItem?.content) {
+                if(playerState?.metaItem?.content) {
                     return {
-                        seriesInfoDetails: playerState.seriesInfo,
-                        metaDetails: playerState.metaItem.content
+                        seriesInfoDetails: playerState?.seriesInfo ?? null,
+                        metaDetails: playerState!.metaItem!.content 
                     };
                 }
+
             } catch (err) {
                 this.logger.warn(`Attempt ${attempt + 1} failed to fetch player state: ${err}`);
             }

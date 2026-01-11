@@ -7,10 +7,9 @@ import * as process from 'process';
 import { homedir } from 'os';
 import { app } from "electron";
 import https from "https";
-import { TIMEOUTS } from "../constants/index";
+import { TIMEOUTS, URLS } from "../constants/index";
 
 class StremioService {
-    private static API_URL = "https://api.github.com/repos/Stremio/stremio-service/releases/latest";
     private static logger = getLogger("StremioService");
     private static execFileAsync = promisify(execFile);
 
@@ -91,7 +90,7 @@ class StremioService {
     // grabs the latest version of Stremio Service from the official GitHub repository
     private static fetchLatestRelease(): Promise<any | null> {
         return new Promise((resolve, reject) => {
-            const req = https.request(this.API_URL, {
+            const req = https.request(URLS.STREMIO_SERVICE_GITHUB_API, {
                 headers: { "User-Agent": "Electron-AutoInstaller" },
             }, (res) => {
                 let data = "";
