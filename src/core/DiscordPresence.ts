@@ -1,26 +1,10 @@
 import { Client as DiscordClient } from '@xhayper/discord-rpc';
-import { getLogger } from './logger';
-import Helpers from './Helpers';
+import { getLogger } from '../utils/logger';
+import Helpers from '../utils/Helpers';
 import { ActivityType } from 'discord-api-types/v10';
 import type { SetActivity } from '@xhayper/discord-rpc/dist/structures/ClientUser';
-import { DISCORD, TIMEOUTS } from '../constants';
-
-interface MetaDetails {
-    id: string;
-    name: string;
-    type: string;
-    poster?: string;
-}
-
-interface SeriesInfo {
-    episode: number;
-    season: number;
-}
-
-interface PlayerState {
-    seriesInfoDetails: SeriesInfo | null;
-    metaDetails: MetaDetails;
-}
+import { DISCORD } from '../constants';
+import PlaybackState from '../utils/PlaybackState';
 
 class DiscordPresence {
     private static logger = getLogger("DiscordPresence");
@@ -112,7 +96,7 @@ class DiscordPresence {
             const video = document.getElementsByTagName('video')[0] as HTMLVideoElement;
             if (!video) return;
 
-            const playerState = await this.getPlayerState();
+            const playerState = await PlaybackState.getPlayerState();
             if (!playerState) return;
 
             const { metaDetails } = playerState;
@@ -156,7 +140,7 @@ class DiscordPresence {
             };
             
             const handlePausing = async (): Promise<void> => {
-                const currentState = await this.getPlayerState();
+                const currentState = await PlaybackState.getPlayerState();
                 if (!currentState) return;
 
                 const pausedMeta = currentState.metaDetails;
@@ -203,7 +187,7 @@ class DiscordPresence {
         
         try {
             await Helpers.waitForElm('.metadetails-container-K_Dqa');
-            const metaDetails = await this.getMetaDetails();
+            const metaDetails = await PlaybackState.getMetaDetails();
             if (!metaDetails) return;
 
             this.logger.info("Updating activity to Exploring.");
@@ -252,53 +236,6 @@ class DiscordPresence {
         this.logger.info(`Updating activity to ${activity}.`);
         activityDetails.details = activity;
         this.updateActivity(activityDetails);
-    }
-    
-    private static async getMetaDetails(): Promise<MetaDetails | null> {
-        for (let attempt = 0; attempt < TIMEOUTS.DISCORDRPC_MAX_RETRIES; attempt++) {
-            try {
-                const metaDetailsState = await Helpers._eval('core.transport.getState("meta_details")') as {
-                    metaItem?: { content?: { content?: MetaDetails } }
-                };
-                
-                if (metaDetailsState?.metaItem?.content?.content) {
-                    return metaDetailsState.metaItem.content.content;
-                }
-            } catch (err) {
-                this.logger.warn(`Attempt ${attempt + 1} failed to fetch meta details: ${err}`);
-            }
-            
-            await new Promise(resolve => setTimeout(resolve, TIMEOUTS.DISCORDRPC_RETRY_INTERVAL));
-        }
-        
-        this.logger.error('Max retries exceeded for getMetaDetails');
-        return null;
-    }
-
-    private static async getPlayerState(): Promise<PlayerState | null> {
-        for (let attempt = 0; attempt < TIMEOUTS.DISCORDRPC_MAX_RETRIES; attempt++) {
-            try {
-                const playerState = await Helpers._eval('core.transport.getState("player")') as {
-                    seriesInfo?: SeriesInfo;
-                    metaItem?: { content?: MetaDetails }
-                };
-                
-                if(playerState?.metaItem?.content) {
-                    return {
-                        seriesInfoDetails: playerState?.seriesInfo ?? null,
-                        metaDetails: playerState!.metaItem!.content 
-                    };
-                }
-
-            } catch (err) {
-                this.logger.warn(`Attempt ${attempt + 1} failed to fetch player state: ${err}`);
-            }
-        
-            await new Promise(resolve => setTimeout(resolve, TIMEOUTS.DISCORDRPC_RETRY_INTERVAL));
-        }
-        
-        this.logger.error('Max retries exceeded for getPlayerState');
-        return null;
     }
 }
     

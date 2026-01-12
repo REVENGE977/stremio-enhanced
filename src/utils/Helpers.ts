@@ -1,11 +1,7 @@
-import { readFileSync } from "fs";
 import { dialog, BrowserWindow } from "electron";
 import logger from "./logger";
-import { TIMEOUTS } from "../constants";
-
-interface ParsedMetadata {
-    [key: string]: string;
-}
+import { SELECTORS, TIMEOUTS } from "../constants";
+import { getToastTemplate } from "../components/toast/toast";
 
 class Helpers {
     private static instance: Helpers;
@@ -22,54 +18,6 @@ class Helpers {
     
     setMainWindow(mainWindow: BrowserWindow): void {
         this.mainWindow = mainWindow;
-    }
-
-    /**
-     * Parse metadata from a comment block in the format:
-     * /** @key value *\/
-     */
-    private parseMetadataFromContent(content: string): ParsedMetadata | null {
-        const commentBlockRegex = /\/\*\*([\s\S]*?)\*\//;
-        const match = content.match(commentBlockRegex);
-        
-        if (!match?.[1]) {
-            return null;
-        }
-
-        const metadata: ParsedMetadata = {};
-        const metadataRegex = /@(\w+)\s+([^\n\r]+)/g;
-        
-        for (const [, key, value] of match[1].matchAll(metadataRegex)) {
-            metadata[key.trim()] = value.trim();
-        }
-        
-        return Object.keys(metadata).length > 0 ? metadata : null;
-    }
-    
-    extractMetadataFromFile(filePath: string): ParsedMetadata | null {
-        try {
-            const fileContent = readFileSync(filePath, 'utf8');
-            const metadata = this.parseMetadataFromContent(fileContent);
-            
-            if (!metadata) {
-                logger.error('Metadata comments not found in the file: ' + filePath);
-            }
-            
-            return metadata;
-        } catch (error) {
-            logger.error('Error reading the file: ' + (error as Error).message);
-            return null;
-        }
-    }
-    
-    extractMetadataFromText(textContent: string): ParsedMetadata | null {
-        const metadata = this.parseMetadataFromContent(textContent);
-        
-        if (!metadata) {
-            logger.error('Comment block not found in the provided text');
-        }
-        
-        return metadata;
     }
     
     async showAlert(
@@ -181,6 +129,18 @@ class Helpers {
                 reject(new Error('Timeout waiting for document.title to change'));
             }, timeout);
         });
+    }
+
+    public async createToast(toastId: string, title: string, message: string, status: "success" | "fail" | "info", timeoutMs:number = 3000) {
+        let template = await getToastTemplate(toastId, title, message, status);
+        let toastContainer = document.querySelector(SELECTORS.TOAST_CONTAINER);
+        if(toastContainer) {
+            toastContainer.innerHTML += template;
+
+            setTimeout(() => {
+                document.getElementById(toastId)?.remove();
+            }, timeoutMs);
+        }
     }
 
     /**

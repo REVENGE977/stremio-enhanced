@@ -5,12 +5,12 @@ import { getLogger } from "./logger";
 import Properties from "../core/Properties";
 import https from "https";
 import { shell } from "electron";
-import { FFMPEG_URLS, SERVER_JS_URL, MACOS_FFPROBE_URLS } from "../constants";
+import { FFMPEG_URLS, MACOS_FFPROBE_URLS } from "../constants";
 
 class StreamingServer {
     private static logger = getLogger("StreamingServer");
 
-    // Use config directory instead of exe directory for cross-platform compatibility (especially AppImage)
+    // Use config directory instead of executable directory for cross-platform compatibility (especially AppImage)
     private static streamingServerDir = join(Properties.enhancedPath, "streamingserver");
     private static serverScriptPath = join(this.streamingServerDir, "server.js");
     private static logFilePath = join(Properties.enhancedPath, "stremio-server.log");
@@ -34,11 +34,6 @@ class StreamingServer {
     // Get the directory where server.js should be placed
     public static getStreamingServerDir(): string {
         return this.streamingServerDir;
-    }
-
-    // Get the download URL for server.js
-    public static getServerJsUrl(): string {
-        return SERVER_JS_URL;
     }
 
     // Check if server.js exists

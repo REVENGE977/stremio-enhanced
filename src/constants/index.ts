@@ -29,6 +29,8 @@ export const SELECTORS = {
     TYPES_CONTAINER: '.types-container-DaOrg',
     SEARCH_INPUT: '.search-input-bAgAh',
     HORIZONTAL_NAV: '.horizontal-nav-bar-container-Y_zvK',
+    TOAST_ITEM: '.toast-item-container-nG0uk',
+    TOAST_CONTAINER: '.toasts-container-oKECy'
 } as const;
 
 // CSS Classes used for styling
@@ -61,6 +63,7 @@ export const IPC_CHANNELS = {
     UPDATE_CHECK_STARTUP: 'update-check-on-startup',
     UPDATE_CHECK_USER: 'update-check-userrequest',
     FULLSCREEN_CHANGED: 'fullscreen-changed',
+    EXTRACT_EMBEDDED_SUBTITLES: 'extract-embedded-subtitles',
 } as const;
 
 // File extensions for mods
@@ -72,6 +75,7 @@ export const FILE_EXTENSIONS = {
 // URLs
 export const URLS = {
     STREMIO_WEB: 'https://web.stremio.com/',
+    STREMIO_WEB_ADD_ADDON: 'https://web.stremio.com/#/addons?addon=',
     REGISTRY: 'https://raw.githubusercontent.com/REVENGE977/stremio-enhanced-registry/refs/heads/main/registry.json',
     VERSION_CHECK: 'https://github.com/REVENGE977/stremio-enhanced-community/raw/main/version',
     RELEASES_API: 'https://api.github.com/repos/REVENGE977/stremio-enhanced-community/releases/latest',
@@ -117,6 +121,6 @@ export const TIMEOUTS = {
     INSTALL_COMPLETION: 120000,
     SERVICE_CHECK_INTERVAL: 5000,
     SERVER_RELOAD_DELAY: 1500,
-    DISCORDRPC_RETRY_INTERVAL: 1000,
-    DISCORDRPC_MAX_RETRIES: 30,
+    CORESTATE_RETRY_INTERVAL: 1000,
+    CORESTATE_MAX_RETRIES: 30,
 } as const;

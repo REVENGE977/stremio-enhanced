@@ -4,7 +4,7 @@ import helpers from './utils/Helpers';
 import Updater from "./core/Updater";
 import Properties from "./core/Properties";
 import logger from "./utils/logger";
-import { IPC_CHANNELS, URLS } from "./constants";
+import { IPC_CHANNELS, URLS, SERVER_JS_URL } from "./constants";
 
 // Fix GTK 2/3 and GTK 4 conflict on Linux
 import { app } from 'electron';
@@ -14,10 +14,12 @@ import { BrowserWindow, shell, ipcMain } from "electron";
 import StreamingServer from "./utils/StreamingServer";
 import Helpers from "./utils/Helpers";
 import StremioService from "./utils/StremioService";
+import EmbeddedSubtitles from "./utils/EmbeddedSubtitles";
 
 app.setName("stremio-enhanced");
 
 let mainWindow: BrowserWindow | null;
+const gotLock = app.requestSingleInstanceLock();
 const transparencyFlagPath = join(app.getPath("userData"), "transparency");
 const useStremioServiceFlagPath = join(app.getPath("userData"), "use_stremio_service_for_streaming");
 const useServerJSFlagPath = join(app.getPath("userData"), "use_server_js_for_streaming");
@@ -47,6 +49,21 @@ app.commandLine.appendSwitch('disable-features', 'BlockInsecurePrivateNetworkReq
 app.commandLine.appendSwitch('enable-accelerated-video-decode');
 app.commandLine.appendSwitch('enable-accelerated-video-encode');
 app.commandLine.appendSwitch('enable-zero-copy');
+
+if (!gotLock) {
+    app.quit();
+} else {
+    app.on('second-instance', (_, argv) => {
+        // Windows/Linux: protocol URL comes as a command line argument
+        const url = argv.find(arg => arg.startsWith('stremio://'));
+        if (url) handleStremioURL(url);
+        
+        if (mainWindow) {
+            if (mainWindow.isMinimized()) mainWindow.restore();
+            mainWindow.focus();
+        }
+    });
+}
 
 async function createWindow() {
     mainWindow = new BrowserWindow({
@@ -78,26 +95,26 @@ async function createWindow() {
         visualEffectState: transparencyEnabled ? "active" : "followWindow",
         backgroundColor: "#00000000",
     });
-
+    
     mainWindow.setMenu(null);
     mainWindow.loadURL(URLS.STREMIO_WEB);
     
     helpers.setMainWindow(mainWindow);
-
+    
     if (transparencyEnabled) {
         mainWindow.on('enter-full-screen', () => {
             mainWindow?.webContents.send(IPC_CHANNELS.FULLSCREEN_CHANGED, true);
         });
-
+        
         mainWindow.on('leave-full-screen', () => {
             mainWindow?.webContents.send(IPC_CHANNELS.FULLSCREEN_CHANGED, false);
         });
     }
-
+    
     ipcMain.on(IPC_CHANNELS.MINIMIZE_WINDOW, () => {
         mainWindow?.minimize();
     });
-
+    
     ipcMain.on(IPC_CHANNELS.MAXIMIZE_WINDOW, () => {
         if (mainWindow) {
             if (mainWindow.isMaximized()) {
@@ -107,23 +124,23 @@ async function createWindow() {
             }
         }
     });
-
+    
     ipcMain.on(IPC_CHANNELS.CLOSE_WINDOW, () => {
         mainWindow?.close();
     });
-
+    
     ipcMain.on(IPC_CHANNELS.UPDATE_CHECK_STARTUP, async (_, checkForUpdatesOnStartup: string) => {
         logger.info(`Checking for updates on startup: ${checkForUpdatesOnStartup === "true" ? "enabled" : "disabled"}.`);
         if (checkForUpdatesOnStartup === "true") {
             await Updater.checkForUpdates(false);
         }
     });
-
+    
     ipcMain.on(IPC_CHANNELS.UPDATE_CHECK_USER, async () => {
         logger.info("Checking for updates on user request.");
         await Updater.checkForUpdates(true);
     });
-
+    
     ipcMain.on(IPC_CHANNELS.SET_TRANSPARENCY, (_, enabled: boolean) => {
         if (enabled) {
             logger.info("Enabled window transparency");
@@ -136,14 +153,27 @@ async function createWindow() {
                 // File may not exist, ignore
             }
         }
-
+        
         Helpers.showAlert("info", "Transparency setting changed", "Please restart the app to apply the changes.", ["OK"]);
     });
-
+    
+    ipcMain.handle(IPC_CHANNELS.EXTRACT_EMBEDDED_SUBTITLES, async (_, streamURL: string) => {
+        logger.info("Extracting embedded subtitles from stream: " + streamURL);
+        
+        try {
+            const outPaths = await EmbeddedSubtitles.extractSubtitles(streamURL);
+            logger.info(`Extracted ${outPaths.length} embedded subtitle(s).`);
+            return outPaths;
+        } catch (err) {
+            logger.error("Failed to extract embedded subtitles: " + err);
+            return [];
+        }
+    })
+    
     ipcMain.handle(IPC_CHANNELS.GET_TRANSPARENCY_STATUS, () => {
         return existsSync(transparencyFlagPath);
     });
-
+    
     // Opens links in external browser instead of opening them in the Electron app.
     mainWindow.webContents.setWindowOpenHandler((edata:any) => {
         shell.openExternal(edata.url);
@@ -155,7 +185,7 @@ async function createWindow() {
         logger.info("Developer tools flag detected. Opening DevTools in detached mode...");
         mainWindow.webContents.openDevTools({ mode: "detach" }); 
     }
-
+    
     // mainWindow.on('closed', () => {
     //     if(!process.argv.includes("--no-stremio-service") && StremioService.isProcessRunning()) StremioService.terminate();
     // });
@@ -179,6 +209,8 @@ async function useStremioService() {
             logger.info("User declined to download Stremio Service.");
         }
     }
+    
+    Properties.isUsingStremioService = true;
 }
 
 app.on("ready", async () => {
@@ -186,14 +218,14 @@ app.on("ready", async () => {
     logger.info("Running on NodeJS version: " + process.version);
     logger.info("Running on Electron version: v" + process.versions.electron);
     logger.info("Running on Chromium version: v" + process.versions.chrome);
-
+    
     logger.info("User data path: " + app.getPath("userData"));
     logger.info("Themes path: " + Properties.themesPath);
     logger.info("Plugins path: " + Properties.pluginsPath);
-
+    
     try {
         const basePath = Properties.enhancedPath;
-    
+        
         if (!existsSync(basePath)) {
             mkdirSync(basePath, { recursive: true });
         }
@@ -210,7 +242,7 @@ app.on("ready", async () => {
     if(!process.argv.includes("--no-stremio-server")) {
         if(!await StremioService.isProcessRunning()) {
             let platform = process.platform;
-
+            
             // If the user is on Windows, give the option to either use Stremio Service or server.js
             if(platform === "win32") {
                 if(existsSync(useStremioServiceFlagPath)) {
@@ -220,14 +252,31 @@ app.on("ready", async () => {
                 } else {
                     await chooseStreamingServer();
                 }
-            // For macOS and Linux, just give the instruction to use server.js
+                // For macOS and Linux, just give the instruction to use server.js
             } else if (platform === "darwin" || platform === "linux") {
                 useServerJS();
             }
-        } else logger.info("Stremio Service is already running.");
+        } else {
+            logger.info("Stremio Service is already running.");
+            Properties.isUsingStremioService = true;
+        }
     } else logger.info("Launching without Stremio streaming server.");
     
     createWindow();
+    
+    // macOS: protocol URLs are sent via 'open-url'
+    app.on('open-url', (event, url) => {
+        event.preventDefault();
+        handleStremioURL(url);
+    });
+    
+    if (!app.isDefaultProtocolClient('stremio')) {
+        app.setAsDefaultProtocolClient('stremio');
+    }
+    
+    // Handle any URL passed on first launch (Windows/Linux)
+    const launchUrl = process.argv.find(arg => arg.startsWith('stremio://'));
+    if (launchUrl) handleStremioURL(launchUrl);
     
     app.on("activate", () => {
         if (BrowserWindow.getAllWindows().length === 0) createWindow();
@@ -244,7 +293,7 @@ async function chooseStreamingServer() {
         "Click 'No' to attempt using server.js directly",
         ["Yes, use Stremio Service (recommended on Windows)", "No, use server.js directly (manual setup required)"]
     );
-
+    
     if(result === 0) {
         logger.info("User chose to use Stremio Service for streaming. User's choice will be saved for future launches.");
         await useStremioService();
@@ -263,16 +312,16 @@ async function useServerJS() {
     // First, try to ensure streaming server files are available
     logger.info("Checking for streaming server files...");
     const filesStatus = await StreamingServer.ensureStreamingServerFiles();
-
+    
     if(filesStatus === "ready") {
-        logger.info("Launching local streaming server.");
+        logger.info("Launching server.js directly...");
         StreamingServer.start();
     } else if(filesStatus === "missing_server_js") {
         // server.js is missing - show instructions to the user in a loop
         logger.info("server.js not found. Showing download instructions to user...");
         const serverDir = StreamingServer.getStreamingServerDir();
-        const downloadUrl = StreamingServer.getServerJsUrl();
-
+        const downloadUrl = SERVER_JS_URL;
+        
         let serverJsFound = false;
         while (!serverJsFound) {
             const result = await Helpers.showAlert(
@@ -285,7 +334,7 @@ async function useServerJS() {
                 `Click "Open Folder" to open the destination folder, or "Download" to open the download link in your browser. Click "Close" when you have placed the file in the correct location and FFmpeg will be downloaded automatically if needed.`,
                 ["Open Folder", "Download", "Close"]
             );
-
+            
             if (result === 0) {
                 // Open the folder
                 StreamingServer.openStreamingServerDir();
@@ -329,7 +378,7 @@ async function useServerJS() {
 
 app.on("window-all-closed", () => {
     logger.info("Closing app...");
-
+    
     if (process.platform !== "darwin") {
         app.quit();
     }
@@ -340,31 +389,43 @@ app.on('browser-window-created', (_, window) => {
         switch (true) {
             // Opens Devtools on Ctrl + Shift + I
             case input.control && input.shift && input.key === 'I':
-                window.webContents.toggleDevTools();
-                event.preventDefault();
-                break;
-    
+            window.webContents.toggleDevTools();
+            event.preventDefault();
+            break;
+            
             // Toggles fullscreen on F11
             case input.key === 'F11':
-                window.setFullScreen(!window.isFullScreen());
-                event.preventDefault();
-                break;
-    
+            window.setFullScreen(!window.isFullScreen());
+            event.preventDefault();
+            break;
+            
             // Implements zooming in/out using shortcuts (Ctrl + =, Ctrl + -)
             case input.control && input.key === '=':
-                if (mainWindow) mainWindow.webContents.zoomFactor += 0.1;
-                event.preventDefault();
-                break;
+            if (mainWindow) mainWindow.webContents.zoomFactor += 0.1;
+            event.preventDefault();
+            break;
             case input.control && input.key === '-':
-                if (mainWindow) mainWindow.webContents.zoomFactor -= 0.1;
-                event.preventDefault();
-                break;
-    
+            if (mainWindow) mainWindow.webContents.zoomFactor -= 0.1;
+            event.preventDefault();
+            break;
+            
             // Implements reload on Ctrl + R
             case input.control && input.key === 'r':
-                mainWindow?.reload();
-                event.preventDefault();
-                break;
+            mainWindow?.reload();
+            event.preventDefault();
+            break;
         }
     });
 });
+
+function handleStremioURL(url: string) {
+    try {
+        console.log('Received stremio:// URL:', url);
+        
+        if (mainWindow && url.endsWith("/manifest.json")) {
+            mainWindow.loadURL(URLS.STREMIO_WEB_ADD_ADDON + encodeURIComponent(url));
+        }
+    } catch (err) {
+        console.error('Invalid stremio:// URL', err);
+    }
+}

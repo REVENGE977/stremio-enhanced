@@ -1,6 +1,6 @@
 {
 	"name": "stremio-enhanced",
-	"version": "1.0.2",
+	"version": "1.0.3",
 	"description": "Electron-based Stremio client with plugins and themes support.",
 	"main": "./dist/main.js",
 	"scripts": {
@@ -14,7 +14,7 @@
 		"build:mac:x64": "npm run dist && electron-builder --mac --x64",
 		"build:mac:arm64": "npm run dist && electron-builder --mac --arm64",
 		"build:win:x64": "npm run dist && electron-builder --win --x64",
-		"build:win:arm64": "npm run dist && electron-builder --win --arm64 --x64=false",
+		"build:win:arm64": "npm run dist && electron-builder --win --arm64",
 		"build:win": "npm run dist && electron-builder --win"
 	},
 	"repository": "https://github.com/REVENGE977/stremio-enhanced.git",
@@ -26,22 +26,19 @@
 	"license": "MIT",
 	"devDependencies": {
 		"@types/unzipper": "^0.10.11",
-		"acrylic-vibrancy": "^1.1.0",
 		"electron": "^39.2.7",
-		"electron-builder": "^26.0.12",
+		"electron-builder": "^26.4.0",
 		"typescript": "^5.7.2"
 	},
 	"dependencies": {
 		"@xhayper/discord-rpc": "^1.2.1",
 		"discord-api-types": "^0.37.119",
-		"electron-prompt": "^1.7.0",
-		"electron-updater": "^5.3.0",
 		"marked": "^15.0.7",
 		"unzipper": "^0.12.3",
 		"winston": "^3.11.0"
 	},
 	"optionalDependencies": {
-		"dmg-license": "1.0.11"
+		"dmg-license": "^1.0.11"
 	},
 	"files": [
 		"static/**/*",
@@ -70,17 +67,10 @@
 		"win": {
 			"target": [
 				{
-					"target": "nsis",
-					"arch": [
-						"x64",
-						"arm64"
-					]
+					"target": "nsis"
 				},
 				{
-					"target": "portable",
-					"arch": [
-						"x64"
-					]
+					"target": "portable"
 				}
 			]
 		},

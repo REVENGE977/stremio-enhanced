@@ -1,5 +1,5 @@
 import TemplateCache from '../../utils/templateCache';
-import MetaData from '../../interfaces/MetaData';
+import { MetaData } from '../../interfaces/MetaData';
 
 export function getPluginItemTemplate(
     filename: string, 

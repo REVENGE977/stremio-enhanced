@@ -3,12 +3,13 @@ import { readFileSync, writeFileSync, readdirSync, statSync, existsSync, mkdirSy
 import { shell } from "electron";
 import properties from "./Properties";
 import helpers from "../utils/Helpers";
-import MetaData from "../interfaces/MetaData";
+import { MetaData } from "../interfaces/MetaData";
 import { getLogger } from "../utils/logger";
 import Properties from "./Properties";
 import { getApplyThemeTemplate } from "../components/apply-theme/applyTheme";
 import { basename, join } from "path";
 import { STORAGE_KEYS, SELECTORS, CLASSES, URLS } from "../constants";
+import ExtractMetaData from "../utils/ExtractMetaData";
 
 class ModManager {
     private static logger = getLogger("ModManager");
@@ -292,7 +293,7 @@ class ModManager {
             itemFile
         );
         
-        const installedItemMetaData = helpers.extractMetadataFromFile(itemPath) as MetaData | null;
+        const installedItemMetaData = ExtractMetaData.extractMetadataFromFile(itemPath) as MetaData | null;
         
         if (!installedItemMetaData || Object.keys(installedItemMetaData).length === 0) {
             return;
@@ -312,7 +313,7 @@ class ModManager {
             }
 
             const response = await request.text();
-            const extractedMetaData = helpers.extractMetadataFromText(response) as MetaData | null;
+            const extractedMetaData = ExtractMetaData.extractMetadataFromText(response) as MetaData | null;
             
             if (!extractedMetaData) {
                 this.logger.warn(`Failed to extract metadata from response for ${pluginOrTheme} (${installedItemMetaData.name})`);

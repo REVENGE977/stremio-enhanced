@@ -5,7 +5,7 @@ import properties from "./core/Properties";
 import ModManager from "./core/ModManager";
 import Helpers from "./utils/Helpers";
 import Updater from "./core/Updater";
-import DiscordPresence from "./utils/DiscordPresence";
+import DiscordPresence from "./core/DiscordPresence";
 import { getModsTabTemplate } from "./components/mods-tab/modsTab";
 import { getModItemTemplate } from "./components/mods-item/modsItem";
 import { getAboutCategoryTemplate } from "./components/about-category/aboutCategory";
@@ -23,6 +23,10 @@ import {
     FILE_EXTENSIONS,
     TIMEOUTS 
 } from "./constants";
+import ExtractMetaData from "./utils/ExtractMetaData";
+import ExtractedSubtitle from "./interfaces/ExtractedSubtitle";
+import PlaybackState from "./utils/PlaybackState";
+
 
 // Cache transparency status to avoid repeated IPC calls
 let transparencyStatusCache: boolean | null = null;
@@ -37,7 +41,7 @@ async function getTransparencyStatus(): Promise<boolean> {
 window.addEventListener("load", async () => {
     initializeUserSettings();
     reloadServer();
-
+    
     const checkUpdates = localStorage.getItem(STORAGE_KEYS.CHECK_UPDATES_ON_STARTUP);
     if (checkUpdates === "true") {
         await Updater.checkForUpdates(false);
@@ -49,16 +53,16 @@ window.addEventListener("load", async () => {
         DiscordPresence.start();
         await DiscordPresence.discordRPCHandler();
     }
-
+    
     // Apply enabled theme
     applyUserTheme();
-
+    
     // Load enabled plugins
     loadEnabledPlugins();
-
+    
     // Get transparency status once and reuse
     const isTransparencyEnabled = await getTransparencyStatus();
-
+    
     // Handle fullscreen changes for title bar
     ipcRenderer.on(IPC_CHANNELS.FULLSCREEN_CHANGED, (_, isFullscreen: boolean) => {
         const titleBar = document.querySelector('.title-bar') as HTMLElement;
@@ -66,7 +70,7 @@ window.addEventListener("load", async () => {
             titleBar.style.display = isFullscreen ? 'none' : 'flex';
         }
     });
-
+    
     // Set up title bar observer for transparent themes
     if (isTransparencyEnabled) {
         const observer = new MutationObserver(() => {
@@ -75,96 +79,179 @@ window.addEventListener("load", async () => {
         observer.observe(document.body, { childList: true, subtree: true });
         addTitleBar();
     }
-
+    
     // Handle navigation changes
     window.addEventListener("hashchange", async () => {
         if (isTransparencyEnabled) {
             addTitleBar();
         }
-
-        if (!location.href.includes("#/settings")) return;
-        if (document.querySelector(`a[href="#settings-enhanced"]`)) return;
         
-        ModManager.addApplyThemeFunction();
-        
-        const themesList = readdirSync(properties.themesPath)
-            .filter(fileName => fileName.endsWith(FILE_EXTENSIONS.THEME));
-        const pluginsList = readdirSync(properties.pluginsPath)
-            .filter(fileName => fileName.endsWith(FILE_EXTENSIONS.PLUGIN));
-        
-        logger.info("Adding 'Enhanced' sections...");
-        Settings.addSection("enhanced", "Enhanced");
-        Settings.addCategory("Themes", "enhanced", getThemeIcon());
-        Settings.addCategory("Plugins", "enhanced", getPluginIcon());
-        Settings.addCategory("About", "enhanced", getAboutIcon());
-        
-        Settings.addButton("Open Themes Folder", "openthemesfolderBtn", SELECTORS.THEMES_CATEGORY);
-        Settings.addButton("Open Plugins Folder", "openpluginsfolderBtn", SELECTORS.PLUGINS_CATEGORY);
-        
-        writeAbout();
-        
-        // Browse plugins/themes from stremio-enhanced-registry
-        setupBrowseModsButton();
-        
-        // Check for updates button
-        setupCheckUpdatesButton();
-        
-        // CheckForUpdatesOnStartup toggle
-        setupCheckUpdatesOnStartupToggle();
-        
-        // Discord Rich Presence toggle
-        setupDiscordRpcToggle();
-        
-        // Enable transparency toggle
-        setupTransparencyToggle();
-
-        // Add themes to settings
-        Helpers.waitForElm(SELECTORS.THEMES_CATEGORY).then(() => {
-            // Default theme
-            const isCurrentThemeDefault = localStorage.getItem(STORAGE_KEYS.CURRENT_THEME) === "Default";
-            const defaultThemeContainer = document.createElement("div");
-            defaultThemeContainer.innerHTML = getDefaultThemeTemplate(isCurrentThemeDefault);
-            document.querySelector(SELECTORS.THEMES_CATEGORY)?.appendChild(defaultThemeContainer);
-            
-            // Add installed themes
-            themesList.forEach(theme => {
-                const metaData = Helpers.extractMetadataFromFile(join(properties.themesPath, theme));
-                if (metaData && metaData.name && metaData.description && metaData.author && metaData.version) {
-                    if (metaData.name.toLowerCase() !== "default") {
-                        Settings.addItem("theme", theme, {
-                            name: metaData.name,
-                            description: metaData.description,
-                            author: metaData.author,
-                            version: metaData.version,
-                            updateUrl: metaData.updateUrl,
-                            source: metaData.source
-                        });
-                    }
-                }
-            });
-        }).catch(err => logger.error("Failed to setup themes: " + err));
-        
-        // Add plugins to settings
-        pluginsList.forEach(plugin => {
-            const metaData = Helpers.extractMetadataFromFile(join(properties.pluginsPath, plugin));
-            if (metaData && metaData.name && metaData.description && metaData.author && metaData.version) {
-                Settings.addItem("plugin", plugin, {
-                    name: metaData.name,
-                    description: metaData.description,
-                    author: metaData.author,
-                    version: metaData.version,
-                    updateUrl: metaData.updateUrl,
-                    source: metaData.source
-                });
-            }
-        });
-        
-        ModManager.togglePluginListener();
-        ModManager.scrollListener();
-        ModManager.openThemesFolder();
-        ModManager.openPluginsFolder();
+        checkSettings();
+        checkWatching();
     });
 });
+
+// Settings page opened
+function checkSettings() {
+    if (!location.href.includes("#/settings")) return;
+    if (document.querySelector(`a[href="#settings-enhanced"]`)) return;
+    
+    ModManager.addApplyThemeFunction();
+    
+    const themesList = readdirSync(properties.themesPath)
+    .filter(fileName => fileName.endsWith(FILE_EXTENSIONS.THEME));
+    const pluginsList = readdirSync(properties.pluginsPath)
+    .filter(fileName => fileName.endsWith(FILE_EXTENSIONS.PLUGIN));
+    
+    logger.info("Adding 'Enhanced' sections...");
+    Settings.addSection("enhanced", "Enhanced");
+    Settings.addCategory("Themes", "enhanced", getThemeIcon());
+    Settings.addCategory("Plugins", "enhanced", getPluginIcon());
+    Settings.addCategory("About", "enhanced", getAboutIcon());
+    
+    Settings.addButton("Open Themes Folder", "openthemesfolderBtn", SELECTORS.THEMES_CATEGORY);
+    Settings.addButton("Open Plugins Folder", "openpluginsfolderBtn", SELECTORS.PLUGINS_CATEGORY);
+    
+    writeAbout();
+    
+    // Browse plugins/themes from stremio-enhanced-registry
+    setupBrowseModsButton();
+    
+    // Check for updates button
+    setupCheckUpdatesButton();
+    
+    // CheckForUpdatesOnStartup toggle
+    setupCheckUpdatesOnStartupToggle();
+    
+    // Discord Rich Presence toggle
+    setupDiscordRpcToggle();
+    
+    // Enable transparency toggle
+    setupTransparencyToggle();
+    
+    // Add themes to settings
+    Helpers.waitForElm(SELECTORS.THEMES_CATEGORY).then(() => {
+        // Default theme
+        const isCurrentThemeDefault = localStorage.getItem(STORAGE_KEYS.CURRENT_THEME) === "Default";
+        const defaultThemeContainer = document.createElement("div");
+        defaultThemeContainer.innerHTML = getDefaultThemeTemplate(isCurrentThemeDefault);
+        document.querySelector(SELECTORS.THEMES_CATEGORY)?.appendChild(defaultThemeContainer);
+        
+        // Add installed themes
+        themesList.forEach(theme => {
+            const metaData = ExtractMetaData.extractMetadataFromFile(join(properties.themesPath, theme));
+            if (metaData) {
+                if (metaData.name.toLowerCase() !== "default") {
+                    Settings.addItem("theme", theme, {
+                        name: metaData.name,
+                        description: metaData.description,
+                        author: metaData.author,
+                        version: metaData.version,
+                        updateUrl: metaData.updateUrl,
+                        source: metaData.source
+                    });
+                }
+            }
+        });
+    }).catch(err => logger.error("Failed to setup themes: " + err));
+    
+    // Add plugins to settings
+    pluginsList.forEach(plugin => {
+        const metaData = ExtractMetaData.extractMetadataFromFile(join(properties.pluginsPath, plugin));
+        if (metaData) {
+            Settings.addItem("plugin", plugin, {
+                name: metaData.name,
+                description: metaData.description,
+                author: metaData.author,
+                version: metaData.version,
+                updateUrl: metaData.updateUrl,
+                source: metaData.source
+            });
+        }
+    });
+    
+    ModManager.togglePluginListener();
+    ModManager.scrollListener();
+    ModManager.openThemesFolder();
+    ModManager.openPluginsFolder();
+}
+
+
+// Once playback starts, check if embedded subs are available and loaded, if not then Enhanced will extract them by itself using FFmpeg and FFprobe
+async function checkWatching() {
+    if (!location.href.includes('#/player')) return;
+    
+    await Helpers.waitForElm('video');
+    const video = document.querySelector("video")!;
+    
+    let extractedAlready = false;
+    
+    video.addEventListener("loadedmetadata", async () => {
+        if(extractedAlready) return;
+        extractedAlready = true;
+        const streamURL = await getStreamURL();
+        
+        if (video.textTracks.length === 0) {
+            logger.info("No embedded subtitles loaded natively. Attempting to extract embedded subtitles...");
+            Helpers.createToast(
+                "extractingAlertToast",
+                "Extracting embedded subtitles...",
+                "Extracting embedded subtitles, please wait.",
+                "info");
+
+            const subs = await ipcRenderer.invoke(
+                IPC_CHANNELS.EXTRACT_EMBEDDED_SUBTITLES,
+                streamURL
+            );
+            
+            logger.info("Extracted embedded subtitles: " + JSON.stringify(subs));
+            
+            if (subs?.length) {
+                attachExternalSubs(video, subs);
+            } else {
+                Helpers.createToast(
+                    "noEmbeddedSubsToast",
+                    "No embedded subtitles found",
+                    "No embedded subtitles were found in this video.",
+                    "fail");
+            }
+        } else {
+            logger.info("Embedded subtitles already loaded. No need to load manually.");
+        }
+    });
+}
+
+function attachExternalSubs(video: HTMLVideoElement, subs: ExtractedSubtitle[]) {
+    subs.forEach((sub: ExtractedSubtitle) => {
+        const trackEl = document.createElement("track");
+        trackEl.kind = "subtitles";
+        trackEl.label = sub.descriptiveName;
+        trackEl.srclang = sub.shortLang;
+        trackEl.src = `file://${sub.path}`;
+        trackEl.default = true;
+        
+        video.appendChild(trackEl);
+    });
+    
+    setTimeout(() => {
+        for (const track of video.textTracks) {
+            track.mode = 'disabled';
+        }
+    }, 200);
+        
+    Helpers.createToast(
+        "embeddedSubsToast",
+        "Subtitles loaded",
+        "Embedded subtitles loaded",
+        "success"
+    );
+}
+
+async function getStreamURL() {
+    const playerState = await PlaybackState.getPlayerState();
+    if(!playerState) return logger.error("Failed to get player state.");
+    return playerState.stream?.content?.url;
+}
 
 function reloadServer(): void {
     setTimeout(() => {
@@ -179,7 +266,7 @@ function initializeUserSettings(): void {
         [STORAGE_KEYS.CHECK_UPDATES_ON_STARTUP]: "true",
         [STORAGE_KEYS.DISCORD_RPC]: "false",
     };
-
+    
     for (const [key, defaultValue] of Object.entries(defaults)) {
         if (!localStorage.getItem(key)) {
             localStorage.setItem(key, defaultValue);
@@ -194,14 +281,14 @@ function applyUserTheme(): void {
         localStorage.setItem(STORAGE_KEYS.CURRENT_THEME, "Default");
         return;
     }
-
+    
     const themePath = join(properties.themesPath, currentTheme);
     
     if (!existsSync(themePath)) {
         localStorage.setItem(STORAGE_KEYS.CURRENT_THEME, "Default");
         return;
     }
-
+    
     // Remove existing theme if present
     document.getElementById("activeTheme")?.remove();
     
@@ -214,12 +301,12 @@ function applyUserTheme(): void {
 
 function loadEnabledPlugins(): void {
     const pluginsToLoad = readdirSync(properties.pluginsPath)
-        .filter(fileName => fileName.endsWith(FILE_EXTENSIONS.PLUGIN));
+    .filter(fileName => fileName.endsWith(FILE_EXTENSIONS.PLUGIN));
     
     const enabledPlugins: string[] = JSON.parse(
         localStorage.getItem(STORAGE_KEYS.ENABLED_PLUGINS) || "[]"
     );
-
+    
     pluginsToLoad.forEach(plugin => {
         if (enabledPlugins.includes(plugin)) {
             ModManager.loadPlugin(plugin);
@@ -232,11 +319,11 @@ async function browseMods(): Promise<void> {
     if (!settingsContent) return;
     
     settingsContent.innerHTML = getModsTabTemplate();
-
+    
     const mods = await ModManager.fetchMods();
     const modsList = document.getElementById("mods-list");
     if (!modsList) return;
-
+    
     interface RegistryMod {
         name: string;
         description: string;
@@ -246,28 +333,28 @@ async function browseMods(): Promise<void> {
         download: string;
         repo: string;
     }
-
+    
     // Add plugins
     (mods.plugins as RegistryMod[]).forEach((plugin) => {
         const installed = ModManager.isPluginInstalled(Helpers.getFileNameFromUrl(plugin.download));
         modsList.innerHTML += getModItemTemplate(plugin, "Plugin", installed);
     });
-
+    
     // Add themes
     (mods.themes as RegistryMod[]).forEach((theme) => {
         const installed = ModManager.isThemeInstalled(Helpers.getFileNameFromUrl(theme.download));
         modsList.innerHTML += getModItemTemplate(theme, "Theme", installed);
     });
-
+    
     // Set up action buttons
     const actionBtns = document.querySelectorAll(".modActionBtn");
     actionBtns.forEach((btn) => {
         btn.addEventListener("click", () => {
             const link = btn.getAttribute("data-link");
             const type = btn.getAttribute("data-type")?.toLowerCase() as "plugin" | "theme";
-
+            
             if (!link || !type) return;
-
+            
             if (btn.getAttribute("title") === "Install") {
                 ModManager.downloadMod(link, type);
                 btn.classList.remove(CLASSES.INSTALL_BUTTON);
@@ -287,10 +374,10 @@ async function browseMods(): Promise<void> {
             }
         });
     });
-
+    
     // Search bar logic
     setupSearchBar();
-
+    
     // Add back button
     const horizontalNavs = document.querySelectorAll(SELECTORS.HORIZONTAL_NAV);
     const horizontalNav = horizontalNavs[1];
@@ -308,18 +395,18 @@ async function browseMods(): Promise<void> {
 function setupSearchBar(): void {
     const searchInput = document.querySelector(SELECTORS.SEARCH_INPUT) as HTMLInputElement;
     const addonsContainer = document.querySelector(SELECTORS.ADDONS_LIST_CONTAINER);
-
+    
     if (!searchInput || !addonsContainer) return;
-
+    
     searchInput.addEventListener("input", () => {
         const filter = searchInput.value.trim().toLowerCase();
         const modItems = addonsContainer.querySelectorAll(SELECTORS.ADDON_CONTAINER);
-
+        
         modItems.forEach((item) => {
             const name = item.querySelector(SELECTORS.NAME_CONTAINER)?.textContent?.toLowerCase() || "";
             const description = item.querySelector(SELECTORS.DESCRIPTION_ITEM)?.textContent?.toLowerCase() || "";
             const type = item.querySelector(SELECTORS.TYPES_CONTAINER)?.textContent?.toLowerCase() || "";
-
+            
             const match = name.includes(filter) || description.includes(filter) || type.includes(filter);
             (item as HTMLElement).style.display = match ? "" : "none";
         });
@@ -363,7 +450,7 @@ function setupDiscordRpcToggle(): void {
             toggle.classList.toggle(CLASSES.CHECKED);
             const isChecked = toggle.classList.contains(CLASSES.CHECKED);
             logger.info(`Discord Rich Presence toggled ${isChecked ? "ON" : "OFF"}`);
-
+            
             if (isChecked) {
                 localStorage.setItem(STORAGE_KEYS.DISCORD_RPC, "true");
                 DiscordPresence.start();
@@ -394,7 +481,7 @@ function writeAbout(): void {
         const currentVersion = Updater.getCurrentVersion();
         const checkForUpdatesOnStartup = localStorage.getItem(STORAGE_KEYS.CHECK_UPDATES_ON_STARTUP) === "true";
         const discordRpc = localStorage.getItem(STORAGE_KEYS.DISCORD_RPC) === "true";
-
+        
         const aboutCategory = document.querySelector(SELECTORS.ABOUT_CATEGORY);
         if (aboutCategory) {
             aboutCategory.innerHTML += getAboutCategoryTemplate(
@@ -409,21 +496,21 @@ function writeAbout(): void {
 
 function addTitleBar(): void {
     logger.info("Adding title bar...");
-
+    
     const activeRoute = document.querySelector(SELECTORS.ROUTE_CONTAINER);
     if (!activeRoute || activeRoute.querySelector(".title-bar")) return;
-
+    
     activeRoute.insertAdjacentHTML("afterbegin", getTitleBarTemplate());
     logger.info("Title bar added to active route");
-
+    
     const titleBar = activeRoute.querySelector(".title-bar");
     if (!titleBar) return;
-
+    
     // Minimize button
     titleBar.querySelector("#minimizeApp-btn")?.addEventListener("click", () => {
         ipcRenderer.send(IPC_CHANNELS.MINIMIZE_WINDOW);
     });
-
+    
     // Maximize button
     titleBar.querySelector("#maximizeApp-btn")?.addEventListener("click", () => {
         const pathElement = titleBar.querySelector("#maximizeApp-btn svg path");
@@ -436,7 +523,7 @@ function addTitleBar(): void {
         }
         ipcRenderer.send(IPC_CHANNELS.MAXIMIZE_WINDOW);
     });
-
+    
     // Close button
     titleBar.querySelector("#closeApp-btn")?.addEventListener("click", () => {
         ipcRenderer.send(IPC_CHANNELS.CLOSE_WINDOW);

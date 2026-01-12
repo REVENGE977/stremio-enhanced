@@ -15,9 +15,9 @@
 - [x] Make it so if the user opens Discord after opening Stremio Enhanced, Discord Rich Presence still works.
 - [x] In-app patch notes when an update is available.
 - [ ] Support having options for plugins. 
-- [ ] Improve update system: auto update so user doesn't have to download anything manually.
+- [ ] Improve update system: auto update so user doesn't have to download anything manually. ⭐
 - [x] Auto download Stremio Service for the user if an installation is not detected.
-- [ ] Support addons links by opening directly: instead of having the user copy and paste links. 
+- [x] Support addons links by opening directly: instead of having the user copy and paste links. ⭐
 - [x] In-app plugins/themes list to browse and find new plugins/themes.
 - [x] Auto download Stremio Service if not found.
 - [ ] Plugin idea: categories in library.
@@ -27,6 +27,8 @@
 - [x] Fix the transparent themes option
   - [x] Add a custom title bar and disable the window frame
   - [x] Make sure fullscreen works when the option is enabled
+- [x] Fix embedded subs not loading some streams by having manually extracting the subs and loading them.
+- [ ] Clean up preload.ts
 - [ ] Features from Zaarrg/stremio-community-v5
   - [ ] MPV support
     - [ ] Thumbnail preview

@@ -2,7 +2,7 @@
  * Metadata structure for plugins and themes
  * Extracted from JSDoc-style comments in mod files
  */
-interface MetaData {
+export interface MetaData {
     /** Display name of the mod */
     name: string;
     /** Brief description of what the mod does */
@@ -21,4 +21,22 @@ interface MetaData {
     homepage?: string;
 }
 
-export default MetaData;
+export type MetadataKey = keyof MetaData;
+
+export const REQUIRED_METADATA_KEYS = [
+    "name",
+    "description",
+    "author",
+    "version",
+] as const satisfies readonly MetadataKey[];
+
+export const ALL_METADATA_KEYS = [
+    "name",
+    "description",
+    "author",
+    "version",
+    "updateUrl",
+    "source",
+    "license",
+    "homepage",
+] as const satisfies readonly MetadataKey[];

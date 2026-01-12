@@ -1,5 +1,5 @@
 import Helpers from "../utils/Helpers";
-import MetaData from "../interfaces/MetaData";
+import { MetaData } from "../interfaces/MetaData";
 import { getPluginItemTemplate } from "../components/plugin-item/pluginItem";
 import { getThemeItemTemplate } from "../components/theme-item/themeItem";
 import { getEnhancedNav } from "../components/enhanced-nav/enhancedNav";
@@ -45,7 +45,7 @@ class Settings {
                 const shortcutsNav = document.querySelector('[title="Shortcuts"]');
 
                 if (!nav || !shortcutsNav) return;
-                if(document.getElementById(`nav-${sectionId}`)) return; // Nav item already exists
+                if(document.querySelector(`[data-section="${sectionId}"]`)) return; // Nav item already exists
 
                 const enhancedNavContainer = document.createElement("div");
                 enhancedNavContainer.innerHTML = getEnhancedNav();
