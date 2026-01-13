@@ -1,6 +1,6 @@
 {
 	"name": "stremio-enhanced",
-	"version": "1.0.3",
+	"version": "1.0.2",
 	"description": "Electron-based Stremio client with plugins and themes support.",
 	"main": "./dist/main.js",
 	"scripts": {
@@ -34,6 +34,7 @@
 		"@xhayper/discord-rpc": "^1.2.1",
 		"discord-api-types": "^0.37.119",
 		"marked": "^15.0.7",
+		"p-limit": "^7.2.0",
 		"unzipper": "^0.12.3",
 		"winston": "^3.11.0"
 	},
