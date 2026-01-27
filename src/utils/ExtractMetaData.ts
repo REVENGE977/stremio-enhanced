@@ -1,4 +1,3 @@
-import { readFileSync } from "fs";
 import {
     MetaData,
     MetadataKey,
@@ -34,22 +33,6 @@ class ExtractMetaData {
         }
 
         return result as MetaData;
-    }
-
-    public static extractMetadataFromFile(filePath: string): MetaData | null {
-        try {
-            const fileContent = readFileSync(filePath, 'utf8');
-            const metadata = this.parseMetadataFromContent(fileContent);
-            
-            if (!metadata) {
-                logger.error('Metadata comments not found in the file: ' + filePath);
-            }
-            
-            return metadata;
-        } catch (error) {
-            logger.error('Error reading the file: ' + (error as Error).message);
-            return null;
-        }
     }
 
     public static extractMetadataFromText(textContent: string): MetaData | null {

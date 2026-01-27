@@ -241,7 +241,7 @@ app.on("ready", async () => {
     
     if(!process.argv.includes("--no-stremio-server")) {
         if(!await StremioService.isProcessRunning()) {
-            let platform = process.platform;
+            const platform = process.platform;
             
             // If the user is on Windows, give the option to either use Stremio Service or server.js
             if(platform === "win32") {

@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">StremioEnhanced</string>
+    <string name="title_activity_main">StremioEnhanced</string>
+    <string name="package_name">com.revenge977.stremioenhanced</string>
+    <string name="custom_url_scheme">com.revenge977.stremioenhanced</string>
+</resources>

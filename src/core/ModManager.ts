@@ -1,6 +1,5 @@
 import Settings from "./Settings";
-import { readFileSync, writeFileSync, readdirSync, statSync, existsSync, mkdirSync, unlinkSync } from "fs";
-import { shell } from "electron";
+import { PlatformManager } from "../platform/PlatformManager";
 import properties from "./Properties";
 import helpers from "../utils/Helpers";
 import { MetaData } from "../interfaces/MetaData";
@@ -17,7 +16,7 @@ class ModManager {
     /**
      * Load and enable a plugin by filename
      */
-    public static loadPlugin(pluginName: string): void {
+    public static async loadPlugin(pluginName: string): Promise<void> {
         if (document.getElementById(pluginName)) {
             this.logger.info(`Plugin ${pluginName} is already loaded`);
             return;
@@ -25,12 +24,12 @@ class ModManager {
 
         const pluginPath = join(properties.pluginsPath, pluginName);
         
-        if (!existsSync(pluginPath)) {
+        if (!await PlatformManager.current.exists(pluginPath)) {
             this.logger.error(`Plugin file not found: ${pluginPath}`);
             return;
         }
 
-        const plugin = readFileSync(pluginPath, "utf-8");
+        const plugin = await PlatformManager.current.readFile(pluginPath);
         const script = document.createElement("script");
         script.innerHTML = plugin;
         script.id = pluginName;
@@ -85,13 +84,15 @@ class ModManager {
         if (!response.ok) throw new Error(`Failed to download: ${response.status} ${response.statusText}`);
         
         const saveDir = type === "plugin" ? Properties.pluginsPath : Properties.themesPath;
-        if (!existsSync(saveDir)) mkdirSync(saveDir, { recursive: true });
+        if (!await PlatformManager.current.exists(saveDir)) {
+            await PlatformManager.current.mkdir(saveDir);
+        }
         
         const filename = basename(new URL(modLink).pathname) || `${type}-${Date.now()}`;
         const filePath = join(saveDir, filename);
 
-        const buffer = Buffer.from(await response.arrayBuffer());
-        writeFileSync(filePath, buffer);
+        const content = await response.text();
+        await PlatformManager.current.writeFile(filePath, content);
 
         this.logger.info(`Downloaded ${type} saved to: ${filePath}`);
         return filePath;
@@ -100,13 +101,13 @@ class ModManager {
     /**
      * Remove a mod file and clean up associated state
      */
-    public static removeMod(fileName: string, type: "plugin" | "theme"): void {
+    public static async removeMod(fileName: string, type: "plugin" | "theme"): Promise<void> {
         this.logger.info(`Removing ${type} file: ${fileName}`);
 
         switch (type) {
             case "plugin":
-                if (this.isPluginInstalled(fileName)) {
-                    unlinkSync(join(Properties.pluginsPath, fileName));
+                if (await this.isPluginInstalled(fileName)) {
+                    await PlatformManager.current.unlink(join(Properties.pluginsPath, fileName));
                     let enabledPlugins: string[] = JSON.parse(
                         localStorage.getItem(STORAGE_KEYS.ENABLED_PLUGINS) || "[]"
                     );
@@ -117,39 +118,49 @@ class ModManager {
                 }
                 break;
             case "theme":
-                if (this.isThemeInstalled(fileName)) {
+                if (await this.isThemeInstalled(fileName)) {
                     if (localStorage.getItem(STORAGE_KEYS.CURRENT_THEME) === fileName) {
                         localStorage.setItem(STORAGE_KEYS.CURRENT_THEME, "Default");
                     }
                     document.getElementById("activeTheme")?.remove();
-                    unlinkSync(join(Properties.themesPath, fileName));
+                    await PlatformManager.current.unlink(join(Properties.themesPath, fileName));
                 }
                 break;
         }
     }
 
-    public static isThemeInstalled(fileName: string): boolean {
-        return this.getInstalledThemes().includes(fileName);
+    public static async isThemeInstalled(fileName: string): Promise<boolean> {
+        return (await this.getInstalledThemes()).includes(fileName);
     }
 
-    public static isPluginInstalled(fileName: string): boolean {
-        return this.getInstalledPlugins().includes(fileName);
+    public static async isPluginInstalled(fileName: string): Promise<boolean> {
+        return (await this.getInstalledPlugins()).includes(fileName);
     }
 
-    private static getInstalledThemes(): string[] {
+    private static async getInstalledThemes(): Promise<string[]> {
         const dirPath = Properties.themesPath;
-        if (!existsSync(dirPath)) return [];
+        if (!await PlatformManager.current.exists(dirPath)) return [];
+
+        const files = await PlatformManager.current.readdir(dirPath);
+        const fileStats = await Promise.all(files.map(async file => {
+            const stat = await PlatformManager.current.stat(join(dirPath, file));
+            return { file, isFile: stat.isFile };
+        }));
         
-        return readdirSync(dirPath)
-            .filter(file => statSync(join(dirPath, file)).isFile());
+        return fileStats.filter(f => f.isFile).map(f => f.file);
     }
 
-    private static getInstalledPlugins(): string[] {
+    private static async getInstalledPlugins(): Promise<string[]> {
         const dirPath = Properties.pluginsPath;
-        if (!existsSync(dirPath)) return [];
+        if (!await PlatformManager.current.exists(dirPath)) return [];
+
+        const files = await PlatformManager.current.readdir(dirPath);
+        const fileStats = await Promise.all(files.map(async file => {
+            const stat = await PlatformManager.current.stat(join(dirPath, file));
+            return { file, isFile: stat.isFile };
+        }));
         
-        return readdirSync(dirPath)
-            .filter(file => statSync(join(dirPath, file)).isFile());
+        return fileStats.filter(f => f.isFile).map(f => f.file);
     }
     
     /**
@@ -161,14 +172,14 @@ class ModManager {
             const pluginCheckboxes = document.getElementsByClassName("plugin") as HTMLCollectionOf<HTMLElement>;
             
             for (let i = 0; i < pluginCheckboxes.length; i++) {
-                pluginCheckboxes[i].addEventListener("click", () => {
+                pluginCheckboxes[i].addEventListener("click", async () => {
                     pluginCheckboxes[i].classList.toggle(CLASSES.CHECKED);
                     const pluginName = pluginCheckboxes[i].getAttribute('name');
 
                     if (!pluginName) return;
 
                     if (pluginCheckboxes[i].classList.contains(CLASSES.CHECKED)) {
-                        this.loadPlugin(pluginName);
+                        await this.loadPlugin(pluginName);
                     } else {
                         this.unloadPlugin(pluginName);
                         this.showReloadWarning();
@@ -207,8 +218,8 @@ class ModManager {
     public static openThemesFolder(): void {
         helpers.waitForElm("#openthemesfolderBtn").then(() => {
             const button = document.getElementById("openthemesfolderBtn");
-            button?.addEventListener("click", () => {
-                this.openFolder(Properties.themesPath);
+            button?.addEventListener("click", async () => {
+                await this.openFolder(Properties.themesPath);
             });
         }).catch(err => this.logger.error(`Failed to setup themes folder button: ${err}`));
     }
@@ -216,8 +227,8 @@ class ModManager {
     public static openPluginsFolder(): void {
         helpers.waitForElm("#openpluginsfolderBtn").then(() => {
             const button = document.getElementById("openpluginsfolderBtn");
-            button?.addEventListener("click", () => {
-                this.openFolder(Properties.pluginsPath);
+            button?.addEventListener("click", async () => {
+                await this.openFolder(Properties.pluginsPath);
             });
         }).catch(err => this.logger.error(`Failed to setup plugins folder button: ${err}`));
     }
@@ -225,12 +236,12 @@ class ModManager {
     /**
      * Open a folder in the system file explorer
      */
-    private static openFolder(folderPath: string): void {
-        shell.openPath(folderPath).then(error => {
-            if (error) {
-                this.logger.error(`Failed to open folder ${folderPath}: ${error}`);
-            }
-        });
+    private static async openFolder(folderPath: string): Promise<void> {
+        try {
+            await PlatformManager.current.openPath(folderPath);
+        } catch (error) {
+            this.logger.error(`Failed to open folder ${folderPath}: ${error}`);
+        }
     }
         
     public static scrollListener(): void {
@@ -293,7 +304,16 @@ class ModManager {
             itemFile
         );
         
-        const installedItemMetaData = ExtractMetaData.extractMetadataFromFile(itemPath) as MetaData | null;
+        // Refactored: Read file first
+        let fileContent = "";
+        try {
+            fileContent = await PlatformManager.current.readFile(itemPath);
+        } catch (e) {
+            this.logger.error(`Failed to read file ${itemPath}: ${e}`);
+            return;
+        }
+
+        const installedItemMetaData = ExtractMetaData.extractMetadataFromText(fileContent) as MetaData | null;
         
         if (!installedItemMetaData || Object.keys(installedItemMetaData).length === 0) {
             return;
@@ -329,8 +349,8 @@ class ModManager {
                 const updateButton = document.getElementById(`${itemFile}-update`);
                 if (updateButton) {
                     updateButton.style.display = "flex";
-                    updateButton.addEventListener("click", () => {
-                        writeFileSync(itemPath, response, 'utf-8');
+                    updateButton.addEventListener("click", async () => {
+                        await PlatformManager.current.writeFile(itemPath, response);
                         Settings.removeItem(itemFile);
                         Settings.addItem(pluginOrTheme, itemFile, extractedMetaData);
                     });

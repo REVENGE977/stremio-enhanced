@@ -30,6 +30,8 @@
   "exclude": [
     "node_modules",
     "dist",
-    "release-builds"
+    "release-builds",
+    "src/android/**/*",
+    "src/**/*.browser.ts"
   ]
 }

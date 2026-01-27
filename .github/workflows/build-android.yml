@@ -1,0 +1,54 @@
+name: Build Android
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-android:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: 20
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm install
+
+    - name: Build Android Preload Script
+      run: node scripts/build-android-preload.js
+
+    - name: Build Dummy Web Assets
+      # Ensure dist/index.html exists if not in repo (though I added it)
+      run: |
+        mkdir -p dist
+        if [ ! -f dist/index.html ]; then
+          echo "<!DOCTYPE html><html><body>Loading...</body></html>" > dist/index.html
+        fi
+
+    - name: Sync Capacitor
+      run: npx cap sync android
+
+    - name: Setup Java
+      uses: actions/setup-java@v4
+      with:
+        distribution: 'temurin'
+        java-version: '17'
+
+    - name: Build Android APK
+      run: |
+        cd android
+        chmod +x gradlew
+        ./gradlew assembleDebug
+
+    - name: Upload APK
+      uses: actions/upload-artifact@v4
+      with:
+        name: stremio-enhanced-debug
+        path: android/app/build/outputs/apk/debug/app-debug.apk

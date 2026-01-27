@@ -64,7 +64,7 @@ class Settings {
             
             const categoryElement = document.querySelector(SELECTORS.CATEGORY);
             const categoryTitleElement = document.querySelector(SELECTORS.CATEGORY_LABEL);
-            let categoryIconElement = document.querySelector(SELECTORS.CATEGORY_ICON);
+            const categoryIconElement = document.querySelector(SELECTORS.CATEGORY_ICON);
 
             if (!categoryElement || !categoryTitleElement) return;
 

@@ -1,5 +1,6 @@
 import { ipcRenderer } from "electron";
-import { readdirSync, existsSync } from "fs";
+import { PlatformManager } from "./platform/PlatformManager";
+import { ElectronPlatform } from "./platform/ElectronPlatform";
 import Settings from "./core/Settings";
 import properties from "./core/Properties";
 import ModManager from "./core/ModManager";
@@ -27,6 +28,8 @@ import ExtractMetaData from "./utils/ExtractMetaData";
 import ExtractedSubtitle from "./interfaces/ExtractedSubtitle";
 import PlaybackState from "./utils/PlaybackState";
 
+// Initialize platform for Electron
+PlatformManager.setPlatform(new ElectronPlatform());
 
 // Cache transparency status to avoid repeated IPC calls
 let transparencyStatusCache: boolean | null = null;
@@ -39,6 +42,10 @@ async function getTransparencyStatus(): Promise<boolean> {
 }
 
 window.addEventListener("load", async () => {
+    // Initialize platform if not already (redundant but safe)
+    if (!PlatformManager.current) PlatformManager.setPlatform(new ElectronPlatform());
+    await PlatformManager.current.init();
+
     initializeUserSettings();
     reloadServer();
     
@@ -55,10 +62,10 @@ window.addEventListener("load", async () => {
     }
     
     // Apply enabled theme
-    applyUserTheme();
+    await applyUserTheme();
     
     // Load enabled plugins
-    loadEnabledPlugins();
+    await loadEnabledPlugins();
     
     // Get transparency status once and reuse
     const isTransparencyEnabled = await getTransparencyStatus();
@@ -86,22 +93,26 @@ window.addEventListener("load", async () => {
             addTitleBar();
         }
         
-        checkSettings();
+        await checkSettings();
         checkWatching();
     });
 });
 
 // Settings page opened
-function checkSettings() {
+async function checkSettings() {
     if (!location.href.includes("#/settings")) return;
     if (document.querySelector(`a[href="#settings-enhanced"]`)) return;
     
     ModManager.addApplyThemeFunction();
     
-    const themesList = readdirSync(properties.themesPath)
-    .filter(fileName => fileName.endsWith(FILE_EXTENSIONS.THEME));
-    const pluginsList = readdirSync(properties.pluginsPath)
-    .filter(fileName => fileName.endsWith(FILE_EXTENSIONS.PLUGIN));
+    const themesPath = properties.themesPath;
+    const pluginsPath = properties.pluginsPath;
+
+    const allThemes = await PlatformManager.current.readdir(themesPath);
+    const themesList = allThemes.filter(fileName => fileName.endsWith(FILE_EXTENSIONS.THEME));
+
+    const allPlugins = await PlatformManager.current.readdir(pluginsPath);
+    const pluginsList = allPlugins.filter(fileName => fileName.endsWith(FILE_EXTENSIONS.PLUGIN));
     
     logger.info("Adding 'Enhanced' sections...");
     Settings.addSection("enhanced", "Enhanced");
@@ -130,7 +141,7 @@ function checkSettings() {
     setupTransparencyToggle();
     
     // Add themes to settings
-    Helpers.waitForElm(SELECTORS.THEMES_CATEGORY).then(() => {
+    Helpers.waitForElm(SELECTORS.THEMES_CATEGORY).then(async () => {
         // Default theme
         const isCurrentThemeDefault = localStorage.getItem(STORAGE_KEYS.CURRENT_THEME) === "Default";
         const defaultThemeContainer = document.createElement("div");
@@ -138,37 +149,51 @@ function checkSettings() {
         document.querySelector(SELECTORS.THEMES_CATEGORY)?.appendChild(defaultThemeContainer);
         
         // Add installed themes
-        themesList.forEach(theme => {
-            const metaData = ExtractMetaData.extractMetadataFromFile(join(properties.themesPath, theme));
-            if (metaData) {
-                if (metaData.name.toLowerCase() !== "default") {
-                    Settings.addItem("theme", theme, {
-                        name: metaData.name,
-                        description: metaData.description,
-                        author: metaData.author,
-                        version: metaData.version,
-                        updateUrl: metaData.updateUrl,
-                        source: metaData.source
-                    });
+        for (const theme of themesList) {
+            try {
+                const themePath = join(themesPath, theme);
+                const content = await PlatformManager.current.readFile(themePath);
+                const metaData = ExtractMetaData.extractMetadataFromText(content);
+
+                if (metaData) {
+                    if (metaData.name.toLowerCase() !== "default") {
+                        Settings.addItem("theme", theme, {
+                            name: metaData.name,
+                            description: metaData.description,
+                            author: metaData.author,
+                            version: metaData.version,
+                            updateUrl: metaData.updateUrl,
+                            source: metaData.source
+                        });
+                    }
                 }
+            } catch (e) {
+                logger.error(`Failed to load theme metadata for ${theme}: ${e}`);
             }
-        });
+        }
     }).catch(err => logger.error("Failed to setup themes: " + err));
     
     // Add plugins to settings
-    pluginsList.forEach(plugin => {
-        const metaData = ExtractMetaData.extractMetadataFromFile(join(properties.pluginsPath, plugin));
-        if (metaData) {
-            Settings.addItem("plugin", plugin, {
-                name: metaData.name,
-                description: metaData.description,
-                author: metaData.author,
-                version: metaData.version,
-                updateUrl: metaData.updateUrl,
-                source: metaData.source
-            });
+    for (const plugin of pluginsList) {
+        try {
+            const pluginPath = join(pluginsPath, plugin);
+            const content = await PlatformManager.current.readFile(pluginPath);
+            const metaData = ExtractMetaData.extractMetadataFromText(content);
+
+            if (metaData) {
+                Settings.addItem("plugin", plugin, {
+                    name: metaData.name,
+                    description: metaData.description,
+                    author: metaData.author,
+                    version: metaData.version,
+                    updateUrl: metaData.updateUrl,
+                    source: metaData.source
+                });
+            }
+        } catch (e) {
+            logger.error(`Failed to load plugin metadata for ${plugin}: ${e}`);
         }
-    });
+    }
     
     ModManager.togglePluginListener();
     ModManager.scrollListener();
@@ -274,7 +299,7 @@ function initializeUserSettings(): void {
     }
 }
 
-function applyUserTheme(): void {
+async function applyUserTheme(): Promise<void> {
     const currentTheme = localStorage.getItem(STORAGE_KEYS.CURRENT_THEME);
     
     if (!currentTheme || currentTheme === "Default") {
@@ -284,7 +309,7 @@ function applyUserTheme(): void {
     
     const themePath = join(properties.themesPath, currentTheme);
     
-    if (!existsSync(themePath)) {
+    if (!await PlatformManager.current.exists(themePath)) {
         localStorage.setItem(STORAGE_KEYS.CURRENT_THEME, "Default");
         return;
     }
@@ -299,19 +324,22 @@ function applyUserTheme(): void {
     document.head.appendChild(themeElement);
 }
 
-function loadEnabledPlugins(): void {
-    const pluginsToLoad = readdirSync(properties.pluginsPath)
-    .filter(fileName => fileName.endsWith(FILE_EXTENSIONS.PLUGIN));
+async function loadEnabledPlugins(): Promise<void> {
+    const pluginsPath = properties.pluginsPath;
+    if (!await PlatformManager.current.exists(pluginsPath)) return;
+
+    const allPlugins = await PlatformManager.current.readdir(pluginsPath);
+    const pluginsToLoad = allPlugins.filter(fileName => fileName.endsWith(FILE_EXTENSIONS.PLUGIN));
     
     const enabledPlugins: string[] = JSON.parse(
         localStorage.getItem(STORAGE_KEYS.ENABLED_PLUGINS) || "[]"
     );
     
-    pluginsToLoad.forEach(plugin => {
+    for (const plugin of pluginsToLoad) {
         if (enabledPlugins.includes(plugin)) {
-            ModManager.loadPlugin(plugin);
+            await ModManager.loadPlugin(plugin);
         }
-    });
+    }
 }
 
 async function browseMods(): Promise<void> {
@@ -335,16 +363,16 @@ async function browseMods(): Promise<void> {
     }
     
     // Add plugins
-    (mods.plugins as RegistryMod[]).forEach((plugin) => {
-        const installed = ModManager.isPluginInstalled(Helpers.getFileNameFromUrl(plugin.download));
+    for (const plugin of (mods.plugins as RegistryMod[])) {
+        const installed = await ModManager.isPluginInstalled(Helpers.getFileNameFromUrl(plugin.download));
         modsList.innerHTML += getModItemTemplate(plugin, "Plugin", installed);
-    });
+    }
     
     // Add themes
-    (mods.themes as RegistryMod[]).forEach((theme) => {
-        const installed = ModManager.isThemeInstalled(Helpers.getFileNameFromUrl(theme.download));
+    for (const theme of (mods.themes as RegistryMod[])) {
+        const installed = await ModManager.isThemeInstalled(Helpers.getFileNameFromUrl(theme.download));
         modsList.innerHTML += getModItemTemplate(theme, "Theme", installed);
-    });
+    }
     
     // Set up action buttons
     const actionBtns = document.querySelectorAll(".modActionBtn");

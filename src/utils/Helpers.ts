@@ -132,8 +132,8 @@ class Helpers {
     }
 
     public async createToast(toastId: string, title: string, message: string, status: "success" | "fail" | "info", timeoutMs:number = 3000) {
-        let template = await getToastTemplate(toastId, title, message, status);
-        let toastContainer = document.querySelector(SELECTORS.TOAST_CONTAINER);
+        const template = await getToastTemplate(toastId, title, message, status);
+        const toastContainer = document.querySelector(SELECTORS.TOAST_CONTAINER);
         if(toastContainer) {
             toastContainer.innerHTML += template;
 
