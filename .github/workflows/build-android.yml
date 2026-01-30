@@ -24,9 +24,6 @@ jobs:
     - name: Build Android Preload Script
       run: node scripts/build-android-preload.js
 
-    - name: Download Stremio Server
-      run: node scripts/download-server.js
-
     - name: Build Dummy Web Assets
       # Ensure dist/index.html exists if not in repo (though I added it)
       run: |
@@ -34,6 +31,9 @@ jobs:
         if [ ! -f dist/index.html ]; then
           echo "<!DOCTYPE html><html><body>Loading...</body></html>" > dist/index.html
         fi
+
+    - name: Download Stremio Server
+      run: node scripts/download-server.js
 
     - name: Sync Capacitor
       run: npx cap sync android

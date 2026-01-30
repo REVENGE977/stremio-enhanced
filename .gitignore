@@ -5,4 +5,4 @@ release-builds
 package-lock.json
 .vscode
 backup
-android/app/src/main/assets/server.js
+dist/nodejs/
