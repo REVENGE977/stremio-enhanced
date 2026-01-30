@@ -6,7 +6,7 @@
 	"scripts": {
 		"dist": "tsc && node ./copyComponents.js",
 		"watch": "tsc -w",
-		"lint": "eslint -c .eslintrc --ext .ts ./src",
+		"lint": "cross-env ESLINT_USE_FLAT_CONFIG=false eslint -c .eslintrc.json --ext .ts ./src",
 		"dev": "node -e \"console.clear()\" && npm run dist && npx electron --log-level=3 ./dist/main.js --devtools",
 		"build": "npm run dist && electron-builder",
 		"build:linux:x64": "npm run dist && electron-builder --linux --x64",
@@ -25,12 +25,22 @@
 	"author": "REVENGE",
 	"license": "MIT",
 	"devDependencies": {
+		"@capacitor/android": "^8.0.1",
+		"@capacitor/cli": "^8.0.1",
 		"@types/unzipper": "^0.10.11",
+		"@typescript-eslint/eslint-plugin": "^8.54.0",
+		"@typescript-eslint/parser": "^8.54.0",
+		"cross-env": "^10.1.0",
 		"electron": "^39.2.7",
 		"electron-builder": "^26.4.0",
+		"esbuild": "^0.27.2",
+		"path-browserify": "^1.0.1",
 		"typescript": "^5.7.2"
 	},
 	"dependencies": {
+		"@capacitor/browser": "^8.0.0",
+		"@capacitor/core": "^8.0.1",
+		"@capacitor/filesystem": "^8.1.0",
 		"@xhayper/discord-rpc": "^1.2.1",
 		"discord-api-types": "^0.37.119",
 		"marked": "^15.0.7",
@@ -48,6 +58,11 @@
 		"!**/src/*",
 		"index.html"
 	],
+	"browser": {
+		"./src/utils/logger.ts": "./src/utils/logger.browser.ts",
+		"./src/components/apply-theme/applyTheme.ts": "./src/components/apply-theme/applyTheme.browser.ts",
+		"./src/utils/templateCache.ts": "./src/utils/templateCache.browser.ts"
+	},
 	"build": {
 		"appId": "com.revenge977.stremio-enhanced",
 		"productName": "Stremio Enhanced",

@@ -1,7 +1,7 @@
 import TemplateCache from "../../utils/templateCache";
 
 export async function getToastTemplate(id: string, title: string, message: string, status: "success" | "fail" | "info"): Promise<string> {
-    let template = TemplateCache.load(__dirname, 'toast');
+    const template = TemplateCache.load(__dirname, 'toast');
     let toastStatus;
 
     switch(status) {

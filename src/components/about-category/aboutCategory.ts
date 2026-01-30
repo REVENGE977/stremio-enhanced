@@ -6,7 +6,7 @@ export function getAboutCategoryTemplate(
     discordRichPresence: boolean, 
     enableTransparentThemes: boolean
 ): string {
-    let template = TemplateCache.load(__dirname, 'about-category');
+    const template = TemplateCache.load(__dirname, 'about-category');
     
     return template
         .replace("{{ version }}", version)

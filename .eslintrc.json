@@ -1,0 +1,20 @@
+{
+  "root": true,
+  "parser": "@typescript-eslint/parser",
+  "plugins": [
+    "@typescript-eslint"
+  ],
+  "extends": [
+    "eslint:recommended",
+    "plugin:@typescript-eslint/eslint-recommended",
+    "plugin:@typescript-eslint/recommended"
+  ],
+  "rules": {
+      "@typescript-eslint/no-explicit-any": "off",
+      "no-case-declarations": "off",
+      "@typescript-eslint/no-require-imports": "off",
+      "no-empty": "off",
+      "@typescript-eslint/no-unused-vars": "off",
+      "@typescript-eslint/prefer-as-const": "off"
+  }
+}

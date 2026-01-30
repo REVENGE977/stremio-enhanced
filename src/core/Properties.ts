@@ -1,19 +1,20 @@
-import { homedir } from "os";
-import { join } from "path";
+import { PlatformManager } from "../platform/PlatformManager";
 
 class Properties {
     public static themeLinkSelector: string = "head > link[rel=stylesheet]";
 
-    private static baseDataPath: string = process.platform === "win32"
-        ? process.env.APPDATA || join(homedir(), "AppData", "Roaming")
-        : process.platform === "darwin"
-            ? join(homedir(), "Library", "Application Support")
-            : join(homedir(), ".config");
+    public static get enhancedPath(): string {
+        return PlatformManager.current.getEnhancedPath();
+    }
 
-    public static enhancedPath = join(Properties.baseDataPath, "stremio-enhanced");
+    public static get themesPath(): string {
+        return PlatformManager.current.getThemesPath();
+    }
 
-    public static themesPath = join(Properties.enhancedPath, "themes");
-    public static pluginsPath = join(Properties.enhancedPath, "plugins");
+    public static get pluginsPath(): string {
+        return PlatformManager.current.getPluginsPath();
+    }
+
     public static isUsingStremioService = false;
 }
 
