@@ -1,0 +1,57 @@
+name: CI Desktop
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    name: Build ${{ matrix.os }} - ${{ matrix.command }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            command: npm run build:linux:x64
+          - os: macos-latest
+            command: npm run build:mac:x64
+          - os: windows-latest
+            command: npm run build:win:x64
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+          cache: 'npm'
+
+      - name: Install Python to fix node-gyp issues
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.x'
+
+      - name: Install dependencies
+        run: |
+          npm install --no-optional
+          npm install -g @electron/rebuild
+
+      - name: Manually install dmg-license (macOS only)
+        if: matrix.os == 'macos-latest'
+        run: npm install dmg-license
+
+      - name: Rebuild native dependencies
+        run: |
+          npx @electron/rebuild -f
+        env:
+          PYTHON: python3
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Build the app
+        run: ${{ matrix.command }}
