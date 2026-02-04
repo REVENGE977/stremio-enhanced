@@ -19,16 +19,22 @@ import {
 } from "../constants";
 import ExtractMetaData from "../utils/ExtractMetaData";
 import { NodeJS } from 'capacitor-nodejs';
+import LogManager from "../core/LogManager";
 
 // Initialize platform for Capacitor
 PlatformManager.setPlatform(new CapacitorPlatform());
 
+// Hook console for logs menu
+LogManager.hookConsole();
+
 // Listen for server logs and errors
 NodeJS.addListener('log', (data) => {
+    LogManager.addLog('INFO', `[Server] ${data.args.join(' ')}`);
     console.log('[Server]', ...data.args);
 });
 
 NodeJS.addListener('error', (data) => {
+    LogManager.addLog('ERROR', `[Server Error] ${data.args.join(' ')}`);
     console.error('[Server Error]', ...data.args);
     Helpers.showAlert('error', 'Server Error', data.args.join(' '), ['OK']);
 });
@@ -53,6 +59,18 @@ window.addEventListener("load", async () => {
     // Initialize platform
     if (!PlatformManager.current) PlatformManager.setPlatform(new CapacitorPlatform());
     await PlatformManager.current.init();
+
+    // Inject CSS to hide fullscreen button
+    const style = document.createElement('style');
+    style.textContent = `
+        [title="Fullscreen"],
+        [title="Exit Fullscreen"],
+        button[aria-label="Fullscreen"],
+        .fullscreen-toggle {
+            display: none !important;
+        }
+    `;
+    document.head.appendChild(style);
 
     // Expose API for injected scripts
     (window as any).stremioEnhanced = {
@@ -366,6 +384,16 @@ function writeAbout(): void {
                 false,
                 false
             );
+
+            // Add Open Logs button
+            Settings.addButton("Open Logs", "openLogsBtn", SELECTORS.ABOUT_CATEGORY);
+
+            // Attach listener
+            Helpers.waitForElm("#openLogsBtn").then(() => {
+                document.getElementById("openLogsBtn")?.addEventListener("click", () => {
+                    LogManager.showLogs();
+                });
+            });
         }
     }).catch(err => logger.error("Failed to write about section: " + err));
 }
