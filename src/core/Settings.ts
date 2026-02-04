@@ -14,14 +14,14 @@ class Settings {
      * Add a new section to the settings panel
      */
     public static addSection(sectionId: string, title: string): void {
-        Helpers.waitForElm(SELECTORS.SECTIONS_CONTAINER).then(() => {
+        this.waitForSettingsPanel().then(() => {
             this.logger.info(`Adding section: ${sectionId} with title: ${title}`);
             
-            const settingsPanel = document.querySelector(SELECTORS.SECTIONS_CONTAINER);
+            const settingsPanel = this.getSettingsPanel();
             if (!settingsPanel) return;
 
-            const sectionElement = document.querySelector(SELECTORS.SECTION);
-            const labelElement = document.querySelector(SELECTORS.LABEL);
+            const sectionElement = this.getExistingSection(settingsPanel);
+            const labelElement = this.getExistingSectionLabel(sectionElement);
             
             if (!sectionElement || !labelElement) return;
 
@@ -40,17 +40,22 @@ class Settings {
             settingsPanel.appendChild(sectionContainer);
 
             // Add section to nav
-            Helpers.waitForElm(SELECTORS.NAV_MENU).then(() => {
-                const nav = document.querySelector(SELECTORS.NAV_MENU);
-                const shortcutsNav = document.querySelector('[title="Shortcuts"]');
+            this.waitForNavMenu().then(() => {
+                const nav = this.getNavMenu();
+                // Try to find shortcuts nav to insert after, or just append
+                const shortcutsNav = this.getNavShortcutItem();
 
-                if (!nav || !shortcutsNav) return;
+                if (!nav) return;
                 if(document.querySelector(`[data-section="${sectionId}"]`)) return; // Nav item already exists
 
                 const enhancedNavContainer = document.createElement("div");
                 enhancedNavContainer.innerHTML = getEnhancedNav();
                 
-                nav.insertBefore(enhancedNavContainer, shortcutsNav.nextSibling);
+                if (shortcutsNav) {
+                    nav.insertBefore(enhancedNavContainer, shortcutsNav.nextSibling);
+                } else {
+                    nav.appendChild(enhancedNavContainer);
+                }
             }).catch(err => this.logger.error(`Failed to add nav: ${err}`));
         }).catch(err => this.logger.error(`Failed to add section: ${err}`));
     }
@@ -59,26 +64,16 @@ class Settings {
      * Add a category within a section
      */
     public static addCategory(title: string, sectionId: string, icon: string): void {
-        Helpers.waitForElm(SELECTORS.SECTIONS_CONTAINER).then(() => {
+        this.waitForSettingsPanel().then(() => {
             this.logger.info(`Adding category: ${title} to section: ${sectionId}`);
             
-            const categoryElement = document.querySelector(SELECTORS.CATEGORY);
-            const categoryTitleElement = document.querySelector(SELECTORS.CATEGORY_LABEL);
-            const categoryIconElement = document.querySelector(SELECTORS.CATEGORY_ICON);
+            const categoryTemplate = this.getCategoryTemplate();
+            if (!categoryTemplate) return;
 
-            if (!categoryElement || !categoryTitleElement) return;
-
-            const categoryClass = categoryElement.className;
-            const categoryTitleClass = categoryTitleElement.className;
+            const { categoryClass, categoryTitleClass, headingClass, iconClass } = categoryTemplate;
             
-            let categoryIconClass = '';
-            if (categoryIconElement instanceof SVGElement) {
-                categoryIconClass = categoryIconElement.className.baseVal;
-            } else if (categoryIconElement) {
-                categoryIconClass = categoryIconElement.className;
-            }
-            
-            icon = icon.replace(`class="icon"`, `class="${categoryIconClass}"`);
+            // Replace icon class
+            icon = icon.replace(`class="icon"`, `class="${iconClass}"`);
 
             const section = document.getElementById(sectionId);
             if (!section) return;
@@ -91,7 +86,13 @@ class Settings {
             titleDiv.innerHTML = title;
 
             const headingDiv = document.createElement("div");
-            headingDiv.classList.add(SELECTORS.CATEGORY_HEADING.replace('.', ''));
+            // If we found a class, use it. If not, fallback to selector logic or empty
+            if (headingClass) {
+                headingDiv.className = headingClass;
+            } else {
+                 headingDiv.classList.add(SELECTORS.CATEGORY_HEADING.replace('.', ''));
+            }
+
             headingDiv.innerHTML += icon;
             headingDiv.appendChild(titleDiv);
             
@@ -184,13 +185,200 @@ class Settings {
      * Set a navigation element as active
      */
     public static activeSection(element: Element): void {
-        // Remove selected class from all nav items
-        for (let i = 0; i < 6; i++) {
-            const navItem = document.querySelector(`${SELECTORS.NAV_MENU} > div:nth-child(${i})`);
-            navItem?.classList.remove(CLASSES.SELECTED);
+        const nav = this.getNavMenu();
+        if (nav) {
+            // Remove selected class from all nav items
+            for (let i = 0; i < nav.children.length; i++) {
+                nav.children[i].classList.remove(CLASSES.SELECTED);
+            }
+        } else {
+             // Fallback to querySelector
+             for (let i = 0; i < 6; i++) {
+                const navItem = document.querySelector(`${SELECTORS.NAV_MENU} > div:nth-child(${i})`);
+                navItem?.classList.remove(CLASSES.SELECTED);
+            }
         }
 
         element.classList.add(CLASSES.SELECTED);
+    }
+
+    // --- Dynamic Discovery Helpers ---
+
+    private static getNavMenu(): Element | null {
+        // Try selector
+        const nav = document.querySelector(SELECTORS.NAV_MENU);
+        if (nav) return nav;
+
+        // Dynamic fallback
+        const keywords = ["Board", "Discover", "Library"];
+        const links = Array.from(document.querySelectorAll('a, div[title]'));
+
+        for (const link of links) {
+             const title = link.getAttribute('title');
+             if (title && keywords.includes(title)) {
+                 let parent = link.parentElement;
+                 while(parent) {
+                     const found = keywords.filter(k => parent!.querySelector(`[title="${k}"]`));
+                     if (found.length >= 2) {
+                         return parent;
+                     }
+                     parent = parent.parentElement;
+                     if (parent === document.body) break;
+                 }
+             }
+        }
+        return null;
+    }
+
+    private static getNavShortcutItem(): Element | null {
+        const item = document.querySelector('[title="Shortcuts"]');
+        return item;
+    }
+
+    private static getSettingsPanel(): Element | null {
+        // Try selector
+        const panel = document.querySelector(SELECTORS.SECTIONS_CONTAINER);
+        if (panel) return panel;
+
+        // Dynamic fallback
+        const keywords = ["General", "Player", "Streaming"];
+        const allDivs = Array.from(document.querySelectorAll('div'));
+        for (const div of allDivs) {
+             if (div.children.length > 2) {
+                 let matchCount = 0;
+                 for (let i = 0; i < div.children.length; i++) {
+                     if (keywords.some(k => div.children[i].textContent?.includes(k))) {
+                         matchCount++;
+                     }
+                 }
+                 if (matchCount >= 2) return div;
+             }
+        }
+        return null;
+    }
+
+    private static getExistingSection(panel: Element): Element | null {
+        // Find a child that contains "General" or "Player"
+        const keywords = ["General", "Player"];
+        for (let i = 0; i < panel.children.length; i++) {
+            const child = panel.children[i];
+            if (keywords.some(k => child.textContent?.includes(k))) {
+                return child;
+            }
+        }
+        // Fallback to selector
+        return document.querySelector(SELECTORS.SECTION);
+    }
+
+    private static getExistingSectionLabel(section: Element | null): Element | null {
+        if (!section) return null;
+        // The label is usually the first child or class contains label
+        if (section.children.length > 0) return section.children[0];
+        // Fallback
+        return document.querySelector(SELECTORS.LABEL);
+    }
+
+    private static getCategoryTemplate(): { categoryClass: string, categoryTitleClass: string, headingClass: string, iconClass: string } | null {
+        // Try to find an existing category to copy classes
+        const categoryElement = document.querySelector(SELECTORS.CATEGORY);
+        const categoryTitleElement = document.querySelector(SELECTORS.CATEGORY_LABEL);
+        const categoryIconElement = document.querySelector(SELECTORS.CATEGORY_ICON);
+        const categoryHeadingElement = document.querySelector(SELECTORS.CATEGORY_HEADING);
+
+        let categoryClass = categoryElement?.className || "";
+        let categoryTitleClass = categoryTitleElement?.className || "";
+        let headingClass = categoryHeadingElement?.className || "";
+
+        let iconClass = 'icon';
+        if (categoryIconElement instanceof SVGElement) {
+            iconClass = categoryIconElement.className.baseVal;
+        } else if (categoryIconElement) {
+            iconClass = categoryIconElement.className;
+        }
+
+        if (categoryClass && categoryTitleClass) {
+            return { categoryClass, categoryTitleClass, headingClass, iconClass };
+        }
+
+        // Try dynamic if selector failed
+        const panel = this.getSettingsPanel();
+        if (panel) {
+            const section = this.getExistingSection(panel);
+            if (section) {
+                // Find a category inside section
+                // Usually not the first child (Label)
+                for(let i=0; i<section.children.length; i++) {
+                    const child = section.children[i];
+                    // Skip if it is the label/title
+                    const label = this.getExistingSectionLabel(section);
+                    if (child === label) continue;
+
+                    // This child is likely a category
+                    categoryClass = child.className;
+
+                    // Find Heading
+                    const heading = child.children[0]; // Assuming first child is heading
+                    if (heading) {
+                        headingClass = heading.className;
+                        // Heading contains Icon and Title
+                         const icon = heading.querySelector('svg') || heading.children[0];
+                         if (icon) {
+                             if (icon instanceof SVGElement) iconClass = icon.className.baseVal;
+                             else iconClass = icon.className;
+                         }
+
+                         const title = heading.querySelector('div') || heading.children[1];
+                         if (title) categoryTitleClass = title.className;
+                    }
+
+                    if (categoryClass && categoryTitleClass) {
+                         return { categoryClass, categoryTitleClass, headingClass, iconClass };
+                    }
+                }
+            }
+        }
+
+        return null;
+    }
+
+    private static waitForSettingsPanel(): Promise<void> {
+        return new Promise((resolve) => {
+            let retries = 0;
+            const maxRetries = 20; // 10 seconds
+            const interval = setInterval(() => {
+                if (this.getSettingsPanel()) {
+                    clearInterval(interval);
+                    resolve();
+                } else {
+                    retries++;
+                    if (retries > maxRetries) {
+                         clearInterval(interval);
+                         this.logger.error("Timeout waiting for settings panel");
+                         resolve(); // resolve to let it fail gracefully inside
+                    }
+                }
+            }, 500);
+        });
+    }
+
+    private static waitForNavMenu(): Promise<void> {
+         return new Promise((resolve) => {
+            let retries = 0;
+            const maxRetries = 20;
+            const interval = setInterval(() => {
+                if (this.getNavMenu()) {
+                    clearInterval(interval);
+                    resolve();
+                } else {
+                    retries++;
+                    if (retries > maxRetries) {
+                         clearInterval(interval);
+                         this.logger.error("Timeout waiting for nav menu");
+                         resolve();
+                    }
+                }
+            }, 500);
+        });
     }
 }
 
