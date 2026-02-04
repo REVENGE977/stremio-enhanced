@@ -30,6 +30,8 @@ https.get(SERVER_JS_URL, function(response) {
             const wrapperContent = `
 const { getDataPath } = require('bridge');
 const path = require('path');
+const cp = require('child_process');
+const EventEmitter = require('events');
 
 // Set APP_PATH to a writable directory provided by the bridge
 try {
@@ -37,12 +39,41 @@ try {
     console.log('APP_PATH set to:', process.env.APP_PATH);
 } catch (e) {
     console.error('Failed to get data path:', e);
-    // Fallback to tmpdir if bridge fails, though bridge is built-in
+    // Fallback to tmpdir if bridge fails
     process.env.APP_PATH = require('os').tmpdir();
 }
 
-// Disable server auto-update as we can't update in assets
+// Disable server auto-update
 process.env.NO_UPDATE = '1';
+
+// Set dummy paths for ffmpeg/ffprobe to satisfy existence checks
+// /system/bin/true usually exists on Android and returns 0
+process.env.FFMPEG_BIN = '/system/bin/true';
+process.env.FFPROBE_BIN = '/system/bin/true';
+
+// Mock child_process.spawn to prevent crashes if server tries to run ffmpeg
+const originalSpawn = cp.spawn;
+cp.spawn = function(command, args, options) {
+    console.log('Intercepted spawn:', command, args);
+
+    if (command.includes('ffmpeg') || command.includes('ffprobe') || command === process.env.FFMPEG_BIN) {
+        console.log('Mocking ffmpeg/ffprobe execution');
+        const mockProcess = new EventEmitter();
+        mockProcess.stdout = new EventEmitter();
+        mockProcess.stderr = new EventEmitter();
+        mockProcess.kill = () => {};
+
+        // Simulate immediate exit with success
+        setTimeout(() => {
+            mockProcess.emit('close', 0);
+            mockProcess.emit('exit', 0);
+        }, 10);
+
+        return mockProcess;
+    }
+
+    return originalSpawn.apply(this, arguments);
+};
 
 // Start server
 try {
