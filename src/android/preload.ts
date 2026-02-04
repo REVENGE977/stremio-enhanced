@@ -18,9 +18,20 @@ import {
     FILE_EXTENSIONS,
 } from "../constants";
 import ExtractMetaData from "../utils/ExtractMetaData";
+import { NodeJS } from 'capacitor-nodejs';
 
 // Initialize platform for Capacitor
 PlatformManager.setPlatform(new CapacitorPlatform());
+
+// Listen for server logs and errors
+NodeJS.addListener('log', (data) => {
+    console.log('[Server]', ...data.args);
+});
+
+NodeJS.addListener('error', (data) => {
+    console.error('[Server Error]', ...data.args);
+    Helpers.showAlert('error', 'Server Error', data.args.join(' '), ['OK']);
+});
 
 // Mock ipcRenderer for Android
 const ipcRenderer = {

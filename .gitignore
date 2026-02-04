@@ -5,3 +5,4 @@ release-builds
 package-lock.json
 .vscode
 backup
+dist/nodejs/

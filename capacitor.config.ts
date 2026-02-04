@@ -10,6 +10,12 @@ const config: CapacitorConfig = {
   },
   android: {
     allowMixedContent: true
+  },
+  plugins: {
+    CapacitorNodeJS: {
+      nodeDir: "nodejs",
+      startMode: "auto"
+    }
   }
 };
 

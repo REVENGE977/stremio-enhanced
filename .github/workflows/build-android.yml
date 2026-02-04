@@ -32,6 +32,9 @@ jobs:
           echo "<!DOCTYPE html><html><body>Loading...</body></html>" > dist/index.html
         fi
 
+    - name: Download Stremio Server
+      run: node scripts/download-server.js
+
     - name: Sync Capacitor
       run: npx cap sync android
 
@@ -39,7 +42,7 @@ jobs:
       uses: actions/setup-java@v4
       with:
         distribution: 'temurin'
-        java-version: '17'
+        java-version: '21'
 
     - name: Build Android APK
       run: |
