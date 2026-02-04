@@ -28,10 +28,48 @@ https.get(SERVER_JS_URL, function(response) {
 
             // Create wrapper.js
             const wrapperContent = `
-const { getDataPath } = require('bridge');
+const { getDataPath, channel } = require('bridge');
 const path = require('path');
 const cp = require('child_process');
 const EventEmitter = require('events');
+const fs = require('fs');
+
+// Log helper
+function log(msg, type = 'info') {
+    const timestamp = new Date().toISOString();
+    const logMsg = \`[\${timestamp}] [\${type}] \${msg}\`;
+
+    // Send to Capacitor app
+    channel.send('log', logMsg);
+
+    // Write to file if APP_PATH is set
+    if (process.env.APP_PATH) {
+        try {
+            fs.appendFileSync(path.join(process.env.APP_PATH, 'server.log'), logMsg + '\\n');
+        } catch (e) {}
+    }
+}
+
+// Override console.log/error
+const originalConsoleLog = console.log;
+const originalConsoleError = console.error;
+
+console.log = function(...args) {
+    const msg = args.map(a => String(a)).join(' ');
+    log(msg, 'INFO');
+    originalConsoleLog.apply(console, args);
+};
+
+console.error = function(...args) {
+    const msg = args.map(a => String(a)).join(' ');
+    log(msg, 'ERROR');
+    originalConsoleError.apply(console, args);
+};
+
+console.log('Wrapper starting...');
+console.log('Platform:', process.platform);
+console.log('Arch:', process.arch);
+console.log('Versions:', JSON.stringify(process.versions));
 
 // Set APP_PATH to a writable directory provided by the bridge
 try {
@@ -81,6 +119,7 @@ try {
     require('./server.js');
 } catch (e) {
     console.error("Failed to start server:", e);
+    channel.send('error', e.message);
 }
 `;
             fs.writeFileSync(WRAPPER_FILE, wrapperContent);
