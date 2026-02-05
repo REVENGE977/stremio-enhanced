@@ -3,11 +3,13 @@ package com.revenge977.stremioenhanced;
 import android.os.Bundle;
 import android.webkit.WebView;
 import android.webkit.WebChromeClient;
+import android.webkit.WebViewClient;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.FrameLayout;
 import com.getcapacitor.BridgeActivity;
 import com.getcapacitor.BridgeWebChromeClient;
+import com.getcapacitor.BridgeWebViewClient;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
@@ -26,13 +28,15 @@ public class MainActivity extends BridgeActivity {
     @Override
     public void onStart() {
         super.onStart();
+        // Initial injection (fallback)
         injectPreload();
-        setupFullscreen();
+        setupWebView();
     }
 
     @Override
     public void onResume() {
         super.onResume();
+        // Re-inject in case of reload/navigation (fallback)
         injectPreload();
         setImmersiveMode();
     }
@@ -55,12 +59,13 @@ public class MainActivity extends BridgeActivity {
                 | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY);
     }
 
-    private void setupFullscreen() {
+    private void setupWebView() {
         try {
             if (this.getBridge() == null) return;
             WebView webView = this.getBridge().getWebView();
             if (webView == null) return;
 
+            // Setup Custom WebChromeClient for Fullscreen
             webView.setWebChromeClient(new BridgeWebChromeClient(this.getBridge()) {
                 @Override
                 public void onShowCustomView(View view, CustomViewCallback callback) {
@@ -98,6 +103,16 @@ public class MainActivity extends BridgeActivity {
                     setImmersiveMode();
                 }
             });
+
+            // Setup Custom WebViewClient for Injection on Navigation
+            webView.setWebViewClient(new BridgeWebViewClient(this.getBridge()) {
+                @Override
+                public void onPageFinished(WebView view, String url) {
+                    super.onPageFinished(view, url);
+                    injectPreload();
+                }
+            });
+
         } catch (Exception e) {
              e.printStackTrace();
         }

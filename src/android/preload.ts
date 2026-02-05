@@ -26,6 +26,7 @@ PlatformManager.setPlatform(new CapacitorPlatform());
 
 // Hook console for logs menu
 LogManager.hookConsole();
+LogManager.addLog('INFO', 'Stremio Enhanced: Preload script initialized');
 
 // Listen for server logs and errors
 NodeJS.addListener('log', (data) => {
@@ -55,7 +56,8 @@ const ipcRenderer = {
     }
 };
 
-window.addEventListener("load", async () => {
+const init = async () => {
+    LogManager.addLog('INFO', 'Stremio Enhanced: Initialization started');
     // Initialize platform
     if (!PlatformManager.current) PlatformManager.setPlatform(new CapacitorPlatform());
     await PlatformManager.current.init();
@@ -70,7 +72,17 @@ window.addEventListener("load", async () => {
             display: none !important;
         }
     `;
-    document.head.appendChild(style);
+    if (document.head) {
+        document.head.appendChild(style);
+    } else {
+        const observer = new MutationObserver((mutations, obs) => {
+            if (document.head) {
+                document.head.appendChild(style);
+                obs.disconnect();
+            }
+        });
+        observer.observe(document, { childList: true, subtree: true });
+    }
 
     // Expose API for injected scripts
     (window as any).stremioEnhanced = {
@@ -92,7 +104,19 @@ window.addEventListener("load", async () => {
     window.addEventListener("hashchange", async () => {
         await checkSettings();
     });
-});
+
+    // Initial check
+    await checkSettings();
+
+    // Inject success toast
+    Helpers.createToast('enhanced-loaded', 'Stremio Enhanced', 'Stremio Enhanced Loaded', 'success');
+};
+
+if (document.readyState === 'loading') {
+    window.addEventListener("load", init);
+} else {
+    init();
+}
 
 // Settings page opened
 async function checkSettings() {
