@@ -241,9 +241,14 @@ class Settings {
         if (panel) return panel;
 
         // Dynamic fallback
+        const navMenu = this.getNavMenu();
         const keywords = ["General", "Player", "Streaming"];
         const allDivs = Array.from(document.querySelectorAll('div'));
         for (const div of allDivs) {
+             // Exclude nav menu and its descendants
+             if (navMenu && (div === navMenu || navMenu.contains(div))) continue;
+
+             // The real settings panel contains large sections, so we can check if it has multiple children
              if (div.children.length > 2) {
                  let matchCount = 0;
                  for (let i = 0; i < div.children.length; i++) {
