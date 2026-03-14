@@ -14,6 +14,11 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import android.app.PictureInPictureParams;
+import android.content.res.Configuration;
+import android.os.Build;
+import android.util.Rational;
+
 
 public class MainActivity extends BridgeActivity {
 
@@ -46,6 +51,29 @@ public class MainActivity extends BridgeActivity {
         super.onWindowFocusChanged(hasFocus);
         if (hasFocus) {
             setImmersiveMode();
+        }
+    }
+
+
+    @Override
+    public void onUserLeaveHint() {
+        super.onUserLeaveHint();
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            Rational aspectRatio = new Rational(16, 9);
+            PictureInPictureParams params = new PictureInPictureParams.Builder()
+                    .setAspectRatio(aspectRatio)
+                    .build();
+            enterPictureInPictureMode(params);
+        }
+    }
+
+    @Override
+    public void onPictureInPictureModeChanged(boolean isInPictureInPictureMode, Configuration newConfig) {
+        super.onPictureInPictureModeChanged(isInPictureInPictureMode, newConfig);
+        if (isInPictureInPictureMode) {
+            // Hide UI elements if necessary
+        } else {
+            // Restore UI elements if necessary
         }
     }
 

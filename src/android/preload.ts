@@ -68,7 +68,8 @@ const init = async () => {
         [title="Fullscreen"],
         [title="Exit Fullscreen"],
         button[aria-label="Fullscreen"],
-        .fullscreen-toggle {
+        .fullscreen-toggle,
+        [title="Shortcuts"] {
             display: none !important;
         }
     `;
