@@ -124,7 +124,7 @@ if (document.readyState === 'loading') {
 // Settings page opened
 async function checkSettings() {
     if (!location.href.includes("#/settings")) return;
-    if (document.querySelector(`a[href="#settings-enhanced"]`)) return;
+    if (document.querySelector(`[data-section="enhanced"]`)) return;
 
     ModManager.addApplyThemeFunction();
 
@@ -150,8 +150,8 @@ async function checkSettings() {
     Settings.addCategory("Plugins", "enhanced", getPluginIcon());
     Settings.addCategory("About", "enhanced", getAboutIcon());
 
-    Settings.addButton("Open Themes Folder", "openthemesfolderBtn", SELECTORS.THEMES_CATEGORY);
-    Settings.addButton("Open Plugins Folder", "openpluginsfolderBtn", SELECTORS.PLUGINS_CATEGORY);
+    createModInstaller("theme", "installThemeBtn", SELECTORS.THEMES_CATEGORY);
+    createModInstaller("plugin", "installPluginBtn", SELECTORS.PLUGINS_CATEGORY);
 
     writeAbout();
 
@@ -440,4 +440,56 @@ function getThemeIcon(): string {
 function getPluginIcon(): string {
     return `<svg icon="addons-outline" class="icon" viewBox="0 0 512 512" style="fill: currentcolor;">
         <path d="M413.7 246.1H386c-0.53-0.01-1.03-0.23-1.4-0.6-0.37-0.37-0.59-0.87-0.6-1.4v-77.2a38.94 38.94 0 0 0-11.4-27.5 38.94 38.94 0 0 0-27.5-11.4h-77.2c-0.53-0.01-1.03-0.23-1.4-0.6-0.37-0.37-0.59-0.87-0.6-1.4v-27.7c0-27.1-21.5-49.9-48.6-50.3-6.57-0.1-13.09 1.09-19.2 3.5a49.616 49.616 0 0 0-16.4 10.7 49.823 49.823 0 0 0-11 16.2 48.894 48.894 0 0 0-3.9 19.2v28.5c-0.01 0.53-0.23 1.03-0.6 1.4-0.37 0.37-0.87 0.59-1.4 0.6h-77.2c-10.5 0-20.57 4.17-28 11.6a39.594 39.594 0 0 0-11.6 28v70.4c0.01 0.53 0.23 1.03 0.6 1.4 0.37 0.37 0.87 0.59 1.4 0.6h26.9c29.4 0 53.7 25.5 54.1 54.8 0.4 29.9-23.5 57.2-53.3 57.2H50c-0.53 0.01-1.03 0.23-1.4 0.6-0.37 0.37-0.59 0.87-0.6 1.4v70.4c0 10.5 4.17 20.57 11.6 28s17.5 11.6 28 11.6h70.4c0.53-0.01 1.03-0.23 1.4-0.6 0.37-0.37 0.59-0.87 0.6-1.4V441.2c0-30.3 24.8-56.4 55-57.1 30.1-0.7 57 20.3 57 50.3v27.7c0.01 0.53 0.23 1.03 0.6 1.4 0.37 0.37 0.87 0.59 1.4 0.6h71.1a38.94 38.94 0 0 0 27.5-11.4 38.958 38.958 0 0 0 11.4-27.5v-78c0.01-0.53 0.23-1.03 0.6-1.4 0.37-0.37 0.87-0.59 1.4-0.6h28.5c27.6 0 49.5-22.7 49.5-50.4s-23.2-48.7-50.3-48.7Z" style="stroke:currentcolor;stroke-linecap:round;stroke-linejoin:round;stroke-width:32;fill: currentColor;"></path></svg>`;
+}
+
+
+function createModInstaller(type: "theme" | "plugin", buttonId: string, selector: string) {
+    Settings.addButton(`Install ${type === "theme" ? "Theme" : "Plugin"}`, buttonId, selector);
+
+    Helpers.waitForElm(`#${buttonId}`).then(() => {
+        const btn = document.getElementById(buttonId);
+        if (!btn) return;
+
+        const fileInput = document.createElement("input");
+        fileInput.type = "file";
+        fileInput.accept = type === "theme" ? ".css" : ".js";
+        fileInput.style.display = "none";
+
+        fileInput.addEventListener("change", async (e: any) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            try {
+                // Read the file as text
+                const reader = new FileReader();
+                reader.onload = async (event: any) => {
+                    const fileContent = event.target.result as string;
+                    let fileName = file.name;
+
+                    if (type === "theme" && !fileName.endsWith(".theme.css")) {
+                         fileName = fileName.replace(".css", ".theme.css");
+                         if (!fileName.endsWith(".theme.css")) fileName += ".theme.css";
+                    } else if (type === "plugin" && !fileName.endsWith(".plugin.js")) {
+                         fileName = fileName.replace(".js", ".plugin.js");
+                         if (!fileName.endsWith(".plugin.js")) fileName += ".plugin.js";
+                    }
+
+                    const folderPath = type === "theme" ? properties.themesPath : properties.pluginsPath;
+                    const fullPath = folderPath + "/" + fileName;
+
+                    // Write using PlatformManager (which calls Capacitor filesystem)
+                    await PlatformManager.current.writeFile(fullPath, fileContent);
+
+                    Helpers.createToast("mod-installed", "Stremio Enhanced", `Successfully installed ${fileName}. Please restart Stremio.`, "success");
+                };
+                reader.readAsText(file);
+            } catch (err) {
+                logger.error(`Failed to install ${type}: ${err}`);
+                Helpers.createToast("mod-install-error", "Stremio Enhanced", `Failed to install ${type}`, "error");
+            }
+        });
+
+        document.body.appendChild(fileInput);
+        btn.addEventListener("click", () => fileInput.click());
+    }).catch(() => {});
 }

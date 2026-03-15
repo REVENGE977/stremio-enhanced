@@ -210,15 +210,16 @@ class Settings {
         if (nav) return nav;
 
         // Dynamic fallback
-        const keywords = ["General", "Interface", "Player", "Streaming"];
+        const keywords = ["general", "interface", "player", "streaming", "shortcuts"];
         const links = Array.from(document.querySelectorAll('a, div[title]'));
 
         for (const link of links) {
-             const title = link.getAttribute('title');
+             const title = link.getAttribute('title')?.toLowerCase();
              if (title && keywords.includes(title)) {
                  let parent = link.parentElement;
                  while(parent) {
-                     const found = keywords.filter(k => parent!.querySelector(`[title="${k}"]`));
+                     const titlesInParent = Array.from(parent!.querySelectorAll('[title]')).map(el => el.getAttribute('title')?.toLowerCase());
+                     const found = keywords.filter(k => titlesInParent.includes(k));
                      if (found.length >= 2) {
                          return parent;
                      }
@@ -242,7 +243,7 @@ class Settings {
 
         // Dynamic fallback
         const navMenu = this.getNavMenu();
-        const keywords = ["General", "Interface", "Player", "Streaming"];
+        const keywords = ["general", "interface", "player", "streaming", "shortcuts"];
         const allDivs = Array.from(document.querySelectorAll('div'));
         for (const div of allDivs) {
              // Exclude nav menu and its descendants
@@ -252,7 +253,7 @@ class Settings {
              if (div.children.length > 2) {
                  let matchCount = 0;
                  for (let i = 0; i < div.children.length; i++) {
-                     if (keywords.some(k => div.children[i].textContent?.includes(k))) {
+                     if (keywords.some(k => div.children[i].textContent?.toLowerCase().includes(k))) {
                          matchCount++;
                      }
                  }
@@ -264,10 +265,10 @@ class Settings {
 
     private static getExistingSection(panel: Element): Element | null {
         // Find a child that contains "General" or "Player"
-        const keywords = ["General", "Interface", "Player"];
+        const keywords = ["general", "interface", "player"];
         for (let i = 0; i < panel.children.length; i++) {
             const child = panel.children[i];
-            if (keywords.some(k => child.textContent?.includes(k))) {
+            if (keywords.some(k => child.textContent?.toLowerCase().includes(k))) {
                 return child;
             }
         }
