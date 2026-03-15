@@ -65,11 +65,13 @@ const init = async () => {
     // Inject CSS to hide fullscreen button
     const style = document.createElement('style');
     style.textContent = `
-        [title="Fullscreen"],
-        [title="Exit Fullscreen"],
-        button[aria-label="Fullscreen"],
+        [title="Fullscreen" i],
+        [title="Exit Fullscreen" i],
+        [aria-label="Fullscreen" i],
         .fullscreen-toggle,
-        [title="Shortcuts"] {
+        div[class*="fullscreen" i],
+        button[class*="fullscreen" i],
+        [title="Shortcuts" i] {
             display: none !important;
         }
     `;
