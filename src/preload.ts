@@ -24,8 +24,7 @@ import {
     TIMEOUTS 
 } from "./constants";
 import ExtractMetaData from "./utils/ExtractMetaData";
-import ExtractedSubtitle from "./interfaces/ExtractedSubtitle";
-import PlaybackState from "./utils/PlaybackState";
+import EmbeddedSubtitles from "./utils/EmbeddedSubtitles";
 
 
 // Cache transparency status to avoid repeated IPC calls
@@ -87,7 +86,7 @@ window.addEventListener("load", async () => {
         }
         
         checkSettings();
-        checkWatching();
+        EmbeddedSubtitles.checkWatching();
     });
 });
 
@@ -174,83 +173,6 @@ function checkSettings() {
     ModManager.scrollListener();
     ModManager.openThemesFolder();
     ModManager.openPluginsFolder();
-}
-
-
-// Once playback starts, check if embedded subs are available and loaded, if not then Enhanced will extract them by itself using FFmpeg and FFprobe
-async function checkWatching() {
-    if (!location.href.includes('#/player')) return;
-    
-    await Helpers.waitForElm('video');
-    const video = document.querySelector("video")!;
-    
-    let extractedAlready = false;
-    
-    video.addEventListener("loadedmetadata", async () => {
-        if(extractedAlready) return;
-        extractedAlready = true;
-        const streamURL = await getStreamURL();
-        
-        if (video.textTracks.length === 0) {
-            logger.info("No embedded subtitles loaded natively. Attempting to extract embedded subtitles...");
-            Helpers.createToast(
-                "extractingAlertToast",
-                "Extracting embedded subtitles...",
-                "Extracting embedded subtitles, please wait.",
-                "info");
-
-            const subs = await ipcRenderer.invoke(
-                IPC_CHANNELS.EXTRACT_EMBEDDED_SUBTITLES,
-                streamURL
-            );
-            
-            logger.info("Extracted embedded subtitles: " + JSON.stringify(subs));
-            
-            if (subs?.length) {
-                attachExternalSubs(video, subs);
-            } else {
-                Helpers.createToast(
-                    "noEmbeddedSubsToast",
-                    "No embedded subtitles found",
-                    "No embedded subtitles were found in this video.",
-                    "fail");
-            }
-        } else {
-            logger.info("Embedded subtitles already loaded. No need to load manually.");
-        }
-    });
-}
-
-function attachExternalSubs(video: HTMLVideoElement, subs: ExtractedSubtitle[]) {
-    subs.forEach((sub: ExtractedSubtitle) => {
-        const trackEl = document.createElement("track");
-        trackEl.kind = "subtitles";
-        trackEl.label = sub.descriptiveName;
-        trackEl.srclang = sub.shortLang;
-        trackEl.src = `file://${sub.path}`;
-        trackEl.default = true;
-        
-        video.appendChild(trackEl);
-    });
-    
-    setTimeout(() => {
-        for (const track of video.textTracks) {
-            track.mode = 'disabled';
-        }
-    }, 200);
-        
-    Helpers.createToast(
-        "embeddedSubsToast",
-        "Subtitles loaded",
-        "Embedded subtitles loaded",
-        "success"
-    );
-}
-
-async function getStreamURL() {
-    const playerState = await PlaybackState.getPlayerState();
-    if(!playerState) return logger.error("Failed to get player state.");
-    return playerState.stream?.content?.url;
 }
 
 function reloadServer(): void {

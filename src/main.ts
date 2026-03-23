@@ -14,7 +14,6 @@ import { BrowserWindow, shell, ipcMain } from "electron";
 import StreamingServer from "./utils/StreamingServer";
 import Helpers from "./utils/Helpers";
 import StremioService from "./utils/StremioService";
-import EmbeddedSubtitles from "./utils/EmbeddedSubtitles";
 
 app.setName("stremio-enhanced");
 
@@ -156,19 +155,6 @@ async function createWindow() {
         
         Helpers.showAlert("info", "Transparency setting changed", "Please restart the app to apply the changes.", ["OK"]);
     });
-    
-    ipcMain.handle(IPC_CHANNELS.EXTRACT_EMBEDDED_SUBTITLES, async (_, streamURL: string) => {
-        logger.info("Extracting embedded subtitles from stream: " + streamURL);
-        
-        try {
-            const outPaths = await EmbeddedSubtitles.extractSubtitles(streamURL);
-            logger.info(`Extracted ${outPaths.length} embedded subtitle(s).`);
-            return outPaths;
-        } catch (err) {
-            logger.error("Failed to extract embedded subtitles: " + err);
-            return [];
-        }
-    })
     
     ipcMain.handle(IPC_CHANNELS.GET_TRANSPARENCY_STATUS, () => {
         return existsSync(transparencyFlagPath);
