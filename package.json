@@ -26,7 +26,7 @@
 	"license": "MIT",
 	"devDependencies": {
 		"@types/unzipper": "^0.10.11",
-		"electron": "^39.2.7",
+		"electron": "39.2.7",
 		"electron-builder": "^26.4.0",
 		"typescript": "^5.7.2"
 	},

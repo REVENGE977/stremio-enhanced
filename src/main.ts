@@ -27,25 +27,25 @@ const transparencyEnabled = existsSync(transparencyFlagPath);
 // flags
 app.commandLine.appendSwitch('disable-features', 'BlockInsecurePrivateNetworkRequests,PrivateNetworkAccessSendPreflights,UseChromeOSDirectVideoDecoder');
 app.commandLine.appendSwitch('enable-accelerated-video-decode');
-app.commandLine.appendSwitch('enable-features', 'MediaSourceNewIntegration,NetworkService');
 app.commandLine.appendSwitch('enable-zero-copy'); 
+app.commandLine.appendSwitch('media-cache-size', '268435456'); // 256MB cache for media
+app.commandLine.appendSwitch('num-raster-threads', '4');
+app.commandLine.appendSwitch('mse-video-buffer-size-limit-mb', '500');
+app.commandLine.appendSwitch('mse-audio-buffer-size-limit-mb', '50');
+app.commandLine.appendSwitch('enable-features', 'PlatformHEVCDecoderSupport');
 
 if (process.platform === "darwin") {
     logger.info(`Running on macOS, using Metal for rendering`);
     app.commandLine.appendSwitch('use-angle', 'metal');
-    app.commandLine.appendSwitch('enable-features', 'PlatformHEVCDecoderSupport');
-
 } else if (process.platform === "win32") {
     logger.info(`Running on Windows, using D3D11 for rendering`);
     app.commandLine.appendSwitch('use-angle', 'd3d11');
     app.commandLine.appendSwitch('enable-gpu-rasterization');
-    app.commandLine.appendSwitch('enable-features', 'PlatformHEVCDecoderSupport');
-
 } else {
     logger.info(`Running on Linux, using OpenGL and VAAPI for rendering`);
     app.commandLine.appendSwitch('use-angle', 'gl');
     app.commandLine.appendSwitch('enable-gpu-rasterization');
-    app.commandLine.appendSwitch('enable-features', 'PlatformHEVCDecoderSupport,VaapiVideoDecoder,VaapiVideoDecodeLinuxGL,CanvasOopRasterization');
+    app.commandLine.appendSwitch('enable-features', 'VaapiVideoDecoder,VaapiVideoDecodeLinuxGL,CanvasOopRasterization');
 }
 
 if (!gotLock) {
@@ -79,6 +79,7 @@ async function createWindow() {
             // Additional security hardening
             allowRunningInsecureContent: false,
             experimentalFeatures: false,
+            spellcheck: false
         },
         width: 1500,
         height: 850,

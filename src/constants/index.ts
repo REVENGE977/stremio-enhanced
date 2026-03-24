@@ -63,7 +63,6 @@ export const IPC_CHANNELS = {
     UPDATE_CHECK_STARTUP: 'update-check-on-startup',
     UPDATE_CHECK_USER: 'update-check-userrequest',
     FULLSCREEN_CHANGED: 'fullscreen-changed',
-    EXTRACT_EMBEDDED_SUBTITLES: 'extract-embedded-subtitles',
 } as const;
 
 // File extensions for mods
