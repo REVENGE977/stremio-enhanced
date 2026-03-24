@@ -24,30 +24,29 @@ const useStremioServiceFlagPath = join(app.getPath("userData"), "use_stremio_ser
 const useServerJSFlagPath = join(app.getPath("userData"), "use_server_js_for_streaming");
 const transparencyEnabled = existsSync(transparencyFlagPath);
 
-if(process.platform === "darwin") {
+// flags
+app.commandLine.appendSwitch('disable-features', 'BlockInsecurePrivateNetworkRequests,PrivateNetworkAccessSendPreflights,UseChromeOSDirectVideoDecoder');
+app.commandLine.appendSwitch('enable-accelerated-video-decode');
+app.commandLine.appendSwitch('enable-features', 'MediaSourceNewIntegration,NetworkService');
+app.commandLine.appendSwitch('enable-zero-copy'); 
+
+if (process.platform === "darwin") {
     logger.info(`Running on macOS, using Metal for rendering`);
     app.commandLine.appendSwitch('use-angle', 'metal');
-    app.commandLine.appendSwitch('enable-features', 'PlatformHEVCDecoderSupport,PlatformHEVCEncoderSupport');
-} else if(process.platform === "win32") {
+    app.commandLine.appendSwitch('enable-features', 'PlatformHEVCDecoderSupport');
+
+} else if (process.platform === "win32") {
     logger.info(`Running on Windows, using D3D11 for rendering`);
     app.commandLine.appendSwitch('use-angle', 'd3d11');
     app.commandLine.appendSwitch('enable-gpu-rasterization');
-    app.commandLine.appendSwitch('ignore-gpu-blocklist');
-    app.commandLine.appendSwitch('disable-software-rasterizer');
-    app.commandLine.appendSwitch('enable-features', 'PlatformHEVCDecoderSupport,PlatformHEVCEncoderSupport,MediaFoundationD3D11VideoCapture');
+    app.commandLine.appendSwitch('enable-features', 'PlatformHEVCDecoderSupport');
+
 } else {
-    logger.info(`Running on ${process.platform}, using OpenGL for rendering`);
+    logger.info(`Running on Linux, using OpenGL and VAAPI for rendering`);
     app.commandLine.appendSwitch('use-angle', 'gl');
     app.commandLine.appendSwitch('enable-gpu-rasterization');
-    app.commandLine.appendSwitch('ignore-gpu-blocklist');
-    app.commandLine.appendSwitch('disable-software-rasterizer');
-    app.commandLine.appendSwitch('enable-features', 'PlatformHEVCDecoderSupport,VaapiVideoDecoder,VaapiVideoEncoder,VaapiVideoDecodeLinuxGL');
+    app.commandLine.appendSwitch('enable-features', 'PlatformHEVCDecoderSupport,VaapiVideoDecoder,VaapiVideoDecodeLinuxGL,CanvasOopRasterization');
 }
-
-app.commandLine.appendSwitch('disable-features', 'BlockInsecurePrivateNetworkRequests,PrivateNetworkAccessSendPreflights,UseChromeOSDirectVideoDecoder');
-app.commandLine.appendSwitch('enable-accelerated-video-decode');
-app.commandLine.appendSwitch('enable-accelerated-video-encode');
-app.commandLine.appendSwitch('enable-zero-copy');
 
 if (!gotLock) {
     app.quit();

@@ -234,9 +234,10 @@ class ModManager {
     }
         
     public static scrollListener(): void {
-        helpers.waitForElm(".menu-xeE06 > div:nth-child(5) > div").then(() => {
+        // Enhanced button on the left sidebar
+        helpers.waitForElm('div > div[title="Enhanced"]').then(() => {
             const enhanced = document.getElementById('enhanced');
-            const enhancedNav = document.querySelector('.menu-xeE06 > div:nth-child(5) > div');
+            const enhancedNav = document.querySelector('div > div[title="Enhanced"]');
 
             if (!enhanced || !enhancedNav) return;
 

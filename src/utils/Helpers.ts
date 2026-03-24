@@ -9,7 +9,7 @@ class Helpers {
     
     private constructor() {}
     
-    static getInstance(): Helpers {
+    public static getInstance(): Helpers {
         if (!Helpers.instance) {
             Helpers.instance = new Helpers();
         }
@@ -20,7 +20,7 @@ class Helpers {
         this.mainWindow = mainWindow;
     }
     
-    async showAlert(
+    public async showAlert(
         alertType: 'info' | 'warning' | 'error', 
         title: string, 
         message: string, 
@@ -42,7 +42,7 @@ class Helpers {
         }
     }
     
-    waitForElm(selector: string, timeout: number = TIMEOUTS.ELEMENT_WAIT): Promise<Element> {
+    public waitForElm(selector: string, timeout: number = TIMEOUTS.ELEMENT_WAIT): Promise<Element> {
         return new Promise((resolve, reject) => {
             const existingElement = document.querySelector(selector);
             if (existingElement) {
@@ -69,7 +69,7 @@ class Helpers {
         });
     }
 
-    waitForElmByXPath(xpath: string, timeout: number = TIMEOUTS.ELEMENT_WAIT): Promise<Node> {
+    public waitForElmByXPath(xpath: string, timeout: number = TIMEOUTS.ELEMENT_WAIT): Promise<Node> {
         return new Promise((resolve, reject) => {
             const evaluateXPath = (): Node | null => {
                 const result = document.evaluate(
@@ -107,7 +107,7 @@ class Helpers {
         });
     }    
 
-    waitForTitleChange(timeout: number = TIMEOUTS.ELEMENT_WAIT): Promise<string> {
+    public waitForTitleChange(timeout: number = TIMEOUTS.ELEMENT_WAIT): Promise<string> {
         return new Promise((resolve, reject) => {
             const headElement = document.querySelector('head');
             if (!headElement) {

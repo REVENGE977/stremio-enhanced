@@ -210,9 +210,18 @@ class EmbeddedSubtitles {
         video.appendChild(fragment);
 
         setTimeout(() => {
+            let defaultSubLang = this.getDefaultSubLang();
+
             Array.from(video.querySelectorAll('track')).forEach((t: HTMLTrackElement) => {
-                if (t.track) t.track.mode = 'disabled';
+                if (t.track) {
+                    if (t.srclang === defaultSubLang) {
+                        t.track.mode = 'showing';
+                    } else {
+                        t.track.mode = 'disabled';
+                    }
+                }
             });
+            
             isFullyInitialized = true; 
         }, 250);
 
@@ -258,6 +267,11 @@ class EmbeddedSubtitles {
             seconds = parseInt(parts[0]) * 60 + parseFloat(parts[1]);
         }
         return seconds;
+    }
+
+    private static getDefaultSubLang(): string {
+        const profile = JSON.parse(localStorage.getItem("profile") ?? "{}");
+        return profile?.settings?.subtitlesLanguage ?? "en";
     }
 }
 
