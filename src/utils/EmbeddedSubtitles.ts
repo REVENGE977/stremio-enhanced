@@ -89,7 +89,10 @@ class EmbeddedSubtitles {
         if (!streamURL) throw new Error("No stream URL available.");
 
         const urlObj = new URL(streamURL);
-        const serverBase = `${urlObj.protocol}//${urlObj.host}`; 
+        let serverBase = "http://127.0.0.1:11470";
+        if (urlObj.hostname === "127.0.0.1" || urlObj.hostname === "localhost") {
+            serverBase = `${urlObj.protocol}//${urlObj.host}`;
+        }
         
         const hlsId = "enhanced_subs_" + Math.random().toString(36).substring(2, 10);
         const queryParams = new URLSearchParams();
@@ -211,23 +214,36 @@ class EmbeddedSubtitles {
 
         setTimeout(() => {
             let defaultSubLang = this.getDefaultSubLang();
+            let targetTrack: TextTrack | null = null;
 
-            Array.from(video.querySelectorAll('track')).forEach((t: HTMLTrackElement) => {
-                if (t.track) {
-                    if (t.srclang === defaultSubLang) {
-                        t.track.mode = 'showing';
+            const domTracks = Array.from(video.querySelectorAll('track'));
+            for (const t of domTracks) {
+                if (t.track && t.srclang === defaultSubLang) {
+                    targetTrack = t.track;
+                    break; 
+                }
+            }
+
+            if (targetTrack) {
+                for (let i = 0; i < video.textTracks.length; i++) {
+                    const track = video.textTracks[i];
+                    
+                    if (track === targetTrack) {
+                        track.mode = 'showing';
                     } else {
-                        t.track.mode = 'disabled';
+                        track.mode = 'disabled';
                     }
                 }
-            });
-            
+            } 
+
             isFullyInitialized = true; 
         }, 250);
 
+        logger.info("Initialized JIT subtitle fetcher with " + tracksAdded + " tracks added.");
+
         Helpers.createToast(
             "embeddedSubsToast", 
-            "Subtitles Ready", 
+            "Subtitles ready", 
             `Loaded ${tracksAdded} embedded subtitle tracks.`, 
             "success"
         );

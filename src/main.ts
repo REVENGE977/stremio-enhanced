@@ -32,21 +32,28 @@ app.commandLine.appendSwitch('media-cache-size', '268435456'); // 256MB cache fo
 app.commandLine.appendSwitch('num-raster-threads', '4');
 app.commandLine.appendSwitch('mse-video-buffer-size-limit-mb', '500');
 app.commandLine.appendSwitch('mse-audio-buffer-size-limit-mb', '50');
-app.commandLine.appendSwitch('enable-features', 'PlatformHEVCDecoderSupport');
+app.commandLine.appendSwitch('ignore-connections-limit', 'localhost,127.0.0.1');
+
+// create an array for features so we don't accidentally overwrite them per-OS
+let enabledFeatures = ['PlatformHEVCDecoderSupport'];
 
 if (process.platform === "darwin") {
     logger.info(`Running on macOS, using Metal for rendering`);
     app.commandLine.appendSwitch('use-angle', 'metal');
+    
 } else if (process.platform === "win32") {
     logger.info(`Running on Windows, using D3D11 for rendering`);
     app.commandLine.appendSwitch('use-angle', 'd3d11');
     app.commandLine.appendSwitch('enable-gpu-rasterization');
+    
 } else {
     logger.info(`Running on Linux, using OpenGL and VAAPI for rendering`);
     app.commandLine.appendSwitch('use-angle', 'gl');
     app.commandLine.appendSwitch('enable-gpu-rasterization');
-    app.commandLine.appendSwitch('enable-features', 'VaapiVideoDecoder,VaapiVideoDecodeLinuxGL,CanvasOopRasterization');
+    enabledFeatures.push('VaapiVideoDecoder', 'VaapiVideoDecodeLinuxGL', 'CanvasOopRasterization');
 }
+
+app.commandLine.appendSwitch('enable-features', enabledFeatures.join(','));
 
 if (!gotLock) {
     app.quit();
