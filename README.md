@@ -155,7 +155,7 @@ Create a file with a name ending in `.theme.css` and write your CSS modification
 *You are also required to provide metadata in your theme, in the same way as plugins.*
 
 ## 🐛 Known Issues
-- Subtitles are not available for **some** streams that have embedded subs. This seems to be an issue with either [Stremio Web](https://web.stremio.com/) or Stremio Service, as it also occurs in the browser. Subtitles do work fine for **most** streams though.
+- Due to browser limitations, Blu-ray PGS embedded subtitles don't load. The only way to get around this is to play streams via external players such as VLC or MPV.
 - On macOS, you'll need to bypass Gatekeeper to run the app. This is because the app is not signed.
 
 ## 📃 Todo List
