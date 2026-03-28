@@ -133,7 +133,9 @@ export const modController = {
 
                     const currentValues: Record<string, any> = {};
                     for (const setting of schema) {
-                        currentValues[setting.key] = await settingsAPI.getSetting(pluginBaseName, setting.key);
+                        let userValue = await settingsAPI.getSetting(pluginBaseName, setting.key);
+                        if (!userValue) userValue = setting.defaultValue;
+                        currentValues[setting.key] = userValue;
                     }
 
                     const modalHtml = pluginOptionsModal.getTemplate(pluginName, schema, currentValues);
