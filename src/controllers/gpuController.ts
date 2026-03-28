@@ -9,19 +9,20 @@ const logger = getLogger("GPUController");
 
 export const gpuController = {
     setup: (userDataPath: string) => {
-        app.commandLine.appendSwitch('disable-features', 'BlockInsecurePrivateNetworkRequests,PrivateNetworkAccessSendPreflights,UseChromeOSDirectVideoDecoder');
-        app.commandLine.appendSwitch('enable-accelerated-video-decode');
-        app.commandLine.appendSwitch('enable-zero-copy'); 
-        app.commandLine.appendSwitch('media-cache-size', '268435456');
-        app.commandLine.appendSwitch('num-raster-threads', '4');
-        app.commandLine.appendSwitch('mse-video-buffer-size-limit-mb', '500');
-        app.commandLine.appendSwitch('mse-audio-buffer-size-limit-mb', '50');
-        app.commandLine.appendSwitch('ignore-connections-limit', 'localhost,127.0.0.1');
+        app.commandLine.appendSwitch('disable-features',
+            'BlockInsecurePrivateNetworkRequests,PrivateNetworkAccessSendPreflights,UseChromeOSDirectVideoDecoder'
+        );
+        app.commandLine.appendSwitch('ignore-gpu-blocklist');
+        app.commandLine.appendSwitch('enable-zero-copy');
 
-        let enabledFeatures = ['PlatformHEVCDecoderSupport'];
+        let enabledFeatures = [
+            'PlatformHEVCDecoderSupport',
+            'HardwareMediaKeyHandling',
+            'UseSurfaceLayerForVideo',
+        ];
 
         const bootConfigPath = join(userDataPath, 'boot-config.json');
-        let userRenderer = 'auto'; // 'auto', 'd3d11', 'd3d9', 'gl', 'vulkan', 'software'
+        let userRenderer: string = 'auto';  // 'auto', 'd3d11', 'd3d9', 'gl', 'vulkan', 'software'
 
         if (existsSync(bootConfigPath)) {
             try {
@@ -38,47 +39,52 @@ export const gpuController = {
             return;
         }
 
-        if (process.platform === "darwin") {
-            logger.info(`Running on macOS, forcing Metal`);
+        if (process.platform === 'darwin') {
+            logger.info('Running on macOS, forcing Metal');
             app.commandLine.appendSwitch('use-angle', 'metal');
-            
-        } else if (process.platform === "win32") {
+        } else if (process.platform === 'win32') {
             const renderer = userRenderer === 'auto' ? 'd3d11' : userRenderer;
             logger.info(`Running on Windows, using ${renderer}`);
-            
+
             app.commandLine.appendSwitch('use-angle', renderer);
             app.commandLine.appendSwitch('enable-gpu-rasterization');
+            app.commandLine.appendSwitch('use-gl', 'angle');
 
+            if (userRenderer === 'd3d11' || userRenderer === 'auto') enabledFeatures.push('D3D11VideoDecoder');
         } else {
             const renderer = userRenderer === 'auto' ? 'gl' : userRenderer;
             logger.info(`Running on Linux, using ${renderer}`);
-            
+
             app.commandLine.appendSwitch('use-angle', renderer);
             app.commandLine.appendSwitch('enable-gpu-rasterization');
-            
-            if (renderer === 'vulkan') {
-                app.commandLine.appendSwitch('ignore-gpu-blocklist');
 
+            if (renderer === 'vulkan') {
                 enabledFeatures.push(
-                    'Vulkan', 
-                    'VaapiVideoDecoder', 
-                    'VaapiIgnoreDriverChecks', 
+                    'Vulkan',
+                    'VaapiVideoDecoder',
+                    'VaapiIgnoreDriverChecks',
                     'CanvasOopRasterization'
                 );
             } else {
-                enabledFeatures.push('VaapiVideoDecoder', 'VaapiVideoDecodeLinuxGL', 'CanvasOopRasterization');
+                enabledFeatures.push(
+                    'VaapiVideoDecoder',
+                    'VaapiVideoDecodeLinuxGL',
+                    'CanvasOopRasterization'
+                );
             }
         }
 
         app.commandLine.appendSwitch('enable-features', enabledFeatures.join(','));
+
+        logger.info(`GPU setup complete. Renderer set to: ${userRenderer}, Features: ${enabledFeatures.join(', ')}`);
     },
 
     initIPC: (userDataPath: string) => {
         const bootConfigPath = join(userDataPath, 'boot-config.json');
 
-        ipcMain.handle(IPC_CHANNELS.SET_GPU_RENDERER, (_, selectedRenderer: string) => {            
-            let config = { renderer: 'auto' };
-            
+        ipcMain.handle(IPC_CHANNELS.SET_GPU_RENDERER, (_, selectedRenderer: string) => {
+            let config: { renderer: string } = { renderer: 'auto' };
+
             if (existsSync(bootConfigPath)) {
                 try {
                     const existingConfig = JSON.parse(readFileSync(bootConfigPath, 'utf-8'));

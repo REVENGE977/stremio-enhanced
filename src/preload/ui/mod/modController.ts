@@ -134,7 +134,8 @@ export const modController = {
                     const currentValues: Record<string, any> = {};
                     for (const setting of schema) {
                         let userValue = await settingsAPI.getSetting(pluginBaseName, setting.key);
-                        if (!userValue) userValue = setting.defaultValue;
+                        if (userValue === undefined || userValue === null) userValue = setting.defaultValue;
+
                         currentValues[setting.key] = userValue;
                     }
 

@@ -1,6 +1,6 @@
 {
 	"name": "stremio-enhanced",
-	"version": "1.0.2",
+	"version": "1.1.0",
 	"description": "Electron-based Stremio client with plugins and themes support.",
 	"main": "./dist/main.js",
 	"scripts": {
@@ -26,7 +26,7 @@
 	"license": "MIT",
 	"devDependencies": {
 		"@types/unzipper": "^0.10.11",
-		"electron": "39.2.7",
+		"electron": "^41.1.0",
 		"electron-builder": "^26.4.0",
 		"typescript": "^5.7.2"
 	},

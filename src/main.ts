@@ -32,10 +32,14 @@ const useServerJSFlagPath = join(app.getPath("userData"), "use_server_js_for_str
 const transparencyEnabled = existsSync(transparencyFlagPath);
 
 app.commandLine.appendSwitch('disable-features', 'BlockInsecurePrivateNetworkRequests,PrivateNetworkAccessSendPreflights');
-app.commandLine.appendSwitch('media-cache-size', '268435456'); // 256MB cache for media
-app.commandLine.appendSwitch('mse-video-buffer-size-limit-mb', '500');
-app.commandLine.appendSwitch('mse-audio-buffer-size-limit-mb', '50');
+app.commandLine.appendSwitch('media-cache-size', '268435456');
+app.commandLine.appendSwitch('mse-video-buffer-size-limit-mb', '1024');
+app.commandLine.appendSwitch('mse-audio-buffer-size-limit-mb', '128');
 app.commandLine.appendSwitch('ignore-connections-limit', 'localhost,127.0.0.1');
+app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required');
+app.commandLine.appendSwitch('disable-renderer-backgrounding');
+app.commandLine.appendSwitch('disable-background-timer-throttling');
+app.commandLine.appendSwitch('disable-backgrounding-occluded-windows');
 
 gpuController.setup(userDataPath);
 
@@ -70,7 +74,8 @@ async function createWindow() {
             // Additional security hardening
             allowRunningInsecureContent: false,
             experimentalFeatures: false,
-            spellcheck: false
+            spellcheck: false,
+            backgroundThrottling: false
         },
         width: 1500,
         height: 850,

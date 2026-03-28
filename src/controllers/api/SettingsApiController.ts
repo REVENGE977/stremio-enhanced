@@ -18,7 +18,6 @@ export function setupPluginSettingsAPI() {
 
         let readConfig = readFileSync(`${Properties.pluginsPath}//${pluginFileName}${FILE_EXTENSIONS.PLUGIN_CONFIG}`, 'utf-8');
         let jsonConfig = JSON.parse(readConfig);
-        if(!jsonConfig[key]) return null;
 
         return jsonConfig[key] ?? null;
     });
