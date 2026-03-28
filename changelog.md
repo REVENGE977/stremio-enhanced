@@ -185,5 +185,27 @@ xattr -d com.apple.quarantine /path/to/Stremio.Enhanced.app
 
 (PR https://github.com/REVENGE977/stremio-enhanced/pull/63)
 
-- **HVEC decoding support** Enabled HEVC hardware decoding support (PR https://github.com/REVENGE977/stremio-enhanced/pull/69) 
+- **HEVC decoding support** Enabled HEVC hardware decoding support (PR https://github.com/REVENGE977/stremio-enhanced/pull/69) 
 - **Improved codebase** Improved code quality, type safety, and maintainability (PR https://github.com/REVENGE977/stremio-enhanced/pull/67)
+
+## Update v1.1.0
+- **stremio:// protocol support** Now you install addons via links without having to copy & paste the URL.
+
+- **Fixed embedded subtitles (mostly)** [There is an issue with Stremio Web at the moment where on Chromium-based browsers (Stremio Enhanced included, since it uses Electron) embedded subtitles sometimes don't load despite the format being supported.](https://github.com/Stremio/stremio-web/issues/1110) With this update, any embedded subtitles that browsers support should load using Stremio Enhanced's own workaround implementation of adding the subtitles by itself if the native Stremio Web implementation fails. However, unfortunately due to browser limitations, Blu-ray PGS embedded subtitles will still not load. The only way to get around this is to play streams via external players such as VLC or MPV.
+
+- **Plugins are now more powerful**: Plugins can now register settings for their own plugins for users to configure and then plugins can get/save those settings as well as listen to whenever they get changed by the user. Additionally, plugins can now utilize Electron's showMessageBox and easily show customizable messagebox dialogs to the user and also utilize a new API to show a prompt alert that the user can input data into. There will be a documentation soon for developers on how to utilize the plugin API (possibly in the wiki tab of this repository).
+
+- **Themes can now require specific plugins**: Developers of complex themes that need extra plugins to function properly can now require those plugins in the metadata and Stremio Enhanced will tell the user to download and enable those plugins first before applying the theme. The way to use this will also be documumented in the wiki.
+
+- **Streaming performance improvements**: Some tweaks to the Electron flags Stremio Enhanced uses to improve media streaming experience. 
+**Note: Make sure if you're on Windows that you have [HEVC Video Extensions](https://apps.microsoft.com/detail/9nmzlz57r3t7) installed. [You can get it for free from here](https://www.codecguide.com/media_foundation_codecs.htm)**
+
+- **Choose ANGLE GPU Rendering from settings**: If you're on Windows or Linux, you can now choose the rendering engine you want to use. You can choose from Auto (Default), DirectX 11, DirectX 9, OpenGL, Vulkan, and Software rendering. macOS is locked to Metal since it's the only way to get hardware acceleration on macOS.
+
+- **New plugin update safety alert**: Now if there is an update for a plugin but the new version of that plugin is not submitted to the Community Marketplace (in [stremio-enhanced-registry](https://github.com/REVENGE977/stremio-enhanced-registry/)), a dialog will show up to alert the user that the new version is not in the registry yet and advice the user to read the source code of the new version first before updating.
+
+- **Fixed minor settings bug**: Fixed a bug where the Enhanced section button on the left sidebar in the settings page wasn't autoscrolling to the Enhanced section.
+
+- **New download option in the update notice**: Now if there's a new Stremio Enhanced update, you can download the new update by clicking the new download button and it'll download and automatically download/install the update setup if you're on Windows. On macOS it should download the update and mount the dmg, and on Linux it will download and show the file in file explorer.
+
+- **Codebase improvements**: Better seperation of frontend and backend parts of the app as well as better use of contextBridge to improve code readability and maintainability.

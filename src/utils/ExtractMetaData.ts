@@ -23,10 +23,24 @@ class ExtractMetaData {
             if (!ALL_METADATA_KEYS.includes(rawKey as MetadataKey)) continue;
 
             const key = rawKey as MetadataKey;
-
             if (result[key] !== undefined) continue;
 
-            result[key] = rawValue.trim();
+            const cleanValue = rawValue.trim();
+
+            if (key === "requirements") {
+                try {
+                    const parsed = JSON.parse(cleanValue);
+                    result[key] = Array.isArray(parsed) ? parsed : [];
+                } catch {
+                    result[key] = cleanValue
+                        .replace(/[\[\]]/g, '')
+                        .split(',')
+                        .map(s => s.trim().replace(/['"]/g, '')) 
+                        .filter(Boolean);
+                }
+            } else {
+                (result as any)[key] = cleanValue;
+            }
         }
 
         for (const key of REQUIRED_METADATA_KEYS) {
@@ -54,10 +68,7 @@ class ExtractMetaData {
 
     public static extractMetadataFromText(textContent: string): MetaData | null {
         const metadata = this.parseMetadataFromContent(textContent);
-        
-        if (!metadata) {
-            logger.error('Comment block not found in the provided text');
-        }
+        if (!metadata) return null;
         
         return metadata;
     }

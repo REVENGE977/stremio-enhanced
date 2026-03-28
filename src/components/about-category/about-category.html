@@ -1,5 +1,5 @@
 <h4 style="color: white; margin-bottom: 1rem;">
-    Developed By: <p style="display: inline !important;"><a href="https://github.com/REVENGE977" target="_blank" rel="noreferrer">REVENGE977</a></p>
+    Developed By: <p style="display: inline !important;"><a href="https://github.com/REVENGE977" target="_blank" rel="noreferrer" style="color: var(--primary-accent-color)">REVENGE977</a></p>
     <br/>
     Version: v{{ version }}
     <br/>
@@ -38,7 +38,29 @@
     </div>
 </div>
 
-<p style="color:gray;">This option has to be enabled for themes that support transparency to work. (experimental)</p>
+<p style="color:rgb(204, 204, 204);">Note: The Window transparency option has to be enabled for themes that support window transparency to work. However, this is still experimental and also uses more resources, so don't enable it unless you're using a theme that utilizes it.</p>
+<br/>
+
+<div class="option-vFOAS">
+    <div class="heading-dYMDt">
+        <div class="label-qI6Vh">
+            ANGLE graphics backend
+        </div>
+    </div>
+
+    <div class="content-P2T0i">
+        <select data-key="gpuRenderer" {{ disabled }} id="gpu-renderer-dropdown" class="search-input-bAgAh text-input-hnLiz plugin-setting-select" style="width: 100%; padding: 0 15px; cursor: pointer; background-color: rgba(255, 255, 255, 0.08); color: white; border: 1px solid transparent; border-radius: 20px; outline: none; appearance: auto; box-sizing: border-box; height: 42px;">
+            <option value="auto" {{ selected_auto }} style="background-color: #1a1a1a; color: white;">Auto (Default)</option>
+            <option value="d3d11" {{ disabled_d3d11 }} {{ selected_d3d11 }} style="background-color: #1a1a1a; color: white;">DirectX 11 (Windows only)</option>
+            <option value="d3d9" {{ disabled_d3d9 }} {{ selected_d3d9 }} style="background-color: #1a1a1a; color: white;">DirectX 9 (Windows only)</option>
+            <option value="gl" {{ selected_gl }} style="background-color: #1a1a1a; color: white;">OpenGL</option>
+            <option value="vulkan" {{ selected_vulkan }} style="background-color: #1a1a1a; color: white;">Vulkan</option>
+            <option value="software" {{ selected_software }} style="background-color: #1a1a1a; color: white;">Software</option>
+        </select>
+    </div>
+</div>
+
+<p style="color:rgb(204, 204, 204);">Note: Auto uses DirectX 11 on Windows, OpenGL on Linux and Metal on macOS. If you encounter any issues like not being able to switch audio tracks in some streams, try switching to OpenGL.</p>
 <br/>
 
 <div class="option-vFOAS">

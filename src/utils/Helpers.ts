@@ -21,7 +21,7 @@ class Helpers {
     }
     
     public async showAlert(
-        alertType: 'info' | 'warning' | 'error', 
+        alertType: 'info' | 'warning' | 'error' | 'question' | 'none', 
         title: string, 
         message: string, 
         buttons: string[]

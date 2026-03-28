@@ -1,0 +1,28 @@
+<div data-focus-lock-disabled="false" class="addon-details-modal-container-aBFaQ modal-container-OuxEF modal-container" id="{{ modalId }}" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 999999; display: flex; justify-content: center; align-items: center; background-color: rgba(0, 0, 0, 0.75);">
+    
+    <div class="modal-dialog-container-DZMKq" style="width: 50%; max-width: 800px; height: auto; max-height: 80vh; display: flex; flex-direction: column;">
+        <div class="modal-dialog-background-vZpB_"></div>
+        
+        <div tabindex="0" title="Close" class="close-button-container-cmxAp button-container-zVLH6" id="{{ modalId }}-close-x">
+            <svg class="icon-OYzlV" viewBox="0 0 512 512"><path d="M289.90000000000146 256l95-95c4.5-4.53 7-10.63 7.1-17 0-6.38-2.5-12.5-7-17.02s-10.6-7.07-17-7.08c-3.2-0.01-6.3 0.61-9.2 1.81s-5.6 2.96-7.8 5.19l-95 95-95-95c-3.4-3.33-7.6-5.6-12.3-6.51-4.6-0.91-9.4-0.42-13.8 1.4-4.4 1.79-8.1 4.86-10.8 8.81-2.6 3.94-4 8.58-4 13.33-0.1 3.15 0.5 6.28 1.7 9.19 1.2 2.92 3 5.57 5.2 7.78l95 95-95 95c-2.8 2.8-4.8 6.24-6 10.02-1.1 3.78-1.3 7.78-0.5 11.64 0.8 3.87 2.5 7.48 5 10.52 2.5 3.05 5.8 5.43 9.4 6.93 4.4 1.81 9.2 2.29 13.8 1.39 4.7-0.91 8.9-3.17 12.3-6.5l95-95 95 95c3.4 3.34 7.6 5.6 12.3 6.51 4.6 0.92 9.4 0.43 13.8-1.39 4.4-1.8 8.1-4.87 10.8-8.82 2.6-3.94 4-8.58 4-13.33 0.1-3.15-0.5-6.28-1.7-9.2-1.2-2.91-3-5.56-5.2-7.77z" style="fill: currentcolor;"></path></svg>
+        </div>
+        
+        <div class="modal-dialog-content-Xgv7Z" style="display: flex; flex-direction: column; height: 100%;">
+            <div class="title-container-v2mmF" title="{{ pluginName }}  Settings">{{ pluginName }} Settings</div>
+            
+            <div class="body-container-H80dD" style="flex-grow: 1; overflow: hidden;">
+                <div class="addon-details-container-VdGrt addon-details-container-tUlp2" style="width: 100%; height: 100%;">
+                    <div class="section-container-N6QHW" style="overflow-y: auto; height: 100%; max-height: 50vh; line-height: 1.5; padding-right: 15px;">
+                        {{ settingsHtml }}
+                    </div>
+                </div>
+            </div>
+            
+            <div class="buttons-container-e_JoR" style="margin-top: 15px; justify-content: flex-end; padding-top: 15px; border-top: 1px solid rgba(255,255,255,0.1);">
+                <div tabindex="0" title="Save & Close" class="action-button-eprQG button-container-zVLH6" id="{{ modalId }}-close-btn">
+                    <div class="label-wbfsE">Close</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

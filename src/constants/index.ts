@@ -63,12 +63,16 @@ export const IPC_CHANNELS = {
     UPDATE_CHECK_STARTUP: 'update-check-on-startup',
     UPDATE_CHECK_USER: 'update-check-userrequest',
     FULLSCREEN_CHANGED: 'fullscreen-changed',
+    GET_GPU_RENDERER: 'get-gpu-renderer',
+    SET_GPU_RENDERER: 'set-gpu-renderer',
+    SHOW_ALERT: 'show-alert'
 } as const;
 
 // File extensions for mods
 export const FILE_EXTENSIONS = {
     THEME: '.theme.css',
     PLUGIN: '.plugin.js',
+    PLUGIN_CONFIG: '.plugin.json'
 } as const;
 
 // URLs
@@ -105,7 +109,7 @@ export const FFMPEG_URLS = {
 export const MACOS_FFPROBE_URLS = {
     x64: "https://ffmpeg.martin-riedl.de/download/macos/amd64/1766437297_8.0.1/ffprobe.zip",
     arm64: "https://ffmpeg.martin-riedl.de/download/macos/arm64/1766430132_8.0.1/ffprobe.zip",
-};
+} as const;
 
 // Discord RPC
 export const DISCORD = {
@@ -122,4 +126,17 @@ export const TIMEOUTS = {
     SERVER_RELOAD_DELAY: 1500,
     CORESTATE_RETRY_INTERVAL: 1000,
     CORESTATE_MAX_RETRIES: 30,
+} as const;
+
+
+export const ENHANCED_PLUGINS_API = {
+    GET_SETTING: 'get-plugin-setting',
+    GET_SETTINGS: 'get-plugin-settings',
+    SAVE_SETTING: 'save-plugin-setting',
+    REGISTER_SETTINGS: 'register-plugin-settings',
+    GET_REGISTERED_SETTINGS: 'get-registered-schema',
+    CLEAR_REGISTERED_SETTINGS: 'clear-registered-schema',
+    ON_SETTINGS_SAVED: "on-plugin-settings-saved",
+    SHOW_ALERT: 'show-alert',
+    SHOW_PROMPT: 'show-prompt'
 } as const;

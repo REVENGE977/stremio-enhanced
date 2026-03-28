@@ -14,10 +14,11 @@
   -  [x] Add UI for submitting skip segments
 - [x] Make it so if the user opens Discord after opening Stremio Enhanced, Discord Rich Presence still works.
 - [x] In-app patch notes when an update is available.
-- [ ] Support having options for plugins. 
-- [ ] Improve update system: auto update so user doesn't have to download anything manually. ⭐
+- [x] Support having options/config for plugins. 
+- [x] Improve update system: auto update so user doesn't have to download anything manually.
+- [x] Support plugin icons in the marketplace.
 - [x] Auto download Stremio Service for the user if an installation is not detected.
-- [x] Support addons links by opening directly: instead of having the user copy and paste links. ⭐
+- [x] Support addons links by opening directly: instead of having the user copy and paste links.
 - [x] In-app plugins/themes list to browse and find new plugins/themes.
 - [x] Auto download Stremio Service if not found.
 - [ ] Plugin idea: categories in library.
@@ -28,9 +29,14 @@
   - [x] Add a custom title bar and disable the window frame
   - [x] Make sure fullscreen works when the option is enabled
 - [x] Fix embedded subs not loading some streams by having manually extracting the subs and loading them.
-- [ ] Clean up preload.ts
+- [x] Clean up preload.ts
 - [ ] Features from Zaarrg/stremio-community-v5
   - [ ] MPV support
     - [ ] Thumbnail preview
     - [ ] Upscale model support
     - [ ] Native playback
+- [x] create API for plugins to put alert and prompt dialogs
+- [x] Put applyTheme in preload and use contextBridge for cleaner implementation
+- [x] Add the ability for themes to set required plugins that the user must install first
+- [x] Give users the choice of what Hardware Acceleration Engine they want Stremio Enhanced to use
+- [x] create API for plugins to use winston logger

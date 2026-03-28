@@ -19,6 +19,8 @@ export interface MetaData {
     license?: string;
     /** Homepage/documentation URL (optional) */
     homepage?: string;
+    /** For themes to require plugins to be installed to function */
+    requirements?: string[];
 }
 
 export type MetadataKey = keyof MetaData;
@@ -39,4 +41,5 @@ export const ALL_METADATA_KEYS = [
     "source",
     "license",
     "homepage",
+    "requirements"
 ] as const satisfies readonly MetadataKey[];

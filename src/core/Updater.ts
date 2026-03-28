@@ -1,4 +1,6 @@
-import { readFileSync } from "fs";
+import { homedir } from "os";
+import { shell } from "electron"
+import { readFileSync, writeFileSync } from "fs";
 import helpers from '../utils/Helpers';
 import { getLogger } from "../utils/logger";
 import { join } from "path";
@@ -23,7 +25,12 @@ class Updater {
                 
                 const modalsContainer = document.getElementsByClassName("modals-container")[0];
                 if (modalsContainer) {
-                    modalsContainer.innerHTML = await getUpdateModalTemplate();
+                    modalsContainer.innerHTML = await getUpdateModalTemplate(currentVersion, latestVersion);
+                    
+                    let downloadBtn = document.getElementById("download-update")
+                    downloadBtn?.addEventListener("click", () => {
+                        this.downloadAndExecuteUpdate(downloadBtn as HTMLElement);
+                    })
                 }
                 return true;
             } else if (showNoUpdatePrompt) {
@@ -100,6 +107,91 @@ class Updater {
         } catch (error) {
             this.logger.error(`Failed to fetch release notes: ${(error as Error).message}`);
             return "Could not load release notes.";
+        }
+    }
+
+    public static async downloadAndExecuteUpdate(btnElement: HTMLElement): Promise<void> {
+        try {
+            btnElement.innerText = "Finding Download...";
+            btnElement.style.pointerEvents = "none";
+
+            const asset = await this.getDownloadUrl();
+            if (!asset) {
+                throw new Error("Could not find a valid download for your Operating System.");
+            }
+
+            this.logger.info(`Downloading update: ${asset.name}...`);
+            btnElement.innerText = "Downloading...";
+            
+            const downloadsPath = join(homedir(), 'Downloads');
+            const filePath = join(downloadsPath, asset.name);
+
+            const response = await fetch(asset.url);
+            if (!response.ok) throw new Error(`Download failed: ${response.statusText}`);
+            
+            const buffer = Buffer.from(await response.arrayBuffer());
+            writeFileSync(filePath, buffer);
+
+            this.logger.info(`Download complete: ${filePath}`);
+            btnElement.innerText = "Downloaded!";
+
+            const isSetupOrMac = asset.name.includes("Setup") || asset.name.endsWith(".dmg");
+
+            if (isSetupOrMac) {
+                this.logger.info("Installer or DMG detected. Executing/Mounting...");
+                shell.openPath(filePath); 
+            } else {
+                this.logger.info("Non-setup file detected. Highlighting in file explorer...");
+                shell.showItemInFolder(filePath); 
+            }
+
+        } catch (error) {
+            this.logger.error(`Update failed: ${(error as Error).message}`);
+            btnElement.innerText = "Download Failed";
+            btnElement.style.pointerEvents = "auto";
+        }
+    }
+
+    private static async getDownloadUrl(): Promise<{ url: string, name: string } | null> {
+        try {
+            const response = await fetch(URLS.RELEASES_API);
+            if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            
+            const data = await response.json();
+            const assets = data.assets;
+            
+            const currentPlatform = process.platform;
+            const currentArch = process.arch;
+            
+            let targetAsset;
+
+            if (currentPlatform === "win32") {
+                targetAsset = assets.find((a: any) => a.name.includes("Setup") && a.name.endsWith(".exe")) 
+                           || assets.find((a: any) => a.name.endsWith(".exe"));
+            } 
+            else if (currentPlatform === "darwin") {
+                if (currentArch === "arm64") {
+                    targetAsset = assets.find((a: any) => a.name.includes("arm64") && a.name.endsWith(".dmg"));
+                } else {
+                    targetAsset = assets.find((a: any) => !a.name.includes("arm64") && a.name.endsWith(".dmg"));
+                }
+            } 
+            else if (currentPlatform === "linux") {
+                if (currentArch === "arm64") {
+                    targetAsset = assets.find((a: any) => a.name.includes("arm64") && a.name.endsWith(".AppImage"));
+                } else {
+                    targetAsset = assets.find((a: any) => !a.name.includes("arm64") && a.name.endsWith(".AppImage"));
+                }
+            }
+
+            if (targetAsset) {
+                return { url: targetAsset.browser_download_url, name: targetAsset.name };
+            }
+            return null;
+
+        } catch (error) {
+            this.logger.error(`Failed to fetch release assets: ${(error as Error).message}`);
+            return null;
         }
     }
 }

@@ -1,5 +1,5 @@
 import { join } from "path";
-import { mkdirSync, existsSync, writeFileSync, unlinkSync } from "fs";
+import { mkdirSync, existsSync, writeFileSync } from "fs";
 import helpers from './utils/Helpers';
 import Updater from "./core/Updater";
 import Properties from "./core/Properties";
@@ -10,50 +10,34 @@ import { IPC_CHANNELS, URLS, SERVER_JS_URL } from "./constants";
 import { app } from 'electron';
 if (process.platform === 'linux') app.commandLine.appendSwitch('gtk-version', '3');
 
-import { BrowserWindow, shell, ipcMain } from "electron";
+import { BrowserWindow, shell } from "electron";
 import StreamingServer from "./utils/StreamingServer";
 import Helpers from "./utils/Helpers";
 import StremioService from "./utils/StremioService";
+import { setupPluginSettingsAPI } from "./controllers/api/SettingsApiController";
+import { setupPluginAlertAPI } from "./controllers/api/AlertApiController";
+import { setupWindowControls } from "./controllers/windowController";
+import { setupUpdater } from "./controllers/updaterController";
+import { setupWindowTransparency } from "./controllers/transparencyController";
+import { gpuController } from "./controllers/gpuController";
 
 app.setName("stremio-enhanced");
+const userDataPath = app.getPath('userData');
 
-let mainWindow: BrowserWindow | null;
+export let mainWindow: BrowserWindow | null;
 const gotLock = app.requestSingleInstanceLock();
 const transparencyFlagPath = join(app.getPath("userData"), "transparency");
 const useStremioServiceFlagPath = join(app.getPath("userData"), "use_stremio_service_for_streaming");
 const useServerJSFlagPath = join(app.getPath("userData"), "use_server_js_for_streaming");
 const transparencyEnabled = existsSync(transparencyFlagPath);
 
-// flags
-app.commandLine.appendSwitch('disable-features', 'BlockInsecurePrivateNetworkRequests,PrivateNetworkAccessSendPreflights,UseChromeOSDirectVideoDecoder');
-app.commandLine.appendSwitch('enable-accelerated-video-decode');
-app.commandLine.appendSwitch('enable-zero-copy'); 
+app.commandLine.appendSwitch('disable-features', 'BlockInsecurePrivateNetworkRequests,PrivateNetworkAccessSendPreflights');
 app.commandLine.appendSwitch('media-cache-size', '268435456'); // 256MB cache for media
-app.commandLine.appendSwitch('num-raster-threads', '4');
 app.commandLine.appendSwitch('mse-video-buffer-size-limit-mb', '500');
 app.commandLine.appendSwitch('mse-audio-buffer-size-limit-mb', '50');
 app.commandLine.appendSwitch('ignore-connections-limit', 'localhost,127.0.0.1');
 
-// create an array for features so we don't accidentally overwrite them per-OS
-let enabledFeatures = ['PlatformHEVCDecoderSupport'];
-
-if (process.platform === "darwin") {
-    logger.info(`Running on macOS, using Metal for rendering`);
-    app.commandLine.appendSwitch('use-angle', 'metal');
-    
-} else if (process.platform === "win32") {
-    logger.info(`Running on Windows, using D3D11 for rendering`);
-    app.commandLine.appendSwitch('use-angle', 'd3d11');
-    app.commandLine.appendSwitch('enable-gpu-rasterization');
-    
-} else {
-    logger.info(`Running on Linux, using OpenGL and VAAPI for rendering`);
-    app.commandLine.appendSwitch('use-angle', 'gl');
-    app.commandLine.appendSwitch('enable-gpu-rasterization');
-    enabledFeatures.push('VaapiVideoDecoder', 'VaapiVideoDecodeLinuxGL', 'CanvasOopRasterization');
-}
-
-app.commandLine.appendSwitch('enable-features', enabledFeatures.join(','));
+gpuController.setup(userDataPath);
 
 if (!gotLock) {
     app.quit();
@@ -73,7 +57,7 @@ if (!gotLock) {
 async function createWindow() {
     mainWindow = new BrowserWindow({
         webPreferences: {
-            preload: join(__dirname, "preload.js"),
+            preload: join(__dirname, "//preload/index.js"),
             // Security Note: These settings are required for the plugin/theme system
             // to work properly. The app loads web.stremio.com and needs to:
             // 1. Make cross-origin requests to local streaming server (webSecurity: false)
@@ -82,7 +66,7 @@ async function createWindow() {
             // TODO: Consider implementing a contextBridge-based architecture for better security
             webSecurity: false,
             nodeIntegration: true,
-            contextIsolation: false,
+            contextIsolation: true,
             // Additional security hardening
             allowRunningInsecureContent: false,
             experimentalFeatures: false,
@@ -116,56 +100,6 @@ async function createWindow() {
             mainWindow?.webContents.send(IPC_CHANNELS.FULLSCREEN_CHANGED, false);
         });
     }
-    
-    ipcMain.on(IPC_CHANNELS.MINIMIZE_WINDOW, () => {
-        mainWindow?.minimize();
-    });
-    
-    ipcMain.on(IPC_CHANNELS.MAXIMIZE_WINDOW, () => {
-        if (mainWindow) {
-            if (mainWindow.isMaximized()) {
-                mainWindow.unmaximize();
-            } else {
-                mainWindow.maximize();
-            }
-        }
-    });
-    
-    ipcMain.on(IPC_CHANNELS.CLOSE_WINDOW, () => {
-        mainWindow?.close();
-    });
-    
-    ipcMain.on(IPC_CHANNELS.UPDATE_CHECK_STARTUP, async (_, checkForUpdatesOnStartup: string) => {
-        logger.info(`Checking for updates on startup: ${checkForUpdatesOnStartup === "true" ? "enabled" : "disabled"}.`);
-        if (checkForUpdatesOnStartup === "true") {
-            await Updater.checkForUpdates(false);
-        }
-    });
-    
-    ipcMain.on(IPC_CHANNELS.UPDATE_CHECK_USER, async () => {
-        logger.info("Checking for updates on user request.");
-        await Updater.checkForUpdates(true);
-    });
-    
-    ipcMain.on(IPC_CHANNELS.SET_TRANSPARENCY, (_, enabled: boolean) => {
-        if (enabled) {
-            logger.info("Enabled window transparency");
-            writeFileSync(transparencyFlagPath, "1");
-        } else {
-            logger.info("Disabled window transparency");
-            try {
-                unlinkSync(transparencyFlagPath);
-            } catch {
-                // File may not exist, ignore
-            }
-        }
-        
-        Helpers.showAlert("info", "Transparency setting changed", "Please restart the app to apply the changes.", ["OK"]);
-    });
-    
-    ipcMain.handle(IPC_CHANNELS.GET_TRANSPARENCY_STATUS, () => {
-        return existsSync(transparencyFlagPath);
-    });
     
     // Opens links in external browser instead of opening them in the Electron app.
     mainWindow.webContents.setWindowOpenHandler((edata:any) => {
@@ -255,7 +189,14 @@ app.on("ready", async () => {
         }
     } else logger.info("Launching without Stremio streaming server.");
     
+    // setup IPC and create window
+    setupPluginSettingsAPI();
+    setupPluginAlertAPI();
     createWindow();
+    setupWindowControls();
+    setupUpdater();
+    setupWindowTransparency(transparencyFlagPath);
+    gpuController.initIPC(userDataPath);
     
     // macOS: protocol URLs are sent via 'open-url'
     app.on('open-url', (event, url) => {
@@ -307,7 +248,7 @@ async function useServerJS() {
     const filesStatus = await StreamingServer.ensureStreamingServerFiles();
     
     if(filesStatus === "ready") {
-        logger.info("Launching server.js directly...");
+        logger.info("Running server.js directly...");
         StreamingServer.start();
     } else if(filesStatus === "missing_server_js") {
         // server.js is missing - show instructions to the user in a loop
