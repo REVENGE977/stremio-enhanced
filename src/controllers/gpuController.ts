@@ -58,12 +58,9 @@ export const gpuController = {
             
             if (renderer === 'vulkan') {
                 app.commandLine.appendSwitch('ignore-gpu-blocklist');
-                app.commandLine.appendSwitch('ozone-platform', 'x11'); //native Wayland blocks Vulkan in Electron, force X11 to allow it
 
                 enabledFeatures.push(
                     'Vulkan', 
-                    'VulkanFromANGLE', 
-                    'DefaultANGLEVulkan', 
                     'VaapiVideoDecoder', 
                     'VaapiIgnoreDriverChecks', 
                     'CanvasOopRasterization'
