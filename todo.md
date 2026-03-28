@@ -39,4 +39,5 @@
 - [x] Put applyTheme in preload and use contextBridge for cleaner implementation
 - [x] Add the ability for themes to set required plugins that the user must install first
 - [x] Give users the choice of what Hardware Acceleration Engine they want Stremio Enhanced to use
-- [x] create API for plugins to use winston logger
+- [x] Create API for plugins to use winston logger
+- [ ] Add option to always open streams in either VLC or MPV

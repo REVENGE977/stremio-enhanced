@@ -53,12 +53,21 @@ export const gpuController = {
             const renderer = userRenderer === 'auto' ? 'gl' : userRenderer;
             logger.info(`Running on Linux, using ${renderer}`);
             
+            app.commandLine.appendSwitch('use-angle', renderer);
+            app.commandLine.appendSwitch('enable-gpu-rasterization');
+            
             if (renderer === 'vulkan') {
                 app.commandLine.appendSwitch('ignore-gpu-blocklist');
-                enabledFeatures.push('Vulkan', 'VaapiVideoDecoder', 'VaapiIgnoreDriverChecks', 'CanvasOopRasterization');
+                
+                enabledFeatures.push(
+                    'Vulkan', 
+                    'VulkanFromANGLE', 
+                    'DefaultANGLEVulkan', 
+                    'VaapiVideoDecoder', 
+                    'VaapiIgnoreDriverChecks', 
+                    'CanvasOopRasterization'
+                );
             } else {
-                app.commandLine.appendSwitch('use-angle', 'gl');
-                app.commandLine.appendSwitch('enable-gpu-rasterization');
                 enabledFeatures.push('VaapiVideoDecoder', 'VaapiVideoDecodeLinuxGL', 'CanvasOopRasterization');
             }
         }
