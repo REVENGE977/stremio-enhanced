@@ -9,16 +9,11 @@ const logger = getLogger("GPUController");
 
 export const gpuController = {
     setup: (userDataPath: string) => {
-        app.commandLine.appendSwitch('disable-features',
-            'BlockInsecurePrivateNetworkRequests,PrivateNetworkAccessSendPreflights,UseChromeOSDirectVideoDecoder'
-        );
-        app.commandLine.appendSwitch('ignore-gpu-blocklist');
-        app.commandLine.appendSwitch('enable-zero-copy');
+        app.commandLine.appendSwitch('disable-features', 'UseChromeOSDirectVideoDecoder');
 
         let enabledFeatures = [
             'PlatformHEVCDecoderSupport',
-            'HardwareMediaKeyHandling',
-            'UseSurfaceLayerForVideo',
+            'disable-gpu-driver-bug-workaround'
         ];
 
         const bootConfigPath = join(userDataPath, 'boot-config.json');
@@ -37,6 +32,13 @@ export const gpuController = {
             logger.warn("User forced Software Rendering.");
             app.disableHardwareAcceleration();
             return;
+        } else { 
+            // if not using software rendering, enable GPU related features
+            logger.info("Enabling GPU features");
+            enabledFeatures.push("AcceleratedVideoEncoder");
+            app.commandLine.appendSwitch('ignore-gpu-blocklist');
+            app.commandLine.appendSwitch('enable-zero-copy');
+            app.commandLine.appendSwitch('enable-gpu-rasterization');
         }
 
         if (process.platform === 'darwin') {

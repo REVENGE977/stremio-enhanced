@@ -32,14 +32,12 @@ const useServerJSFlagPath = join(app.getPath("userData"), "use_server_js_for_str
 const transparencyEnabled = existsSync(transparencyFlagPath);
 
 app.commandLine.appendSwitch('disable-features', 'BlockInsecurePrivateNetworkRequests,PrivateNetworkAccessSendPreflights');
-app.commandLine.appendSwitch('media-cache-size', '268435456');
-app.commandLine.appendSwitch('mse-video-buffer-size-limit-mb', '1024');
-app.commandLine.appendSwitch('mse-audio-buffer-size-limit-mb', '128');
 app.commandLine.appendSwitch('ignore-connections-limit', 'localhost,127.0.0.1');
-app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required');
-app.commandLine.appendSwitch('disable-renderer-backgrounding');
+app.commandLine.appendSwitch('proxy-bypass-list', '127.0.0.1,localhost,::1');
 app.commandLine.appendSwitch('disable-background-timer-throttling');
-app.commandLine.appendSwitch('disable-backgrounding-occluded-windows');
+app.commandLine.appendSwitch('disable-renderer-backgrounding');
+app.commandLine.appendSwitch('enable-quic');
+app.commandLine.appendSwitch('enable-async-dns');
 
 gpuController.setup(userDataPath);
 
