@@ -45,8 +45,7 @@
 	- [🛠️ Installing Plugins](#️-installing-plugins)
 	- [🌐 Community Plugins \& Themes](#-community-plugins--themes)
 - [❓ What Is the Difference Between Plugins and Addons?](#-what-is-the-difference-between-plugins-and-addons)
-- [📜 Creating Your Own Plugin](#-creating-your-own-plugin)
-- [🎨 Creating Your Own Theme](#-creating-your-own-theme)
+- [🛠️ Creating your own theme/plugin](#️-creating-your-own-themeplugin)
 - [🐛 Known Issues](#-known-issues)
 - [📃 Todo List](#-todo-list)
 - [🔗 Discord Server](#-discord-server)
@@ -134,25 +133,8 @@ These plugins and themes are fetched from the [Stremio Enhanced Registry](https:
 - **Addons** are available on the normal version of Stremio. They add catalogs and streams for Stremio.
 - **Plugins** add more functionality to Stremio, like new features.
 
-## 📜 Creating Your Own Plugin
-Plugins are simply JavaScript files running on the client side. Create a JavaScript file with a `.plugin.js` extension and write your code as you would normally for the client side.
-
-You are required to provide metadata for the plugin. Here is an example:
-
-```js
-/**
- * @name YourPluginNameHere
- * @description What does your plugin do?
- * @updateUrl your plugin's raw file URL for update checking. (Set this to 'none' if you don't want to provide one)
- * @version VersionHere (e.g., 1.0.0)
- * @author AuthorName
- */
-```
-
-## 🎨 Creating Your Own Theme
-Create a file with a name ending in `.theme.css` and write your CSS modifications there. You can use the devtools (<kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>I</kbd>) to find an element's class name, etc.
-
-*You are also required to provide metadata in your theme, in the same way as plugins.*
+## 🛠️ Creating your own theme/plugin
+[You can read the wiki for information on how to create your own plugin/theme and how to submit it to the marketplace](https://github.com/REVENGE977/stremio-enhanced/wiki)
 
 ## 🐛 Known Issues
 - Due to browser limitations, Blu-ray PGS embedded subtitles don't load. The only way to get around this is to play streams via external players such as VLC or MPV.
