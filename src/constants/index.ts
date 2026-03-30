@@ -51,6 +51,15 @@ export const STORAGE_KEYS = {
     CURRENT_THEME: 'currentTheme',
     DISCORD_RPC: 'discordrichpresence',
     CHECK_UPDATES_ON_STARTUP: 'checkForUpdatesOnStartup',
+    EXTERNAL_PLAYER: 'externalPlayer',
+    EXTERNAL_PLAYER_VLC_PATH: 'externalPlayerVlcPath',
+    EXTERNAL_PLAYER_MPV_PATH: 'externalPlayerMpvPath',
+} as const;
+
+/** Maps a player name to its custom-path storage key. */
+export const PLAYER_PATH_STORAGE_KEY: Record<string, string> = {
+    vlc: STORAGE_KEYS.EXTERNAL_PLAYER_VLC_PATH,
+    mpv: STORAGE_KEYS.EXTERNAL_PLAYER_MPV_PATH,
 } as const;
 
 // IPC Channel names for main <-> renderer communication
@@ -65,7 +74,9 @@ export const IPC_CHANNELS = {
     FULLSCREEN_CHANGED: 'fullscreen-changed',
     GET_GPU_RENDERER: 'get-gpu-renderer',
     SET_GPU_RENDERER: 'set-gpu-renderer',
-    SHOW_ALERT: 'show-alert'
+    SHOW_ALERT: 'show-alert',
+    LAUNCH_EXTERNAL_PLAYER: 'launch-external-player',
+    GET_EXTERNAL_PLAYER_PATHS: 'get-external-player-paths',
 } as const;
 
 // File extensions for mods

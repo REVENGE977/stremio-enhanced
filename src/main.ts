@@ -20,6 +20,7 @@ import { setupWindowControls } from "./controllers/windowController";
 import { setupUpdater } from "./controllers/updaterController";
 import { setupWindowTransparency } from "./controllers/transparencyController";
 import { gpuController } from "./controllers/gpuController";
+import { externalPlayerController } from "./controllers/externalPlayerController";
 
 app.setName("stremio-enhanced");
 const userDataPath = app.getPath('userData');
@@ -200,7 +201,8 @@ app.on("ready", async () => {
     setupUpdater();
     setupWindowTransparency(transparencyFlagPath);
     gpuController.initIPC(userDataPath);
-    
+    externalPlayerController.initIPC();
+
     // macOS: protocol URLs are sent via 'open-url'
     app.on('open-url', (event, url) => {
         event.preventDefault();
