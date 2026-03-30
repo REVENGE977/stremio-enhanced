@@ -12,12 +12,13 @@ import { STORAGE_KEYS, SELECTORS, FILE_EXTENSIONS } from "../../../constants";
 import { getThemeIcon, getPluginIcon, getAboutIcon } from "../../../utils/icons";
 import { getTransparencyStatus } from "../titleBar";
 import { setupBrowseModsButton } from "../mod/modBrowser";
-import { 
-    setupCheckUpdatesButton, 
-    setupCheckUpdatesOnStartupToggle, 
-    setupDiscordRpcToggle, 
+import {
+    setupCheckUpdatesButton,
+    setupCheckUpdatesOnStartupToggle,
+    setupDiscordRpcToggle,
     setupTransparencyToggle,
-    setupGpuDropdown 
+    setupGpuDropdown,
+    setupExternalPlayerDropdown
 } from "./settingsToggles";
 import { modController } from "../mod/modController";
 import { gpuRendererAPI } from "../../api/gpuRenderer";
@@ -29,11 +30,12 @@ function writeAbout(): void {
         const checkForUpdatesOnStartup = localStorage.getItem(STORAGE_KEYS.CHECK_UPDATES_ON_STARTUP) === "true";
         const discordRpc = localStorage.getItem(STORAGE_KEYS.DISCORD_RPC) === "true";
         const currentAngle = await gpuRendererAPI.getGpuRenderer();
+        const currentExternalPlayer = localStorage.getItem(STORAGE_KEYS.EXTERNAL_PLAYER) ?? 'disabled';
 
         const aboutCategory = document.querySelector(SELECTORS.ABOUT_CATEGORY);
         if (aboutCategory) {
             aboutCategory.innerHTML += getAboutCategoryTemplate(
-                currentVersion, checkForUpdatesOnStartup, discordRpc, isTransparencyEnabled, currentAngle
+                currentVersion, checkForUpdatesOnStartup, discordRpc, isTransparencyEnabled, currentAngle, currentExternalPlayer
             );
         }
     }).catch(err => logger.error("Failed to write about section: " + err));
@@ -63,6 +65,7 @@ export function checkSettings() {
     setupTransparencyToggle();
 
     if(process.platform != "darwin") setupGpuDropdown();
+    setupExternalPlayerDropdown();
 
     Helpers.waitForElm(SELECTORS.THEMES_CATEGORY).then(() => {
         const isCurrentThemeDefault = localStorage.getItem(STORAGE_KEYS.CURRENT_THEME) === "Default";

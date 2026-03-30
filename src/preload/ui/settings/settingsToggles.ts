@@ -5,6 +5,7 @@ import DiscordPresence from "../../../core/DiscordPresence";
 import { discordTracker } from "../discordTracker";
 import { STORAGE_KEYS, IPC_CHANNELS, CLASSES } from "../../../constants";
 import { gpuRendererAPI } from "../../api/gpuRenderer";
+import { externalPlayerAPI } from "../../api/externalPlayer";
 import { alertAPI } from "../../api/alert";
 
 export function setupCheckUpdatesButton(): void {
@@ -79,4 +80,30 @@ export function setupGpuDropdown() {
             );
         });
     })
+}
+
+export function setupExternalPlayerDropdown() {
+    Helpers.waitForElm('#external-player-dropdown').then(() => {
+        const dropdown = document.getElementById('external-player-dropdown') as HTMLSelectElement;
+        if (!dropdown) return;
+
+        dropdown.addEventListener('change', async (e) => {
+            const selectedValue = (e.target as HTMLSelectElement).value;
+            localStorage.setItem(STORAGE_KEYS.EXTERNAL_PLAYER, selectedValue);
+            logger.info(`External player set to: ${selectedValue}`);
+
+            if (selectedValue !== 'disabled') {
+                const paths = await externalPlayerAPI.getExternalPlayerPaths();
+                const playerPath = selectedValue === 'vlc' ? paths.vlc : paths.mpv;
+                if (!playerPath) {
+                    await alertAPI.showAlert(
+                        "warning",
+                        "Player Not Found",
+                        `${selectedValue.toUpperCase()} was not found on your system. Please install it for this feature to work.`,
+                        ["OK"]
+                    );
+                }
+            }
+        });
+    });
 }
