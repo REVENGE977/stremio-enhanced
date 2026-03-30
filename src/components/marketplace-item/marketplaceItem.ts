@@ -1,20 +1,22 @@
+import { MetaData } from '../../interfaces/MetaData';
 import TemplateCache from '../../utils/templateCache';
+import ExtractMetaData from '../../utils/ExtractMetaData';
 
 interface ModMetaData {
     name: string;
     description: string;
     author: string;
-    version: string;
+    version?: string;
     preview?: string;
     download: string;
     repo: string;
 }
 
-export function getModItemTemplate(
+export async function getModItemTemplate(
     metaData: ModMetaData,
     type: "Plugin" | "Theme", 
     installed: boolean
-): string {
+): Promise<string> {
     let template = TemplateCache.load(__dirname, 'marketplace-item');
     
     // Generate logo block based on type
@@ -47,6 +49,17 @@ export function getModItemTemplate(
             <a href="${metaData.preview}" target="_blank" rel="noreferrer" style="cursor: zoom-in;">
                 <img class="logo-WrsGF" src="${metaData.preview}" alt="Plugin Preview" loading="lazy">
             </a>`;
+        }
+    }
+
+    // For themes, attempt to fetch the file and extract version from metadata if available instead of using provided version
+    if(type === "Theme") {
+        const request = await fetch(metaData.download);
+        if (request.status === 200) {
+            const responseText = await request.text();
+            const extractedMetaData = ExtractMetaData.extractMetadataFromText(responseText) as MetaData | null;
+
+            if(extractedMetaData && extractedMetaData.version) metaData.version = extractedMetaData.version;
         }
     }
 

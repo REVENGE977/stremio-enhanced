@@ -43,14 +43,16 @@ export async function browseMods(): Promise<void> {
     const modsList = document.getElementById("mods-list");
     if (!modsList) return;
     
-    (mods.plugins as any[]).forEach((plugin) => {
+    (mods.plugins as any[]).forEach(async (plugin) => {
         const installed = ModManager.isPluginInstalled(Helpers.getFileNameFromUrl(plugin.download));
-        modsList.innerHTML += getModItemTemplate(plugin, "Plugin", installed);
+        const template = await getModItemTemplate(plugin, "Plugin", installed);
+        modsList.innerHTML += template;
     });
     
-    (mods.themes as any[]).forEach((theme) => {
+    (mods.themes as any[]).forEach(async (theme) => {
         const installed = ModManager.isThemeInstalled(Helpers.getFileNameFromUrl(theme.download));
-        modsList.innerHTML += getModItemTemplate(theme, "Theme", installed);
+        const template = await getModItemTemplate(theme, "Theme", installed);
+        modsList.innerHTML += template;
     });
     
     const actionBtns = document.querySelectorAll(".modActionBtn");
