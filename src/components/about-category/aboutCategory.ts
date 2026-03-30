@@ -8,7 +8,9 @@ export function getAboutCategoryTemplate(
     discordRichPresence: boolean,
     enableTransparentThemes: boolean,
     currentAngle: string,
-    currentExternalPlayer: ExternalPlayer = 'disabled'
+    currentExternalPlayer: ExternalPlayer = 'disabled',
+    vlcCustomPath: string = '',
+    mpvCustomPath: string = ''
 ): string {
     let template = TemplateCache.load(__dirname, 'about-category');
 
@@ -32,6 +34,12 @@ export function getAboutCategoryTemplate(
         const replacement = (currentExternalPlayer === player) ? "selected" : "";
         template = template.replace(placeholder, replacement);
     });
+
+    template = template
+        .replace('{{ vlc_path_display }}', currentExternalPlayer === 'vlc' ? '' : 'none')
+        .replace('{{ mpv_path_display }}', currentExternalPlayer === 'mpv' ? '' : 'none')
+        .replace('{{ vlc_custom_path }}', vlcCustomPath)
+        .replace('{{ mpv_custom_path }}', mpvCustomPath);
 
     return template;
 }

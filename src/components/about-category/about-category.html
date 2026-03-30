@@ -57,7 +57,25 @@
     </div>
 </div>
 
-<p style="color:rgb(204, 204, 204);">Note: When enabled, streams will always open in the selected external player instead of the built-in player. The player must be installed on your system.</p>
+<div class="option-vFOAS" id="vlc-path-option" style="display: {{ vlc_path_display }};">
+    <div class="heading-dYMDt">
+        <div class="label-qI6Vh">VLC Path (optional)</div>
+    </div>
+    <div class="content-P2T0i">
+        <input type="text" id="external-player-vlc-path" class="search-input-bAgAh text-input-hnLiz" placeholder="Auto-detect (leave empty)" value="{{ vlc_custom_path }}" style="width: 100%; padding: 0 15px; background-color: rgba(255, 255, 255, 0.08); color: white; border: 1px solid transparent; border-radius: 20px; outline: none; box-sizing: border-box; height: 42px;" />
+    </div>
+</div>
+
+<div class="option-vFOAS" id="mpv-path-option" style="display: {{ mpv_path_display }};">
+    <div class="heading-dYMDt">
+        <div class="label-qI6Vh">MPV Path (optional)</div>
+    </div>
+    <div class="content-P2T0i">
+        <input type="text" id="external-player-mpv-path" class="search-input-bAgAh text-input-hnLiz" placeholder="Auto-detect (leave empty)" value="{{ mpv_custom_path }}" style="width: 100%; padding: 0 15px; background-color: rgba(255, 255, 255, 0.08); color: white; border: 1px solid transparent; border-radius: 20px; outline: none; box-sizing: border-box; height: 42px;" />
+    </div>
+</div>
+
+<p style="color:rgb(204, 204, 204);">Note: When enabled, streams will always open in the selected external player instead of the built-in player. The player must be installed on your system. You can optionally set a custom path to the player executable.</p>
 <br/>
 
 <div class="option-vFOAS">

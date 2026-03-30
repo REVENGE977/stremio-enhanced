@@ -1,4 +1,4 @@
-import { STORAGE_KEYS } from '../../constants';
+import { STORAGE_KEYS, PLAYER_PATH_STORAGE_KEY } from '../../constants';
 import { externalPlayerAPI } from '../api/externalPlayer';
 import { type ExternalPlayer } from '../../interfaces/ExternalPlayerTypes';
 import PlaybackState from '../../utils/PlaybackState';
@@ -36,7 +36,9 @@ async function launchExternal(player: ExternalPlayer): Promise<void> {
         // Navigate back before launching to prevent the built-in player from loading
         history.back();
 
-        const result = await externalPlayerAPI.launchExternalPlayer(player, streamUrl);
+        const customPath = localStorage.getItem(PLAYER_PATH_STORAGE_KEY[player]);
+
+        const result = await externalPlayerAPI.launchExternalPlayer(player, streamUrl, customPath || undefined);
         if (result.success) {
             Helpers.createToast("extPlayerLaunch", "External Player", `Opening stream in ${player.toUpperCase()}...`, "success");
         } else {

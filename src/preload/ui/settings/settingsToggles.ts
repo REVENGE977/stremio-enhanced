@@ -3,7 +3,7 @@ import Helpers from "../../../utils/Helpers";
 import logger from "../../../utils/logger";
 import DiscordPresence from "../../../core/DiscordPresence";
 import { discordTracker } from "../discordTracker";
-import { STORAGE_KEYS, IPC_CHANNELS, CLASSES } from "../../../constants";
+import { STORAGE_KEYS, IPC_CHANNELS, CLASSES, PLAYER_PATH_STORAGE_KEY } from "../../../constants";
 import { gpuRendererAPI } from "../../api/gpuRenderer";
 import { externalPlayerAPI } from "../../api/externalPlayer";
 import { alertAPI } from "../../api/alert";
@@ -92,17 +92,48 @@ export function setupExternalPlayerDropdown() {
             localStorage.setItem(STORAGE_KEYS.EXTERNAL_PLAYER, selectedValue);
             logger.info(`External player set to: ${selectedValue}`);
 
+            const vlcPathOption = document.getElementById('vlc-path-option');
+            const mpvPathOption = document.getElementById('mpv-path-option');
+            if (vlcPathOption) vlcPathOption.style.display = selectedValue === 'vlc' ? '' : 'none';
+            if (mpvPathOption) mpvPathOption.style.display = selectedValue === 'mpv' ? '' : 'none';
+
             if (selectedValue !== 'disabled') {
-                const paths = await externalPlayerAPI.getExternalPlayerPaths();
-                const playerPath = paths[selectedValue as keyof typeof paths];
-                if (!playerPath) {
-                    await alertAPI.showAlert(
-                        "warning",
-                        "Player Not Found",
-                        `${selectedValue.toUpperCase()} was not found on your system. Please install it for this feature to work.`,
-                        ["OK"]
-                    );
+                const customPath = localStorage.getItem(PLAYER_PATH_STORAGE_KEY[selectedValue]);
+
+                if (!customPath) {
+                    const paths = await externalPlayerAPI.getExternalPlayerPaths();
+                    const playerPath = paths[selectedValue as keyof typeof paths];
+                    if (!playerPath) {
+                        await alertAPI.showAlert(
+                            "warning",
+                            "Player Not Found",
+                            `${selectedValue.toUpperCase()} was not found on your system. You can set a custom path to the player executable below.`,
+                            ["OK"]
+                        );
+                    }
                 }
+            }
+        });
+    }).catch(() => {});
+}
+
+export function setupExternalPlayerPathInputs() {
+    setupPathInput('external-player-vlc-path', STORAGE_KEYS.EXTERNAL_PLAYER_VLC_PATH, 'VLC');
+    setupPathInput('external-player-mpv-path', STORAGE_KEYS.EXTERNAL_PLAYER_MPV_PATH, 'MPV');
+}
+
+function setupPathInput(elementId: string, storageKey: string, playerName: string) {
+    Helpers.waitForElm(`#${elementId}`).then((el) => {
+        const input = el as HTMLInputElement;
+
+        input.addEventListener('change', () => {
+            const value = input.value.trim();
+            if (value) {
+                localStorage.setItem(storageKey, value);
+                logger.info(`Custom ${playerName} path set to: ${value}`);
+            } else {
+                localStorage.removeItem(storageKey);
+                logger.info(`Custom ${playerName} path cleared, using auto-detect`);
             }
         });
     }).catch(() => {});

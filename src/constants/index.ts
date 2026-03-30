@@ -52,6 +52,14 @@ export const STORAGE_KEYS = {
     DISCORD_RPC: 'discordrichpresence',
     CHECK_UPDATES_ON_STARTUP: 'checkForUpdatesOnStartup',
     EXTERNAL_PLAYER: 'externalPlayer',
+    EXTERNAL_PLAYER_VLC_PATH: 'externalPlayerVlcPath',
+    EXTERNAL_PLAYER_MPV_PATH: 'externalPlayerMpvPath',
+} as const;
+
+/** Maps a player name to its custom-path storage key. */
+export const PLAYER_PATH_STORAGE_KEY: Record<string, string> = {
+    vlc: STORAGE_KEYS.EXTERNAL_PLAYER_VLC_PATH,
+    mpv: STORAGE_KEYS.EXTERNAL_PLAYER_MPV_PATH,
 } as const;
 
 // IPC Channel names for main <-> renderer communication

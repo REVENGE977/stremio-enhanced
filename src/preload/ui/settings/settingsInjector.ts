@@ -18,7 +18,8 @@ import {
     setupDiscordRpcToggle,
     setupTransparencyToggle,
     setupGpuDropdown,
-    setupExternalPlayerDropdown
+    setupExternalPlayerDropdown,
+    setupExternalPlayerPathInputs
 } from "./settingsToggles";
 import { type ExternalPlayer } from "../../../interfaces/ExternalPlayerTypes";
 import { modController } from "../mod/modController";
@@ -32,11 +33,13 @@ function writeAbout(): void {
         const discordRpc = localStorage.getItem(STORAGE_KEYS.DISCORD_RPC) === "true";
         const currentAngle = await gpuRendererAPI.getGpuRenderer();
         const currentExternalPlayer = (localStorage.getItem(STORAGE_KEYS.EXTERNAL_PLAYER) ?? 'disabled') as ExternalPlayer;
+        const vlcCustomPath = localStorage.getItem(STORAGE_KEYS.EXTERNAL_PLAYER_VLC_PATH) ?? '';
+        const mpvCustomPath = localStorage.getItem(STORAGE_KEYS.EXTERNAL_PLAYER_MPV_PATH) ?? '';
 
         const aboutCategory = document.querySelector(SELECTORS.ABOUT_CATEGORY);
         if (aboutCategory) {
             aboutCategory.innerHTML += getAboutCategoryTemplate(
-                currentVersion, checkForUpdatesOnStartup, discordRpc, isTransparencyEnabled, currentAngle, currentExternalPlayer
+                currentVersion, checkForUpdatesOnStartup, discordRpc, isTransparencyEnabled, currentAngle, currentExternalPlayer, vlcCustomPath, mpvCustomPath
             );
         }
     }).catch(err => logger.error("Failed to write about section: " + err));
@@ -67,6 +70,7 @@ export function checkSettings() {
 
     if(process.platform != "darwin") setupGpuDropdown();
     setupExternalPlayerDropdown();
+    setupExternalPlayerPathInputs();
 
     Helpers.waitForElm(SELECTORS.THEMES_CATEGORY).then(() => {
         const isCurrentThemeDefault = localStorage.getItem(STORAGE_KEYS.CURRENT_THEME) === "Default";
