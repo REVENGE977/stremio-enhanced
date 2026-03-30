@@ -1,8 +1,9 @@
 import { ipcRenderer } from 'electron';
 import { IPC_CHANNELS } from '../../constants';
+import { type ExternalPlayer } from '../../interfaces/ExternalPlayerTypes';
 
 export const externalPlayerAPI = {
-    launchExternalPlayer: (player: string, streamUrl: string): Promise<{ success: boolean; error?: string }> => {
+    launchExternalPlayer: (player: ExternalPlayer, streamUrl: string): Promise<{ success: boolean; error?: string }> => {
         return ipcRenderer.invoke(IPC_CHANNELS.LAUNCH_EXTERNAL_PLAYER, player, streamUrl);
     },
     getExternalPlayerPaths: (): Promise<{ vlc: string | null; mpv: string | null }> => {

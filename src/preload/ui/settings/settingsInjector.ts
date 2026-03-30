@@ -20,6 +20,7 @@ import {
     setupGpuDropdown,
     setupExternalPlayerDropdown
 } from "./settingsToggles";
+import { type ExternalPlayer } from "../../../interfaces/ExternalPlayerTypes";
 import { modController } from "../mod/modController";
 import { gpuRendererAPI } from "../../api/gpuRenderer";
 
@@ -30,7 +31,7 @@ function writeAbout(): void {
         const checkForUpdatesOnStartup = localStorage.getItem(STORAGE_KEYS.CHECK_UPDATES_ON_STARTUP) === "true";
         const discordRpc = localStorage.getItem(STORAGE_KEYS.DISCORD_RPC) === "true";
         const currentAngle = await gpuRendererAPI.getGpuRenderer();
-        const currentExternalPlayer = localStorage.getItem(STORAGE_KEYS.EXTERNAL_PLAYER) ?? 'disabled';
+        const currentExternalPlayer = (localStorage.getItem(STORAGE_KEYS.EXTERNAL_PLAYER) ?? 'disabled') as ExternalPlayer;
 
         const aboutCategory = document.querySelector(SELECTORS.ABOUT_CATEGORY);
         if (aboutCategory) {

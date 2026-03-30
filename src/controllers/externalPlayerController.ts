@@ -3,6 +3,7 @@ import { execFile } from 'child_process';
 import { existsSync } from 'fs';
 import { getLogger } from '../utils/logger';
 import { IPC_CHANNELS } from '../constants';
+import { VALID_EXTERNAL_PLAYERS, type ExternalPlayer } from '../interfaces/ExternalPlayerTypes';
 
 const logger = getLogger("ExternalPlayerController");
 
@@ -40,6 +41,11 @@ function findPlayerPath(player: 'vlc' | 'mpv'): string | null {
 export const externalPlayerController = {
     initIPC: () => {
         ipcMain.handle(IPC_CHANNELS.LAUNCH_EXTERNAL_PLAYER, (_, player: string, streamUrl: string) => {
+            if (!VALID_EXTERNAL_PLAYERS.includes(player as ExternalPlayer) || player === 'disabled') {
+                logger.error(`Invalid external player: ${player}`);
+                return { success: false, error: `Invalid player: ${player}` };
+            }
+
             const playerPath = findPlayerPath(player as 'vlc' | 'mpv');
             if (!playerPath) {
                 logger.error(`${player} not found at any known path.`);

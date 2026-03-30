@@ -1,6 +1,6 @@
 import TemplateCache from '../../utils/templateCache';
 import { VALID_RENDERERS } from '../../interfaces/RendererTypes';
-import { VALID_EXTERNAL_PLAYERS } from '../../interfaces/ExternalPlayerTypes';
+import { VALID_EXTERNAL_PLAYERS, type ExternalPlayer } from '../../interfaces/ExternalPlayerTypes';
 
 export function getAboutCategoryTemplate(
     version: string,
@@ -8,7 +8,7 @@ export function getAboutCategoryTemplate(
     discordRichPresence: boolean,
     enableTransparentThemes: boolean,
     currentAngle: string,
-    currentExternalPlayer: string = 'disabled'
+    currentExternalPlayer: ExternalPlayer = 'disabled'
 ): string {
     let template = TemplateCache.load(__dirname, 'about-category');
 

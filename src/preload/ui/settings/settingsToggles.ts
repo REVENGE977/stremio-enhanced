@@ -79,7 +79,7 @@ export function setupGpuDropdown() {
                 ["OK"]
             );
         });
-    })
+    }).catch(() => {});
 }
 
 export function setupExternalPlayerDropdown() {
@@ -94,7 +94,7 @@ export function setupExternalPlayerDropdown() {
 
             if (selectedValue !== 'disabled') {
                 const paths = await externalPlayerAPI.getExternalPlayerPaths();
-                const playerPath = selectedValue === 'vlc' ? paths.vlc : paths.mpv;
+                const playerPath = paths[selectedValue as keyof typeof paths];
                 if (!playerPath) {
                     await alertAPI.showAlert(
                         "warning",
@@ -105,5 +105,5 @@ export function setupExternalPlayerDropdown() {
                 }
             }
         });
-    });
+    }).catch(() => {});
 }
