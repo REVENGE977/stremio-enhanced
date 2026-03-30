@@ -15,6 +15,7 @@ import { addTitleBar, getTransparencyStatus } from "./ui/titleBar";
 import { checkSettings } from "./ui/settings/settingsInjector";
 import { applyThemeAPI } from "./api/applyTheme";
 import { gpuRendererAPI } from "./api/gpuRenderer";
+import { externalPlayerAPI } from "./api/externalPlayer";
 import { pluginLogger } from "./api/pluginLogger";
 
 export const stremioEnhancedAPI = {
@@ -23,6 +24,7 @@ export const stremioEnhancedAPI = {
     ...pluginLogger,
     ...applyThemeAPI,
     ...gpuRendererAPI,
+    ...externalPlayerAPI,
 };
 
 contextBridge.exposeInMainWorld('StremioEnhancedAPI', stremioEnhancedAPI);
