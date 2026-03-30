@@ -34,7 +34,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v3
         with:
-          node-version: '20.x'
+          node-version: '23.x'
 
       - name: Install Python to fix node-gyp issues
         uses: actions/setup-python@v4
