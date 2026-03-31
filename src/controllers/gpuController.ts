@@ -9,11 +9,12 @@ const logger = getLogger("GPUController");
 
 export const gpuController = {
     setup: (userDataPath: string) => {
-        app.commandLine.appendSwitch('disable-features', 'UseChromeOSDirectVideoDecoder');
+        app.commandLine.appendSwitch('disable-features', 'UseChromeOSDirectVideoDecoder,BlockInsecurePrivateNetworkRequests,PrivateNetworkAccessSendPreflights');
 
         let enabledFeatures = [
             'PlatformHEVCDecoderSupport',
-            'disable-gpu-driver-bug-workaround'
+            'disable-gpu-driver-bug-workaround',
+            'AudioVideoTracks'
         ];
 
         const bootConfigPath = join(userDataPath, 'boot-config.json');

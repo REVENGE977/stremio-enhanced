@@ -97,7 +97,7 @@ class EmbeddedSubtitles {
         const hlsId = "enhanced_subs_" + Math.random().toString(36).substring(2, 10);
         const queryParams = new URLSearchParams();
         queryParams.append("mediaURL", streamURL);
-        queryParams.append("maxAudioChannels", "2");
+        queryParams.append("maxAudioChannels", "8");
         ['h264', 'h265', 'hevc', 'vp9'].forEach(c => queryParams.append('videoCodecs', c));
         ['aac', 'mp3', 'opus'].forEach(c => queryParams.append('audioCodecs', c));
 
