@@ -66,6 +66,10 @@ export const PLAYER_PATH_STORAGE_KEY: Record<string, string> = {
 export const IPC_CHANNELS = {
     MINIMIZE_WINDOW: 'minimize-window',
     MAXIMIZE_WINDOW: 'maximize-window',
+    WINDOW_MAXIMIZED: 'window-maximized',
+    WINDOW_MINIMIZED: 'window-minimized',
+    DRAG_WINDOW: 'drag-window',
+    IS_MAXIMIZED: 'is-window-maximized',
     CLOSE_WINDOW: 'close-window',
     SET_TRANSPARENCY: 'set-transparency',
     GET_TRANSPARENCY_STATUS: 'get-transparency-status',
