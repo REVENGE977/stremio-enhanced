@@ -32,6 +32,7 @@ const useStremioServiceFlagPath = join(app.getPath("userData"), "use_stremio_ser
 const useServerJSFlagPath = join(app.getPath("userData"), "use_server_js_for_streaming");
 const transparencyEnabled = existsSync(transparencyFlagPath);
 
+app.commandLine.appendSwitch('disable-features', 'BlockInsecurePrivateNetworkRequests,PrivateNetworkAccessSendPreflights');
 app.commandLine.appendSwitch('ignore-connections-limit', 'localhost,127.0.0.1');
 app.commandLine.appendSwitch('proxy-bypass-list', '127.0.0.1,localhost,::1');
 app.commandLine.appendSwitch('disable-background-timer-throttling');

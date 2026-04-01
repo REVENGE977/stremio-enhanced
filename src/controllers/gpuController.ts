@@ -9,7 +9,7 @@ const logger = getLogger("GPUController");
 
 export const gpuController = {
     setup: (userDataPath: string) => {
-        app.commandLine.appendSwitch('disable-features', 'UseChromeOSDirectVideoDecoder,BlockInsecurePrivateNetworkRequests,PrivateNetworkAccessSendPreflights');
+        app.commandLine.appendSwitch('disable-features', 'UseChromeOSDirectVideoDecoder');
 
         let enabledFeatures = [
             'PlatformHEVCDecoderSupport',
