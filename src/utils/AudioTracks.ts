@@ -50,8 +50,11 @@ class AudioTracks {
             return;
         }
 
+<<<<<<< HEAD
         this.patchReactDom();
 
+=======
+>>>>>>> 0fe453a (Improvements to audio track fetching)
         await Helpers.waitForElm('video');
         const video = document.querySelector("video") as HTMLVideoElement;
         if (!video) return;
@@ -272,6 +275,7 @@ class AudioTracks {
         // Add click handlers to each option
         menu.querySelectorAll('.eam-option').forEach((option) => {
             option.addEventListener('click', () => {
+<<<<<<< HEAD
                 if (this.switching) return;
 
                 const index = parseInt(option.getAttribute('data-index') || '0');
@@ -281,6 +285,9 @@ class AudioTracks {
                 }
 
                 this.switching = true;
+=======
+                const index = parseInt(option.getAttribute('data-index') || '0');
+>>>>>>> 0fe453a (Improvements to audio track fetching)
                 for (let j = 0; j < audioTracks.length; j++) {
                     audioTracks[j].enabled = (j === index);
                 }
@@ -289,9 +296,12 @@ class AudioTracks {
                 this.closeMenu();
                 Helpers.createToast("audioTrackSwitched", "Audio track changed",
                     `Now playing: ${langName}`, "success");
+<<<<<<< HEAD
 
                 // Cooldown to let the browser settle before allowing another switch
                 setTimeout(() => { this.switching = false; }, 1000);
+=======
+>>>>>>> 0fe453a (Improvements to audio track fetching)
             });
         });
 
