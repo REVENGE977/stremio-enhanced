@@ -1,9 +1,9 @@
-import { contextBridge, ipcRenderer } from "electron";
+import { contextBridge } from "electron";
 import Updater from "../core/Updater";
 import DiscordPresence from "../core/DiscordPresence";
 import { discordTracker } from "./ui/discordTracker";
 import EmbeddedSubtitles from "../utils/EmbeddedSubtitles";
-import { STORAGE_KEYS, IPC_CHANNELS } from "../constants";
+import { STORAGE_KEYS } from "../constants";
 
 // plugin API bridges
 import { alertAPI } from './api/alert';
@@ -46,11 +46,6 @@ window.addEventListener("load", () => {
         checkSettings();
         checkExternalPlayer();
         EmbeddedSubtitles.checkWatching();
-    });
-
-    ipcRenderer.on(IPC_CHANNELS.FULLSCREEN_CHANGED, (_, isFullscreen: boolean) => {
-        const titleBar = document.querySelector('.title-bar') as HTMLElement;
-        if (titleBar) titleBar.style.display = isFullscreen ? 'none' : 'flex';
     });
     
     // Auto update check

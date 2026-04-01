@@ -78,7 +78,7 @@ export const gpuController = {
 
         app.commandLine.appendSwitch('enable-features', enabledFeatures.join(','));
 
-        logger.info(`GPU setup complete. Renderer set to: ${userRenderer}, Features: ${enabledFeatures.join(', ')}`);
+        logger.info(`GPU setup complete. Renderer set to: ${userRenderer}, Hardware Acceleration: ${app.isHardwareAccelerationEnabled() ? 'Enabled' : 'Disabled'}, Features: ${enabledFeatures.join(', ')}`);
     },
 
     initIPC: (userDataPath: string) => {
