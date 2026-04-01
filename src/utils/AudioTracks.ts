@@ -7,6 +7,41 @@ class AudioTracks {
     private static detectedAlready = false;
     private static menuElement: HTMLElement | null = null;
     private static closeHandler: ((e: MouseEvent) => void) | null = null;
+    private static switching = false;
+
+    /**
+     * Patches React DOM methods in the PAGE context (not preload) to prevent
+     * crashes when the browser modifies DOM nodes during audio track switches.
+     * With contextIsolation: true, the preload and page have separate prototypes,
+     * so the patch must run as a page-level script to affect React's context.
+     * Does NOT use _eval (which depends on window.services.core being ready).
+     */
+    private static patchReactDom() {
+        if (document.getElementById('enhanced-react-dom-patch')) return;
+
+        const script = document.createElement('script');
+        script.id = 'enhanced-react-dom-patch';
+        script.textContent = `
+            if (!window._patchedReactDomPage) {
+                var origRemoveChild = Node.prototype.removeChild;
+                Node.prototype.removeChild = function(child) {
+                    try {
+                        if (child && child.parentNode !== this) return child;
+                        return origRemoveChild.call(this, child);
+                    } catch (e) { return child; }
+                };
+                var origInsertBefore = Node.prototype.insertBefore;
+                Node.prototype.insertBefore = function(newNode, refNode) {
+                    try {
+                        if (refNode && refNode.parentNode !== this) return newNode;
+                        return origInsertBefore.call(this, newNode, refNode);
+                    } catch (e) { return newNode; }
+                };
+                window._patchedReactDomPage = true;
+            }
+        `;
+        document.head.appendChild(script);
+    }
 
     public static async checkWatching() {
         if (!location.href.includes('#/player')) {
@@ -14,6 +49,8 @@ class AudioTracks {
             this.closeMenu();
             return;
         }
+
+        this.patchReactDom();
 
         await Helpers.waitForElm('video');
         const video = document.querySelector("video") as HTMLVideoElement;
@@ -235,7 +272,15 @@ class AudioTracks {
         // Add click handlers to each option
         menu.querySelectorAll('.eam-option').forEach((option) => {
             option.addEventListener('click', () => {
+                if (this.switching) return;
+
                 const index = parseInt(option.getAttribute('data-index') || '0');
+                if (audioTracks[index].enabled) {
+                    this.closeMenu();
+                    return;
+                }
+
+                this.switching = true;
                 for (let j = 0; j < audioTracks.length; j++) {
                     audioTracks[j].enabled = (j === index);
                 }
@@ -244,6 +289,9 @@ class AudioTracks {
                 this.closeMenu();
                 Helpers.createToast("audioTrackSwitched", "Audio track changed",
                     `Now playing: ${langName}`, "success");
+
+                // Cooldown to let the browser settle before allowing another switch
+                setTimeout(() => { this.switching = false; }, 1000);
             });
         });
 
