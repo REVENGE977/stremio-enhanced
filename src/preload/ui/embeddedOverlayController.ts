@@ -13,6 +13,7 @@ let unsubscribeFromState: (() => void) | null = null;
 let playbackContext: PlayerState | null = null;
 let playbackState: EmbeddedMpvState | null = null;
 let controlsBound = false;
+let keyboardHandler: ((e: KeyboardEvent) => void) | null = null;
 
 function escapeHtml(value: string): string {
     return value
@@ -51,6 +52,18 @@ function getSeriesLabel(): string {
     const { season, episode } = playbackContext.seriesInfoDetails;
     const isKitsu = playbackContext.metaDetails.id.startsWith('kitsu:');
     return isKitsu ? `Episode ${episode}` : `S${season} E${episode}`;
+}
+
+function getSeekDuration(shift: boolean): number {
+    try {
+        const profile = JSON.parse(localStorage.getItem('profile') ?? '{}');
+        const ms = shift
+            ? (profile?.settings?.seekShortTimeDuration ?? 5000)
+            : (profile?.settings?.seekTimeDuration ?? 15000);
+        return ms / 1000;
+    } catch {
+        return shift ? 5 : 15;
+    }
 }
 
 function getStatusLabel(): string {
@@ -357,6 +370,23 @@ function bindControls(): void {
         }
     });
 
+    keyboardHandler = (event: KeyboardEvent) => {
+        if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
+            event.preventDefault();
+            const direction = event.key === 'ArrowRight' ? 1 : -1;
+            const duration = getSeekDuration(event.shiftKey);
+            void externalPlayerAPI.sendEmbeddedMpvCommand({
+                command: 'seek',
+                value: direction * duration,
+                mode: 'relative',
+            });
+        } else if (event.key === ' ') {
+            event.preventDefault();
+            void externalPlayerAPI.sendEmbeddedMpvCommand({ command: 'toggle-pause' });
+        }
+    };
+    document.addEventListener('keydown', keyboardHandler);
+
     overlayRoot.addEventListener('change', (event) => {
         const target = event.target as HTMLInputElement | HTMLSelectElement | null;
         const action = target?.dataset.action;
@@ -563,6 +593,11 @@ export function deactivateEmbeddedOverlay(): void {
     document.body.removeAttribute(ACTIVE_ATTR);
     playbackContext = null;
     playbackState = null;
+
+    if (keyboardHandler) {
+        document.removeEventListener('keydown', keyboardHandler);
+        keyboardHandler = null;
+    }
 
     if (unsubscribeFromState) {
         unsubscribeFromState();

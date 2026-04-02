@@ -533,7 +533,7 @@ class EmbeddedMpvController {
                     await this.sendMpvCommand(['set_property', 'pause', true]);
                     break;
                 case 'seek':
-                    await this.sendMpvCommand(['seek', command.value, command.mode === 'absolute' ? 'absolute' : 'relative']);
+                    await this.sendMpvCommand(['seek', command.value, (command.mode === 'absolute' ? 'absolute' : 'relative') + '+exact']);
                     break;
                 case 'set-volume':
                     await this.sendMpvCommand(['set_property', 'volume', Math.max(0, Math.min(100, command.value))]);
