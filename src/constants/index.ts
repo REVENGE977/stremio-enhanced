@@ -51,7 +51,7 @@ export const STORAGE_KEYS = {
     CURRENT_THEME: 'currentTheme',
     DISCORD_RPC: 'discordrichpresence',
     CHECK_UPDATES_ON_STARTUP: 'checkForUpdatesOnStartup',
-    EXTERNAL_PLAYER: 'externalPlayer',
+    PLAYBACK_MODE: 'externalPlayer',
     EXTERNAL_PLAYER_VLC_PATH: 'externalPlayerVlcPath',
     EXTERNAL_PLAYER_MPV_PATH: 'externalPlayerMpvPath',
 } as const;
@@ -81,6 +81,13 @@ export const IPC_CHANNELS = {
     SHOW_ALERT: 'show-alert',
     LAUNCH_EXTERNAL_PLAYER: 'launch-external-player',
     GET_EXTERNAL_PLAYER_PATHS: 'get-external-player-paths',
+    START_EMBEDDED_MPV: 'start-embedded-mpv',
+    STOP_EMBEDDED_MPV: 'stop-embedded-mpv',
+    EMBEDDED_MPV_COMMAND: 'embedded-mpv-command',
+    GET_EMBEDDED_MPV_STATE: 'get-embedded-mpv-state',
+    EMBEDDED_MPV_STATE: 'embedded-mpv-state',
+    GET_EMBEDDED_MPV_ENVIRONMENT: 'get-embedded-mpv-environment',
+    SET_EMBEDDED_MPV_PREFERENCE: 'set-embedded-mpv-preference',
 } as const;
 
 // File extensions for mods

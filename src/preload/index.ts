@@ -41,6 +41,9 @@ window.addEventListener("load", () => {
     if(location.href.includes("#/settings")) 
         checkSettings();
 
+    checkExternalPlayer();
+    EmbeddedSubtitles.checkWatching();
+
     window.addEventListener("hashchange", () => {
         if (isTransparencyEnabled) addTitleBar();
         checkSettings();

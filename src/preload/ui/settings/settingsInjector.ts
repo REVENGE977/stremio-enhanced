@@ -21,7 +21,7 @@ import {
     setupExternalPlayerDropdown,
     setupExternalPlayerPathInputs
 } from "./settingsToggles";
-import { type ExternalPlayer } from "../../../interfaces/ExternalPlayerTypes";
+import { type PlaybackMode } from "../../../interfaces/ExternalPlayerTypes";
 import { modController } from "../mod/modController";
 import { gpuRendererAPI } from "../../api/gpuRenderer";
 
@@ -32,7 +32,7 @@ function writeAbout(): void {
         const checkForUpdatesOnStartup = localStorage.getItem(STORAGE_KEYS.CHECK_UPDATES_ON_STARTUP) === "true";
         const discordRpc = localStorage.getItem(STORAGE_KEYS.DISCORD_RPC) === "true";
         const currentAngle = await gpuRendererAPI.getGpuRenderer();
-        const currentExternalPlayer = (localStorage.getItem(STORAGE_KEYS.EXTERNAL_PLAYER) ?? 'disabled') as ExternalPlayer;
+        const currentExternalPlayer = (localStorage.getItem(STORAGE_KEYS.PLAYBACK_MODE) ?? 'disabled') as PlaybackMode;
         const vlcCustomPath = localStorage.getItem(STORAGE_KEYS.EXTERNAL_PLAYER_VLC_PATH) ?? '';
         const mpvCustomPath = localStorage.getItem(STORAGE_KEYS.EXTERNAL_PLAYER_MPV_PATH) ?? '';
 

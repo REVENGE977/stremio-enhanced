@@ -6,3 +6,7 @@ package-lock.json
 .vscode
 backup
 wiki.md
+
+# Bundled player binaries (downloaded per-platform, not committed)
+static/mpv/*
+!static/mpv/README.md

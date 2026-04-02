@@ -1,6 +1,8 @@
 import Helpers from "./Helpers";
 import { getLogger } from "./logger";
 import PlaybackState from "./PlaybackState";
+import { STORAGE_KEYS } from "../constants";
+import { isEmbeddedMpvPlaybackMode } from "../interfaces/ExternalPlayerTypes";
 
 const logger = getLogger("EmbeddedSubtitles");
 
@@ -58,6 +60,11 @@ class EmbeddedSubtitles {
     }
 
     public static async checkWatching() {
+        if (isEmbeddedMpvPlaybackMode(localStorage.getItem(STORAGE_KEYS.PLAYBACK_MODE))) {
+            this.extractedAlready = false;
+            return;
+        }
+
         this.patchReactDom();
 
         if (!location.href.includes('#/player')) {

@@ -7,6 +7,19 @@ import { STORAGE_KEYS, IPC_CHANNELS, CLASSES, PLAYER_PATH_STORAGE_KEY } from "..
 import { gpuRendererAPI } from "../../api/gpuRenderer";
 import { externalPlayerAPI } from "../../api/externalPlayer";
 import { alertAPI } from "../../api/alert";
+import {
+    EMBEDDED_MPV_PLAYBACK_MODE,
+    isEmbeddedMpvPlaybackMode,
+    type PlaybackMode,
+} from "../../../interfaces/ExternalPlayerTypes";
+
+function getPlayerPathStorageKey(mode: PlaybackMode): string | null {
+    if (mode === EMBEDDED_MPV_PLAYBACK_MODE) {
+        return STORAGE_KEYS.EXTERNAL_PLAYER_MPV_PATH;
+    }
+
+    return PLAYER_PATH_STORAGE_KEY[mode] ?? null;
+}
 
 export function setupCheckUpdatesButton(): void {
     Helpers.waitForElm('#checkforupdatesBtn').then(() => {
@@ -88,30 +101,54 @@ export function setupExternalPlayerDropdown() {
         if (!dropdown) return;
 
         dropdown.addEventListener('change', async (e) => {
-            const selectedValue = (e.target as HTMLSelectElement).value;
-            localStorage.setItem(STORAGE_KEYS.EXTERNAL_PLAYER, selectedValue);
-            logger.info(`External player set to: ${selectedValue}`);
+            const previousValue = (localStorage.getItem(STORAGE_KEYS.PLAYBACK_MODE) ?? 'disabled') as PlaybackMode;
+            const selectedValue = (e.target as HTMLSelectElement).value as PlaybackMode;
+            localStorage.setItem(STORAGE_KEYS.PLAYBACK_MODE, selectedValue);
+            externalPlayerAPI.setEmbeddedMpvPreference(isEmbeddedMpvPlaybackMode(selectedValue));
+            logger.info(`Playback mode set to: ${selectedValue}`);
 
             const vlcPathOption = document.getElementById('vlc-path-option');
             const mpvPathOption = document.getElementById('mpv-path-option');
             if (vlcPathOption) vlcPathOption.style.display = selectedValue === 'vlc' ? '' : 'none';
-            if (mpvPathOption) mpvPathOption.style.display = selectedValue === 'mpv' ? '' : 'none';
+            if (mpvPathOption) mpvPathOption.style.display = selectedValue === 'mpv' || selectedValue === EMBEDDED_MPV_PLAYBACK_MODE ? '' : 'none';
+
+            const modeSwitchedAcrossEmbedding = isEmbeddedMpvPlaybackMode(previousValue) !== isEmbeddedMpvPlaybackMode(selectedValue);
 
             if (selectedValue !== 'disabled') {
-                const customPath = localStorage.getItem(PLAYER_PATH_STORAGE_KEY[selectedValue]);
+                const pathStorageKey = getPlayerPathStorageKey(selectedValue);
+                const customPath = pathStorageKey ? localStorage.getItem(pathStorageKey) : null;
 
                 if (!customPath) {
                     const paths = await externalPlayerAPI.getExternalPlayerPaths();
-                    const playerPath = paths[selectedValue as keyof typeof paths];
+                    const playerPath = selectedValue === 'vlc' ? paths.vlc : paths.mpv;
                     if (!playerPath) {
                         await alertAPI.showAlert(
                             "warning",
                             "Player Not Found",
-                            `${selectedValue.toUpperCase()} was not found on your system. You can set a custom path to the player executable below.`,
+                            `${selectedValue === 'vlc' ? 'VLC' : 'MPV'} was not found on your system. You can set a custom path to the player executable below.`,
                             ["OK"]
                         );
                     }
                 }
+            }
+
+            if (isEmbeddedMpvPlaybackMode(selectedValue)) {
+                const environment = await externalPlayerAPI.getEmbeddedMpvEnvironment();
+                if (!environment.transparentWindow || modeSwitchedAcrossEmbedding) {
+                    await alertAPI.showAlert(
+                        "info",
+                        "Restart Required",
+                        "Embedded MPV uses a transparent frameless window behind the web UI. Restart Stremio Enhanced to fully apply the playback mode change.",
+                        ["OK"]
+                    );
+                }
+            } else if (modeSwitchedAcrossEmbedding) {
+                await alertAPI.showAlert(
+                    "info",
+                    "Restart Recommended",
+                    "Restart Stremio Enhanced to return to the standard window chrome after disabling embedded MPV playback.",
+                    ["OK"]
+                );
             }
         });
     }).catch(() => {});

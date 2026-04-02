@@ -65,6 +65,15 @@
 			"**/register-scheme/build/Release/*.node",
 			"**/register-scheme/node-addon-api/src/node-api.target.mk"
 		],
+		"extraResources": [
+			{
+				"from": "static/mpv",
+				"to": "mpv",
+				"filter": [
+					"**/*"
+				]
+			}
+		],
 		"win": {
 			"target": [
 				{

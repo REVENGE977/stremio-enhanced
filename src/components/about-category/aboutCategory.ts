@@ -1,6 +1,6 @@
 import TemplateCache from '../../utils/templateCache';
 import { VALID_RENDERERS } from '../../interfaces/RendererTypes';
-import { VALID_EXTERNAL_PLAYERS, type ExternalPlayer } from '../../interfaces/ExternalPlayerTypes';
+import { VALID_PLAYBACK_MODES, type PlaybackMode } from '../../interfaces/ExternalPlayerTypes';
 
 export function getAboutCategoryTemplate(
     version: string,
@@ -8,7 +8,7 @@ export function getAboutCategoryTemplate(
     discordRichPresence: boolean,
     enableTransparentThemes: boolean,
     currentAngle: string,
-    currentExternalPlayer: ExternalPlayer = 'disabled',
+    currentPlaybackMode: PlaybackMode = 'disabled',
     vlcCustomPath: string = '',
     mpvCustomPath: string = ''
 ): string {
@@ -29,15 +29,15 @@ export function getAboutCategoryTemplate(
         template = template.replace(placeholder, replacement);
     });
 
-    VALID_EXTERNAL_PLAYERS.forEach(player => {
+    VALID_PLAYBACK_MODES.forEach(player => {
         const placeholder = `{{ selected_${player} }}`;
-        const replacement = (currentExternalPlayer === player) ? "selected" : "";
+        const replacement = (currentPlaybackMode === player) ? "selected" : "";
         template = template.replace(placeholder, replacement);
     });
 
     template = template
-        .replace('{{ vlc_path_display }}', currentExternalPlayer === 'vlc' ? '' : 'none')
-        .replace('{{ mpv_path_display }}', currentExternalPlayer === 'mpv' ? '' : 'none')
+        .replace('{{ vlc_path_display }}', currentPlaybackMode === 'vlc' ? '' : 'none')
+        .replace('{{ mpv_path_display }}', currentPlaybackMode === 'mpv' || currentPlaybackMode === 'embedded-mpv' ? '' : 'none')
         .replace('{{ vlc_custom_path }}', vlcCustomPath)
         .replace('{{ mpv_custom_path }}', mpvCustomPath);
 

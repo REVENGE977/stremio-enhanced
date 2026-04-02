@@ -2,6 +2,43 @@
 
 Thank you for your interest in contributing to **Stremio Enhanced**! We welcome contributions from everyone. Please take a moment to review these guidelines to help us maintain a healthy and productive community.
 
+## Development Prerequisites
+
+Before building from source, make sure you have:
+
+- **Node.js 23.x** and npm
+- **Git**
+- **MPV** — required for the embedded player (see below)
+
+### MPV Binary Setup
+
+MPV is required for the embedded playback mode. The binary is **not** committed to the repository due to its size (~100 MB+). You must set it up before running or building the project.
+
+**Quick setup (Windows):**
+
+```powershell
+.\scripts\setup-mpv.ps1
+```
+
+This downloads the latest MPV build from [shinchiro/mpv-winbuild-cmake](https://github.com/shinchiro/mpv-winbuild-cmake) and places it in `static/mpv/win32-x64/`. Pass `-Arch arm64` for ARM builds.
+
+**Other platforms:**
+
+| Platform | Steps |
+|----------|-------|
+| **macOS** | `brew install mpv` — the system path `/opt/homebrew/bin/mpv` or `/usr/local/bin/mpv` is detected automatically. |
+| **Linux** | Install via your package manager (`apt install mpv`, `pacman -S mpv`, etc.) — `/usr/bin/mpv` is detected automatically. |
+
+**How the binary is resolved at runtime** (see `src/utils/PlayerBinaryResolver.ts`):
+
+1. Custom path set by the user in settings
+2. Bundled binary in `static/mpv/<platform>-<arch>/` (for packaged builds)
+3. Known system install paths (e.g. `C:\Program Files\mpv\mpv.exe`, `/usr/bin/mpv`)
+
+The `static/mpv/` directory layout is documented in `static/mpv/README.md`. Only the binaries for your current platform are needed during development.
+
+> **Note:** Embedded MPV requires a transparent window. The app enables this automatically when the playback mode is set to "Embedded MPV" in settings, but a restart is needed after changing the setting.
+
 ## How Can I Contribute?
 
 ### 1. Reporting Bugs

@@ -9,6 +9,7 @@ import { IPC_CHANNELS, URLS, SERVER_JS_URL } from "./constants";
 // Fix GTK 2/3 and GTK 4 conflict on Linux
 import { app } from 'electron';
 if (process.platform === 'linux') app.commandLine.appendSwitch('gtk-version', '3');
+if (process.platform === 'linux') app.commandLine.appendSwitch('ozone-platform', 'x11');
 
 import { BrowserWindow, shell } from "electron";
 import StreamingServer from "./utils/StreamingServer";
@@ -21,6 +22,7 @@ import { setupUpdater } from "./controllers/updaterController";
 import { setupWindowTransparency } from "./controllers/transparencyController";
 import { gpuController } from "./controllers/gpuController";
 import { externalPlayerController } from "./controllers/externalPlayerController";
+import { embeddedMpvController } from "./controllers/embeddedMpvController";
 
 app.setName("stremio-enhanced");
 const userDataPath = app.getPath('userData');
@@ -28,9 +30,12 @@ const userDataPath = app.getPath('userData');
 export let mainWindow: BrowserWindow | null;
 const gotLock = app.requestSingleInstanceLock();
 const transparencyFlagPath = join(app.getPath("userData"), "transparency");
+const embeddedMpvFlagPath = join(app.getPath("userData"), "embedded_mpv_playback");
 const useStremioServiceFlagPath = join(app.getPath("userData"), "use_stremio_service_for_streaming");
 const useServerJSFlagPath = join(app.getPath("userData"), "use_server_js_for_streaming");
 const transparencyEnabled = existsSync(transparencyFlagPath);
+const embeddedMpvPreferred = existsSync(embeddedMpvFlagPath);
+export let usesTransparentWindow = transparencyEnabled || embeddedMpvPreferred;
 
 app.commandLine.appendSwitch('disable-features', 'BlockInsecurePrivateNetworkRequests,PrivateNetworkAccessSendPreflights');
 app.commandLine.appendSwitch('ignore-connections-limit', 'localhost,127.0.0.1');
@@ -58,6 +63,8 @@ if (!gotLock) {
 }
 
 async function createWindow() {
+    usesTransparentWindow = transparencyEnabled || embeddedMpvPreferred;
+
     mainWindow = new BrowserWindow({
         webPreferences: {
             preload: join(__dirname, "//preload/index.js"),
@@ -83,10 +90,10 @@ async function createWindow() {
         fullscreenable: true,
         useContentSize: true,
         icon: "./images/icon.ico",
-        frame: transparencyEnabled ? false : true,
-        transparent: transparencyEnabled,
+        frame: usesTransparentWindow ? false : true,
+        transparent: usesTransparentWindow,
         hasShadow: false,
-        visualEffectState: transparencyEnabled ? "active" : "followWindow",
+        visualEffectState: usesTransparentWindow ? "active" : "followWindow",
         backgroundColor: "#00000000",
     });
     
@@ -95,7 +102,7 @@ async function createWindow() {
     
     helpers.setMainWindow(mainWindow);
     
-    if (transparencyEnabled) {
+    if (usesTransparentWindow) {
         mainWindow.on('enter-full-screen', () => {
             mainWindow?.webContents.send(IPC_CHANNELS.FULLSCREEN_CHANGED, true);
         });
@@ -202,6 +209,7 @@ app.on("ready", async () => {
     setupWindowTransparency(transparencyFlagPath);
     gpuController.initIPC(userDataPath);
     externalPlayerController.initIPC();
+    embeddedMpvController.initIPC(embeddedMpvFlagPath);
 
     // macOS: protocol URLs are sent via 'open-url'
     app.on('open-url', (event, url) => {
@@ -317,10 +325,15 @@ async function useServerJS() {
 
 app.on("window-all-closed", () => {
     logger.info("Closing app...");
+    void embeddedMpvController.shutdown();
     
     if (process.platform !== "darwin") {
         app.quit();
     }
+});
+
+app.on('before-quit', () => {
+    void embeddedMpvController.shutdown();
 });
 
 app.on('browser-window-created', (_, window) => {
