@@ -93,33 +93,32 @@ function setPlayerRouteIntentObserverEnabled(enabled: boolean): void {
             const stateKey = '__stremioEnhancedPlaybackRouteObserver';
             const nativePrefix = ${JSON.stringify(NATIVE_PLAYER_ROUTE_PREFIX)};
             const eventName = ${JSON.stringify(PLAYER_ROUTE_INTENT_EVENT)};
-
-            const notifyIfPlayerRoute = (value) => {
-                if (!state.enabled || value == null) {
-                    return;
-                }
-
-                const raw = typeof value === 'string' ? value : String(value);
-
+            const isPlayerRouteUrl = (value) => {
                 try {
-                    const url = new URL(raw, window.location.href);
-                    if (!url.hash.startsWith(nativePrefix)) {
-                        return;
-                    }
-
-                    window.dispatchEvent(new CustomEvent(eventName, { detail: { source: 'navigation-api', href: raw } }));
+                    return new URL(value, window.location.href).hash.startsWith(nativePrefix);
                 } catch {
-                    if (typeof value === 'string' && value.startsWith(nativePrefix)) {
-                        window.dispatchEvent(new CustomEvent(eventName, { detail: { source: 'navigation-api', href: raw } }));
-                    }
+                    return typeof value === 'string' && value.startsWith(nativePrefix);
                 }
+            };
+
+            const interceptPlayerRoute = (value) => {
+                if (value == null || !state.enabled) {
+                    return null;
+                }
+
+                if (isPlayerRouteUrl(value)) {
+                    const raw = typeof value === 'string' ? value : String(value);
+                    window.dispatchEvent(new CustomEvent(eventName, { detail: { source: 'navigation-api', href: raw } }));
+                }
+
+                return null;
             };
 
             if (!(stateKey in window)) {
                 const originalPushState = history.pushState.bind(history);
                 const originalReplaceState = history.replaceState.bind(history);
-                const originalAssign = Location.prototype.assign;
-                const originalReplace = Location.prototype.replace;
+                const originalAssign = typeof Location.prototype.assign === 'function' ? Location.prototype.assign : null;
+                const originalReplace = typeof Location.prototype.replace === 'function' ? Location.prototype.replace : null;
 
                 const state = {
                     enabled: false,
@@ -143,15 +142,8 @@ function setPlayerRouteIntentObserverEnabled(enabled: boolean): void {
                             return;
                         }
 
-                        try {
-                            const url = new URL(hrefAttr, window.location.href);
-                            if (!url.hash.startsWith(nativePrefix)) {
-                                return;
-                            }
-                        } catch {
-                            if (!hrefAttr.startsWith(nativePrefix)) {
-                                return;
-                            }
+                        if (!isPlayerRouteUrl(hrefAttr)) {
+                            return;
                         }
 
                         window.dispatchEvent(new CustomEvent(eventName, { detail: { source: 'anchor-click', href: hrefAttr } }));
@@ -166,24 +158,28 @@ function setPlayerRouteIntentObserverEnabled(enabled: boolean): void {
                 };
 
                 history.pushState = function (historyState, title, url) {
-                    notifyIfPlayerRoute(url);
-                    return originalPushState(historyState, title, url);
+                    const rewritten = interceptPlayerRoute(url);
+                    return originalPushState(historyState, title, rewritten ?? url);
                 };
 
                 history.replaceState = function (historyState, title, url) {
-                    notifyIfPlayerRoute(url);
-                    return originalReplaceState(historyState, title, url);
+                    const rewritten = interceptPlayerRoute(url);
+                    return originalReplaceState(historyState, title, rewritten ?? url);
                 };
 
-                Location.prototype.assign = function (url) {
-                    notifyIfPlayerRoute(url);
-                    return originalAssign.call(this, url);
-                };
+                if (originalAssign) {
+                    Location.prototype.assign = function (url) {
+                        const rewritten = interceptPlayerRoute(url);
+                        return originalAssign.call(this, rewritten ?? url);
+                    };
+                }
 
-                Location.prototype.replace = function (url) {
-                    notifyIfPlayerRoute(url);
-                    return originalReplace.call(this, url);
-                };
+                if (originalReplace) {
+                    Location.prototype.replace = function (url) {
+                        const rewritten = interceptPlayerRoute(url);
+                        return originalReplace.call(this, rewritten ?? url);
+                    };
+                }
 
                 document.addEventListener('click', state.clickHandler, true);
                 window.addEventListener('hashchange', state.hashHandler, true);
@@ -307,6 +303,12 @@ async function tryEarlyEmbeddedLaunch(): Promise<void> {
     pendingEmbeddedPlayerState = playerState;
     clearPendingPlayerRouteIntent(false, false);
     navigateToEmbeddedShell();
+
+    // If already on embedded shell (e.g. route was rewritten by pushState interceptor
+    // which doesn't fire hashchange), trigger the player check directly.
+    if (isEmbeddedShellRouteHash() && !isLaunching) {
+        checkExternalPlayer();
+    }
 }
 
 function cancelScheduledStop(): void {
