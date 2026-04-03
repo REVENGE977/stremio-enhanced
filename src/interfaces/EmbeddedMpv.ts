@@ -16,6 +16,7 @@ export interface EmbeddedMpvState {
     paused: boolean;
     timePos: number;
     duration: number;
+    speed: number;
     volume: number;
     fullscreen: boolean;
     eofReached: boolean;
@@ -44,6 +45,7 @@ export type EmbeddedMpvCommand =
     | { command: "play" }
     | { command: "pause" }
     | { command: "seek"; value: number; mode?: "relative" | "absolute" }
+    | { command: "set-speed"; value: number }
     | { command: "set-volume"; value: number }
     | { command: "set-audio-track"; value: number | null }
     | { command: "set-subtitle-track"; value: number | null }

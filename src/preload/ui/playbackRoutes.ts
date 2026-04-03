@@ -1,5 +1,5 @@
 export const NATIVE_PLAYER_ROUTE_PREFIX = '#/player';
-export const EMBEDDED_PLAYER_ROUTE = '#/stremio-enhanced-player';
+const EMBEDDED_PLAYER_ROUTE = '#/stremio-enhanced-player';
 export const EXIT_EMBEDDED_PLAYBACK_EVENT = 'stremio-enhanced-exit-embedded-playback';
 
 export function isNativePlayerRouteHash(hash: string = location.hash): boolean {

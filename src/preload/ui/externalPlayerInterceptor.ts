@@ -10,9 +10,17 @@ import type PlayerState from '../../interfaces/PlayerState';
 import PlaybackState from '../../utils/PlaybackState';
 import Helpers from '../../utils/Helpers';
 import { getLogger } from '../../utils/logger';
-import { activateEmbeddedOverlay, deactivateEmbeddedOverlay, prepareEmbeddedOverlay } from './embeddedOverlayController';
 import {
-    EMBEDDED_PLAYER_ROUTE,
+    activateEmbeddedOverlay,
+    deactivateEmbeddedOverlay,
+    prepareEmbeddedOverlay,
+    updateEmbeddedOverlayState,
+} from './embeddedOverlayController';
+import {
+    activateEmbeddedNativePlayerBridge,
+    deactivateEmbeddedNativePlayerBridge,
+} from './embeddedNativePlayerBridge';
+import {
     EXIT_EMBEDDED_PLAYBACK_EVENT,
     isEmbeddedShellRouteHash,
     isManagedPlaybackRouteHash,
@@ -43,16 +51,8 @@ function getPlaybackMode(): PlaybackMode {
     return (localStorage.getItem(STORAGE_KEYS.PLAYBACK_MODE) ?? 'disabled') as PlaybackMode;
 }
 
-function getBaseLocation(): string {
-    return location.href.split('#')[0];
-}
-
-function navigateToEmbeddedShell(): void {
-    if (isEmbeddedShellRouteHash()) {
-        return;
-    }
-
-    location.replace(`${getBaseLocation()}${EMBEDDED_PLAYER_ROUTE}`);
+function shouldUseEmbeddedOverlay(): boolean {
+    return isEmbeddedShellRouteHash();
 }
 
 function navigateToLastNonPlaybackRoute(): void {
@@ -61,7 +61,7 @@ function navigateToLastNonPlaybackRoute(): void {
         return;
     }
 
-    location.replace(`${getBaseLocation()}${targetHash}`);
+    location.replace(`${location.href.split('#')[0]}${targetHash}`);
 }
 
 function setPlayerRouteIntentObserverEnabled(enabled: boolean): void {
@@ -235,6 +235,7 @@ function clearPendingPlayerRouteIntent(resetUi: boolean, clearPendingState: bool
 
     if (resetUi && activeEmbeddedStreamUrl == null && !isLaunching) {
         deactivateEmbeddedOverlay();
+        deactivateEmbeddedNativePlayerBridge();
     }
 }
 
@@ -267,7 +268,12 @@ function markPlayerRouteIntent(source: string): void {
 
     cancelScheduledStop();
     hasPendingPlayerRouteIntent = true;
-    prepareEmbeddedOverlay();
+
+    if (shouldUseEmbeddedOverlay()) {
+        prepareEmbeddedOverlay();
+    } else {
+        deactivateEmbeddedOverlay();
+    }
 
     if (earlyLaunchPollId === null) {
         earlyLaunchPollId = window.setInterval(() => {
@@ -302,12 +308,9 @@ async function tryEarlyEmbeddedLaunch(): Promise<void> {
 
     pendingEmbeddedPlayerState = playerState;
     clearPendingPlayerRouteIntent(false, false);
-    navigateToEmbeddedShell();
 
-    // If already on embedded shell (e.g. route was rewritten by pushState interceptor
-    // which doesn't fire hashchange), trigger the player check directly.
-    if (isEmbeddedShellRouteHash() && !isLaunching) {
-        checkExternalPlayer();
+    if (isManagedPlaybackRouteHash() && !isLaunching) {
+        void launchEmbedded(playerState);
     }
 }
 
@@ -433,6 +436,7 @@ async function launchEmbedded(initialPlayerState?: PlayerState | null): Promise<
         const playerState = initialPlayerState ?? await PlaybackState.getPlayerState();
         if (!playerState?.stream?.content?.url) {
             logger.error("Could not retrieve stream URL for embedded MPV.");
+            deactivateEmbeddedNativePlayerBridge();
             Helpers.createToast("embeddedMpvError", "Embedded MPV", "Could not get stream URL.", "fail");
             if (isEmbeddedShellRouteHash()) {
                 navigateToLastNonPlaybackRoute();
@@ -442,7 +446,12 @@ async function launchEmbedded(initialPlayerState?: PlayerState | null): Promise<
 
         const streamUrl = playerState.stream.content.url;
         if (activeEmbeddedStreamUrl === streamUrl) {
-            activateEmbeddedOverlay(playerState);
+            if (shouldUseEmbeddedOverlay()) {
+                activateEmbeddedOverlay(playerState);
+            } else {
+                deactivateEmbeddedOverlay();
+            }
+            activateEmbeddedNativePlayerBridge();
             pendingEmbeddedPlayerState = null;
             ensureStreamMonitor();
             return;
@@ -452,6 +461,8 @@ async function launchEmbedded(initialPlayerState?: PlayerState | null): Promise<
         const customPath = localStorage.getItem(STORAGE_KEYS.EXTERNAL_PLAYER_MPV_PATH) ?? undefined;
 
         if (!environment.transparentWindow) {
+            deactivateEmbeddedOverlay();
+            deactivateEmbeddedNativePlayerBridge();
             Helpers.createToast(
                 "embeddedMpvRestartRequired",
                 "Embedded MPV",
@@ -466,6 +477,8 @@ async function launchEmbedded(initialPlayerState?: PlayerState | null): Promise<
         }
 
         if (!customPath && !environment.available) {
+            deactivateEmbeddedOverlay();
+            deactivateEmbeddedNativePlayerBridge();
             Helpers.createToast(
                 "embeddedMpvMissing",
                 "Embedded MPV",
@@ -479,7 +492,11 @@ async function launchEmbedded(initialPlayerState?: PlayerState | null): Promise<
             return;
         }
 
-        activateEmbeddedOverlay(playerState);
+        if (shouldUseEmbeddedOverlay()) {
+            activateEmbeddedOverlay(playerState);
+        } else {
+            deactivateEmbeddedOverlay();
+        }
 
         const result = await externalPlayerAPI.startEmbeddedMpv(
             {
@@ -493,6 +510,7 @@ async function launchEmbedded(initialPlayerState?: PlayerState | null): Promise<
             activeEmbeddedStreamUrl = null;
             pendingEmbeddedPlayerState = null;
             deactivateEmbeddedOverlay();
+            deactivateEmbeddedNativePlayerBridge();
             Helpers.createToast("embeddedMpvLaunchFail", "Embedded MPV", result.error ?? "Failed to start embedded playback.", "fail", 4500);
             if (isEmbeddedShellRouteHash()) {
                 navigateToLastNonPlaybackRoute();
@@ -503,6 +521,12 @@ async function launchEmbedded(initialPlayerState?: PlayerState | null): Promise<
         activeEmbeddedStreamUrl = streamUrl;
         pendingEmbeddedPlayerState = null;
         clearPendingPlayerRouteIntent(false);
+        activateEmbeddedNativePlayerBridge();
+        if (shouldUseEmbeddedOverlay()) {
+            updateEmbeddedOverlayState(await externalPlayerAPI.getEmbeddedMpvState());
+        } else {
+            deactivateEmbeddedOverlay();
+        }
         ensureStreamMonitor();
     } finally {
         isLaunching = false;
@@ -520,7 +544,7 @@ function ensureStreamMonitor(): void {
 }
 
 async function monitorEmbeddedStream(): Promise<void> {
-    if (!isEmbeddedShellRouteHash()) {
+    if (!isManagedPlaybackRouteHash()) {
         scheduleStopEmbeddedPlayback('stream monitor route exit');
         return;
     }
@@ -552,6 +576,7 @@ function stopEmbeddedPlayback(restoreRoute: boolean = false): void {
     activeEmbeddedStreamUrl = null;
     pendingEmbeddedPlayerState = null;
     deactivateEmbeddedOverlay();
+    deactivateEmbeddedNativePlayerBridge();
 
     if (streamMonitorId !== null) {
         window.clearInterval(streamMonitorId);

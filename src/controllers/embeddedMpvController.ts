@@ -50,6 +50,7 @@ function createDefaultState(): EmbeddedMpvState {
         paused: false,
         timePos: 0,
         duration: 0,
+        speed: 1,
         volume: 100,
         fullscreen: mainWindow?.isFullScreen() ?? false,
         eofReached: false,
@@ -100,6 +101,7 @@ class EmbeddedMpvController {
     private state: EmbeddedMpvState = createDefaultState();
     private initialized = false;
     private preferenceFlagPath = '';
+    private fullscreenListenersBound = false;
 
     public initIPC(preferenceFlagPath: string): void {
         if (this.initialized) {
@@ -108,6 +110,7 @@ class EmbeddedMpvController {
 
         this.preferenceFlagPath = preferenceFlagPath;
         this.initialized = true;
+        this.bindFullscreenListeners();
 
         ipcMain.handle(IPC_CHANNELS.GET_EMBEDDED_MPV_ENVIRONMENT, () => this.getEnvironment());
         ipcMain.handle(IPC_CHANNELS.GET_EMBEDDED_MPV_STATE, () => this.getState());
@@ -153,6 +156,26 @@ class EmbeddedMpvController {
         } catch {
             // ignore missing preference flag
         }
+    }
+
+    private bindFullscreenListeners(): void {
+        if (this.fullscreenListenersBound || !mainWindow) {
+            return;
+        }
+
+        this.fullscreenListenersBound = true;
+
+        mainWindow.on('enter-full-screen', () => {
+            if (this.mpvProcess || this.state.active) {
+                this.setState({ fullscreen: true });
+            }
+        });
+
+        mainWindow.on('leave-full-screen', () => {
+            if (this.mpvProcess || this.state.active) {
+                this.setState({ fullscreen: false });
+            }
+        });
     }
 
     private emitState(): void {
@@ -326,7 +349,12 @@ class EmbeddedMpvController {
 
         if (child && !child.killed) {
             logger.info(`Stopping embedded MPV (${reason})`);
+            const exitPromise = new Promise<void>((resolve) => {
+                const timer = setTimeout(resolve, 1500);
+                child.on('exit', () => { clearTimeout(timer); resolve(); });
+            });
             child.kill();
+            await exitPromise;
         }
 
         if (resetState) {
@@ -477,6 +505,9 @@ class EmbeddedMpvController {
             case 'volume':
                 this.setState({ volume: typeof data === 'number' ? data : this.state.volume });
                 break;
+            case 'speed':
+                this.setState({ speed: typeof data === 'number' ? data : this.state.speed });
+                break;
             case 'track-list':
                 if (Array.isArray(data)) {
                     const tracks = data
@@ -495,10 +526,10 @@ class EmbeddedMpvController {
     }
 
     private async observeProperties(): Promise<void> {
-        const properties = ['time-pos', 'duration', 'pause', 'eof-reached', 'track-list', 'aid', 'sid', 'volume'];
+        const properties = ['time-pos', 'duration', 'pause', 'eof-reached', 'track-list', 'aid', 'sid', 'volume', 'speed'];
 
-        for (const property of properties) {
-            await this.sendMpvCommand(['observe_property', 0, property]);
+        for (const [index, property] of properties.entries()) {
+            await this.sendMpvCommand(['observe_property', index + 1, property]);
         }
     }
 
@@ -535,6 +566,11 @@ class EmbeddedMpvController {
                 case 'seek':
                     await this.sendMpvCommand(['seek', command.value, (command.mode === 'absolute' ? 'absolute' : 'relative') + '+exact']);
                     break;
+                case 'set-speed': {
+                    const nextSpeed = Math.max(0.1, Math.min(4, command.value));
+                    await this.sendMpvCommand(['set_property', 'speed', nextSpeed]);
+                    break;
+                }
                 case 'set-volume':
                     await this.sendMpvCommand(['set_property', 'volume', Math.max(0, Math.min(100, command.value))]);
                     break;
