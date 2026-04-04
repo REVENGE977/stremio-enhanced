@@ -9,6 +9,11 @@ import { externalPlayerAPI } from '../api/externalPlayer';
 import { EXIT_EMBEDDED_PLAYBACK_EVENT, isNativePlayerRouteHash } from './playbackRoutes';
 
 const logger = getLogger('EmbeddedNativePlayerBridge');
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Constants & Selectors
+// ──────────────────────────────────────────────────────────────────────────────
+
 // Private page-world bridge contract used only inside this file.
 // These event and flag names are local identifiers shared between the preload code
 // and the injected script created by ensurePageMediaPatch(); they are not upstream Stremio constants.
@@ -73,6 +78,10 @@ const PREFERRED_AUDIO_SETTING_KEY = 'audioLanguage';
 const EMBEDDED_TRACK_ID_PREFIX = 'EMBEDDED_';
 const PLAYER_AUDIO_TRACK_SYNC_EVENT_PREFIX = '__stremioEnhancedEmbeddedMpvPlayerAudioSync';
 
+// ──────────────────────────────────────────────────────────────────────────────
+// Types
+// ──────────────────────────────────────────────────────────────────────────────
+
 type SliderMetrics = {
     value: number;
     min: number;
@@ -109,6 +118,10 @@ type BridgedSurfaceElement = {
     style: VideoStyleSnapshot;
 };
 
+// ──────────────────────────────────────────────────────────────────────────────
+// Module State
+// ──────────────────────────────────────────────────────────────────────────────
+
 let bridgePrepared = false;
 let currentState: EmbeddedMpvState | null = null;
 let stateSubscription: (() => void) | null = null;
@@ -129,6 +142,10 @@ let cachedDisplayNames: Intl.DisplayNames | null = null;
 let lastSyncedPlayerAudioTrackId: string | null | undefined;
 let pendingPlayerAudioTrackSyncId: string | null = null;
 let nextPlayerAudioTrackSyncSequence = 0;
+
+// ──────────────────────────────────────────────────────────────────────────────
+// CSS Surface & Visibility
+// ──────────────────────────────────────────────────────────────────────────────
 
 // Installs the CSS that hides the page's native video surface and leaves bridge-managed controls visible.
 function ensureBridgeSurfaceStyle(): void {
@@ -277,6 +294,10 @@ function markControlSurfaceElements(): void {
     routeRoot.setAttribute(BRIDGE_CONTROL_SURFACE_ATTR, 'true');
 }
 
+// ──────────────────────────────────────────────────────────────────────────────
+// Utility Helpers
+// ──────────────────────────────────────────────────────────────────────────────
+
 function isBridgeEnabledForCurrentRoute(): boolean {
     return isEmbeddedMpvPlaybackMode(localStorage.getItem(STORAGE_KEYS.PLAYBACK_MODE)) && isNativePlayerRouteHash();
 }
@@ -300,6 +321,10 @@ function getProfileSettings(): Record<string, unknown> | null {
         return null;
     }
 }
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Audio Track – Language & Preferences
+// ──────────────────────────────────────────────────────────────────────────────
 
 function getPreferredAudioPreference(): string | null {
     const settings = getProfileSettings();
@@ -403,6 +428,10 @@ function findMatchingAudioTrack(matchText: string, tracks: EmbeddedMpvAudioTrack
 
     return null;
 }
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Audio Track – Selection & Sync
+// ──────────────────────────────────────────────────────────────────────────────
 
 function buildAudioTrackSignature(state: EmbeddedMpvState, preference: string | null): string {
     const tracksSignature = state.audioTracks
@@ -646,6 +675,10 @@ function maybeApplyPreferredAudioTrack(state: EmbeddedMpvState | null): void {
     void externalPlayerAPI.sendEmbeddedMpvCommand({ command: 'set-audio-track', value: preferredTrack.id });
 }
 
+// ──────────────────────────────────────────────────────────────────────────────
+// DOM Label Extraction
+// ──────────────────────────────────────────────────────────────────────────────
+
 function getElementLabel(element: Element, includeParentContext: boolean = true): string {
     const node = element as HTMLElement;
     const tokens = [
@@ -684,6 +717,10 @@ function getElementLabel(element: Element, includeParentContext: boolean = true)
 function hasKeyword(text: string, keywords: string[]): boolean {
     return keywords.some((keyword) => text.includes(keyword));
 }
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Audio Track – Menu DOM Interaction
+// ──────────────────────────────────────────────────────────────────────────────
 
 function isAudioMenuSelectionElement(element: HTMLElement): boolean {
     if (element.closest(AUDIO_MENU_SELECTOR)) {
@@ -941,6 +978,10 @@ function getAudioTrackAction(element: HTMLElement): ControlAction | null {
     return null;
 }
 
+// ──────────────────────────────────────────────────────────────────────────────
+// Seek / Timeline
+// ──────────────────────────────────────────────────────────────────────────────
+
 function parseSeekSeconds(text: string): number {
     const secondMatch = text.match(/(\d+(?:\.\d+)?)\s*(?:sec|secs|second|seconds|s)\b/);
     if (secondMatch) {
@@ -1002,6 +1043,10 @@ function getSliderTargetTime(metrics: SliderMetrics): number | null {
     return duration * ratio;
 }
 
+// ──────────────────────────────────────────────────────────────────────────────
+// Volume
+// ──────────────────────────────────────────────────────────────────────────────
+
 function getSliderVolume(metrics: SliderMetrics): number | null {
     const span = metrics.max - metrics.min;
     if (!Number.isFinite(span) || span <= 0) {
@@ -1019,6 +1064,10 @@ function getSliderVolume(metrics: SliderMetrics): number | null {
     const ratio = Math.max(0, Math.min(1, (metrics.value - metrics.min) / span));
     return Math.round(ratio * 100);
 }
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Play / Pause / Exit / Forward / Backward – Control Detection
+// ──────────────────────────────────────────────────────────────────────────────
 
 // Forward-like labels can mean three different things in Stremio's UI: seek, skip-intro/credits, or next video.
 function getControlAction(element: HTMLElement): ControlAction | null {
@@ -1068,6 +1117,10 @@ function getControlAction(element: HTMLElement): ControlAction | null {
     return null;
 }
 
+// ──────────────────────────────────────────────────────────────────────────────
+// Slider Action Detection (Seek & Volume)
+// ──────────────────────────────────────────────────────────────────────────────
+
 function getSliderAction(element: HTMLElement): ControlAction | null {
     const metrics = readSliderMetrics(element);
     if (!metrics) {
@@ -1092,11 +1145,19 @@ function getSliderAction(element: HTMLElement): ControlAction | null {
     return null;
 }
 
+// ──────────────────────────────────────────────────────────────────────────────
+// Next Video / Auto-Advance
+// ──────────────────────────────────────────────────────────────────────────────
+
 function triggerVideoEndedForAutoAdvance(): void {
     forceEnded = true;
     syncBridgeState();
     void externalPlayerAPI.sendEmbeddedMpvCommand({ command: 'stop' });
 }
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Control Action Execution
+// ──────────────────────────────────────────────────────────────────────────────
 
 function executeControlAction(action: ControlAction): void {
     switch (action.type) {
@@ -1130,6 +1191,10 @@ function executeControlAction(action: ControlAction): void {
             break;
     }
 }
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Interaction Guards
+// ──────────────────────────────────────────────────────────────────────────────
 
 function shouldHandleInteractions(): boolean {
     return bridgePrepared && isBridgeEnabledForCurrentRoute() && Boolean(currentState?.active) && Boolean(currentState?.connected);
@@ -1166,6 +1231,10 @@ function getApproxVideoDimensions(): { videoWidth: number; videoHeight: number }
         videoHeight: Math.max(1, Math.round(window.innerHeight || 720)),
     };
 }
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Page State Bridge
+// ──────────────────────────────────────────────────────────────────────────────
 
 function buildPagePatchState(state: EmbeddedMpvState | null) {
     const fileLoaded = Boolean(
@@ -1293,6 +1362,10 @@ function ensurePagePatchCommandListener(): void {
         handlePagePatchCommand(detail.action, detail.value);
     });
 }
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Page Media Patch (Injected Script)
+// ──────────────────────────────────────────────────────────────────────────────
 
 // This patch must run in the page world so Stremio reads the overridden media APIs from the same JS realm it uses.
 function ensurePageMediaPatch(): void {
@@ -1982,6 +2055,10 @@ function ensurePageMediaPatch(): void {
     (window as typeof window & Record<string, unknown>)[PAGE_PATCH_INSTALL_KEY] = true;
 }
 
+// ──────────────────────────────────────────────────────────────────────────────
+// Video Visibility Patch
+// ──────────────────────────────────────────────────────────────────────────────
+
 // Hide the native web video but keep enough surrounding surfaces visible for Stremio's player chrome to still render naturally.
 function applyVideoVisibilityPatch(video: HTMLVideoElement): void {
     if (bridgedVideo === video && bridgedSurfaceElements.length > 0) {
@@ -2136,6 +2213,10 @@ function refreshVideoVisibility(): void {
     syncAudioMenuSelection();
 }
 
+// ──────────────────────────────────────────────────────────────────────────────
+// DOM Observer & State Sync
+// ──────────────────────────────────────────────────────────────────────────────
+
 function ensureDomObserver(): void {
     if (domObserver || !document.body) {
         return;
@@ -2179,6 +2260,10 @@ function ensureStateSubscription(): void {
         syncBridgeState();
     });
 }
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Control Interceptors (Click, Slider, Keyboard)
+// ──────────────────────────────────────────────────────────────────────────────
 
 function installControlInterceptors(): void {
     if (clickInterceptor || sliderInterceptor || keyboardInterceptor) {
@@ -2321,6 +2406,10 @@ function uninstallControlInterceptors(): void {
         keyboardInterceptor = null;
     }
 }
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Bridge Lifecycle
+// ──────────────────────────────────────────────────────────────────────────────
 
 function prepareEmbeddedNativePlayerBridge(): void {
     bridgePrepared = true;
