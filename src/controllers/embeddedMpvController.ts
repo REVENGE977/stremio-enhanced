@@ -92,6 +92,33 @@ function buildMpvTrack(track: MpvTrackPayload): EmbeddedMpvTrack | null {
     };
 }
 
+function sortTracksById(tracks: EmbeddedMpvTrack[]): EmbeddedMpvTrack[] {
+    return [...tracks].sort((left, right) => left.id - right.id);
+}
+
+function syncSelectedTrack(tracks: EmbeddedMpvTrack[], selectedTrackId: number | null): EmbeddedMpvTrack[] {
+    const alreadyCorrect = tracks.every((track) =>
+        track.selected === (selectedTrackId !== null && track.id === selectedTrackId),
+    );
+    if (alreadyCorrect) {
+        return tracks;
+    }
+
+    if (selectedTrackId === null) {
+        return tracks.map((track) => ({ ...track, selected: false }));
+    }
+
+    return tracks.map((track) => ({
+        ...track,
+        selected: track.id === selectedTrackId,
+    }));
+}
+
+function resolveSelectedTrackId(tracks: EmbeddedMpvTrack[], fallbackTrackId: number | null): number | null {
+    const selectedTrack = tracks.find((track) => track.selected);
+    return selectedTrack ? selectedTrack.id : fallbackTrackId;
+}
+
 class EmbeddedMpvController {
     private mpvProcess: ChildProcess | null = null;
     private socket: Socket | null = null;
@@ -496,12 +523,22 @@ class EmbeddedMpvController {
             case 'eof-reached':
                 this.setState({ eofReached: Boolean(data) });
                 break;
-            case 'aid':
-                this.setState({ currentAudioTrackId: typeof data === 'number' ? data : null });
+            case 'aid': {
+                const currentAudioTrackId = typeof data === 'number' ? data : null;
+                this.setState({
+                    currentAudioTrackId,
+                    audioTracks: syncSelectedTrack(this.state.audioTracks, currentAudioTrackId),
+                });
                 break;
-            case 'sid':
-                this.setState({ currentSubtitleTrackId: typeof data === 'number' ? data : null });
+            }
+            case 'sid': {
+                const currentSubtitleTrackId = typeof data === 'number' ? data : null;
+                this.setState({
+                    currentSubtitleTrackId,
+                    subtitleTracks: syncSelectedTrack(this.state.subtitleTracks, currentSubtitleTrackId),
+                });
                 break;
+            }
             case 'volume':
                 this.setState({ volume: typeof data === 'number' ? data : this.state.volume });
                 break;
@@ -514,9 +551,16 @@ class EmbeddedMpvController {
                         .map((track) => buildMpvTrack(track as MpvTrackPayload))
                         .filter((track): track is EmbeddedMpvTrack => track !== null);
 
+                    const audioTracks = sortTracksById(tracks.filter((track) => track.type === 'audio'));
+                    const subtitleTracks = sortTracksById(tracks.filter((track) => track.type === 'sub'));
+                    const currentAudioTrackId = resolveSelectedTrackId(audioTracks, this.state.currentAudioTrackId);
+                    const currentSubtitleTrackId = resolveSelectedTrackId(subtitleTracks, this.state.currentSubtitleTrackId);
+
                     this.setState({
-                        audioTracks: tracks.filter((track) => track.type === 'audio'),
-                        subtitleTracks: tracks.filter((track) => track.type === 'sub'),
+                        currentAudioTrackId,
+                        currentSubtitleTrackId,
+                        audioTracks: syncSelectedTrack(audioTracks, currentAudioTrackId),
+                        subtitleTracks: syncSelectedTrack(subtitleTracks, currentSubtitleTrackId),
                     });
                 }
                 break;
