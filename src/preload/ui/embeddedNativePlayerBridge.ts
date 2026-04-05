@@ -28,6 +28,10 @@ const BRIDGE_AUDIO_MENU_ATTR = 'data-stremio-enhanced-embedded-mpv-audio-menu';
 const BRIDGE_AUDIO_OPTION_ATTR = 'data-stremio-enhanced-embedded-mpv-audio-option';
 const BRIDGE_AUDIO_SELECTED_ATTR = 'data-stremio-enhanced-embedded-mpv-audio-selected';
 const BRIDGE_INJECTED_TRACK_ATTR = 'data-stremio-enhanced-injected-track';
+const INJECTED_TRACK_DOT_CLASS = 'injected-track-dot';
+const INJECTED_TRACK_INFO_CLASS = 'injected-track-info';
+const INJECTED_TRACK_LANG_CLASS = 'injected-track-lang';
+const INJECTED_TRACK_LABEL_CLASS = 'injected-track-label';
 const STREMIO_NAV_BAR_LAYER_SELECTOR = '[class*="nav-bar-layer"]';
 const STREMIO_CONTROL_BAR_LAYER_SELECTOR = '[class*="control-bar-layer"]';
 const DEFAULT_SEEK_STEP_SECONDS = 10;
@@ -332,14 +336,14 @@ function ensureBridgeSurfaceStyle(): void {
         [${BRIDGE_INJECTED_TRACK_ATTR}][${BRIDGE_AUDIO_SELECTED_ATTR}="true"] {
             background-color: var(--overlay-color, rgba(255, 255, 255, 0.08));
         }
-        [${BRIDGE_INJECTED_TRACK_ATTR}] .injected-track-info {
+        [${BRIDGE_INJECTED_TRACK_ATTR}] .${INJECTED_TRACK_INFO_CLASS} {
             flex: 1;
             display: flex;
             flex-direction: column;
             gap: 0.25rem;
             overflow: hidden;
         }
-        [${BRIDGE_INJECTED_TRACK_ATTR}] .injected-track-lang {
+        [${BRIDGE_INJECTED_TRACK_ATTR}] .${INJECTED_TRACK_LANG_CLASS} {
             font-size: 1.1rem;
             line-height: 1.5rem;
             white-space: nowrap;
@@ -347,7 +351,7 @@ function ensureBridgeSurfaceStyle(): void {
             text-overflow: ellipsis;
             color: var(--primary-foreground-color, #fff);
         }
-        [${BRIDGE_INJECTED_TRACK_ATTR}] .injected-track-label {
+        [${BRIDGE_INJECTED_TRACK_ATTR}] .${INJECTED_TRACK_LABEL_CLASS} {
             font-size: 0.9rem;
             color: var(--color-placeholder-text, rgba(255, 255, 255, 0.4));
             white-space: nowrap;
@@ -355,7 +359,7 @@ function ensureBridgeSurfaceStyle(): void {
             text-overflow: ellipsis;
         }
         /* Green dot indicator - uses a real <div> to avoid pseudo-element CSS wars */
-        [${BRIDGE_INJECTED_TRACK_ATTR}] .injected-track-dot {
+        [${BRIDGE_INJECTED_TRACK_ATTR}] .${INJECTED_TRACK_DOT_CLASS} {
             flex: none;
             width: 0.5rem;
             height: 0.5rem;
@@ -1194,6 +1198,10 @@ function populateEmptyAudioMenu(): void {
 
     const menuRoots = document.querySelectorAll<HTMLElement>(AUDIO_MENU_SELECTOR);
 
+    const effectiveTrackId = resolveEffectiveAudioTrackId(currentState);
+    const effectiveTrackIndex = findAudioTrackIndexById(effectiveTrackId, currentState);
+    const effectiveEmbeddedId = toEmbeddedTrackId(effectiveTrackIndex);
+
     for (const menuRoot of menuRoots) {
         // Skip if Stremio already populated the menu with native options
         // (Stremio Button renders as <div>, not <button>)
@@ -1207,18 +1215,14 @@ function populateEmptyAudioMenu(): void {
         // Skip if we already injected the right number of tracks
         const injectedButtons = menuRoot.querySelectorAll<HTMLElement>(`[${BRIDGE_INJECTED_TRACK_ATTR}]`);
         if (injectedButtons.length === currentState.audioTracks.length) {
-            // Just update selection state on existing injected buttons
-            const effectiveTrackId = resolveEffectiveAudioTrackId(currentState);
-            const effectiveTrackIndex = findAudioTrackIndexById(effectiveTrackId, currentState);
-            const effectiveId = toEmbeddedTrackId(effectiveTrackIndex);
             for (const btn of injectedButtons) {
-                const isSelected = btn.getAttribute('data-id') === effectiveId;
-                const dot = btn.querySelector('.injected-track-dot');
+                const isSelected = btn.getAttribute('data-id') === effectiveEmbeddedId;
+                const dot = btn.querySelector(`.${INJECTED_TRACK_DOT_CLASS}`);
                 if (isSelected) {
                     btn.setAttribute(BRIDGE_AUDIO_SELECTED_ATTR, 'true');
                     if (!dot) {
                         const newDot = document.createElement('div');
-                        newDot.className = 'injected-track-dot';
+                        newDot.className = INJECTED_TRACK_DOT_CLASS;
                         btn.appendChild(newDot);
                     }
                 } else {
@@ -1239,8 +1243,7 @@ function populateEmptyAudioMenu(): void {
             ?? menuRoot.querySelector<HTMLElement>('[class*="container"]')
             ?? menuRoot;
 
-        const effectiveTrackId = resolveEffectiveAudioTrackId(currentState);
-        const effectiveTrackIndex = findAudioTrackIndexById(effectiveTrackId, currentState);
+        const fragment = document.createDocumentFragment();
 
         for (let i = 0; i < currentState.audioTracks.length; i++) {
             const track = currentState.audioTracks[i];
@@ -1256,29 +1259,30 @@ function populateEmptyAudioMenu(): void {
             button.title = track.label;
 
             const info = document.createElement('div');
-            info.className = 'injected-track-info';
+            info.className = INJECTED_TRACK_INFO_CLASS;
 
             const lang = document.createElement('div');
-            lang.className = 'injected-track-lang';
+            lang.className = INJECTED_TRACK_LANG_CLASS;
             lang.textContent = getLanguageDisplayLabel(track.language) || track.label;
 
             const label = document.createElement('div');
-            label.className = 'injected-track-label';
+            label.className = INJECTED_TRACK_LABEL_CLASS;
             label.textContent = track.label;
 
             info.appendChild(lang);
             info.appendChild(label);
             button.appendChild(info);
 
-            // Green dot indicator for selected track (real <div>, not ::after)
             if (isSelected) {
                 const dot = document.createElement('div');
-                dot.className = 'injected-track-dot';
+                dot.className = INJECTED_TRACK_DOT_CLASS;
                 button.appendChild(dot);
             }
 
-            listContainer.appendChild(button);
+            fragment.appendChild(button);
         }
+
+        listContainer.appendChild(fragment);
 
         // Mark the menu so syncAudioMenuSelection can find it
         menuRoot.setAttribute(BRIDGE_AUDIO_MENU_ATTR, 'true');
