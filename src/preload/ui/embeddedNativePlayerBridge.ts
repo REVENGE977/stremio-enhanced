@@ -27,6 +27,7 @@ const BRIDGE_CONTROL_SURFACE_ATTR = 'data-stremio-enhanced-embedded-mpv-control-
 const BRIDGE_AUDIO_MENU_ATTR = 'data-stremio-enhanced-embedded-mpv-audio-menu';
 const BRIDGE_AUDIO_OPTION_ATTR = 'data-stremio-enhanced-embedded-mpv-audio-option';
 const BRIDGE_AUDIO_SELECTED_ATTR = 'data-stremio-enhanced-embedded-mpv-audio-selected';
+const BRIDGE_INJECTED_TRACK_ATTR = 'data-stremio-enhanced-injected-track';
 const STREMIO_NAV_BAR_LAYER_SELECTOR = '[class*="nav-bar-layer"]';
 const STREMIO_CONTROL_BAR_LAYER_SELECTOR = '[class*="control-bar-layer"]';
 const DEFAULT_SEEK_STEP_SECONDS = 10;
@@ -192,8 +193,12 @@ function ensureBridgeSurfaceStyle(): void {
 
         html[${BRIDGE_SURFACE_ACTIVE_ATTR}="true"] .route-container:last-child [${BRIDGE_CONTROL_SURFACE_ATTR}="true"],
         html[${BRIDGE_SURFACE_ACTIVE_ATTR}="true"] .route-container:last-child [${BRIDGE_CONTROL_SURFACE_ATTR}="true"] *,
+        html[${BRIDGE_SURFACE_ACTIVE_ATTR}="true"] .route-container:last-child [${BRIDGE_CONTROL_SURFACE_ATTR}="true"] *::before,
+        html[${BRIDGE_SURFACE_ACTIVE_ATTR}="true"] .route-container:last-child [${BRIDGE_CONTROL_SURFACE_ATTR}="true"] *::after,
         html[${BRIDGE_SURFACE_ACTIVE_ATTR}="true"] .route-container:last-child .title-bar,
-        html[${BRIDGE_SURFACE_ACTIVE_ATTR}="true"] .route-container:last-child .title-bar * {
+        html[${BRIDGE_SURFACE_ACTIVE_ATTR}="true"] .route-container:last-child .title-bar *,
+        html[${BRIDGE_SURFACE_ACTIVE_ATTR}="true"] .route-container:last-child .title-bar *::before,
+        html[${BRIDGE_SURFACE_ACTIVE_ATTR}="true"] .route-container:last-child .title-bar *::after {
             visibility: visible !important;
             pointer-events: auto !important;
         }
@@ -270,6 +275,90 @@ function ensureBridgeSurfaceStyle(): void {
             width: 0.5rem;
             height: 0.5rem;
             margin-left: auto;
+            border-radius: 100%;
+            background-color: var(--secondary-accent-color, #1dd760);
+        }
+
+        /* Override disabled styling on control-bar buttons when bridge is active.
+           Stremio Button renders as <div class="button-container-[hash] disabled">
+           with pointer-events: none and opacity: 0.5 on the element itself,
+           plus opacity: 0.5 on the .icon child from ControlBar styles. */
+        html[${BRIDGE_SURFACE_ACTIVE_ATTR}="true"] .route-container:last-child ${STREMIO_CONTROL_BAR_LAYER_SELECTOR} .disabled {
+            opacity: 1 !important;
+            pointer-events: auto !important;
+        }
+        html[${BRIDGE_SURFACE_ACTIVE_ATTR}="true"] .route-container:last-child ${STREMIO_CONTROL_BAR_LAYER_SELECTOR} .disabled > * {
+            opacity: 1 !important;
+        }
+        html[${BRIDGE_SURFACE_ACTIVE_ATTR}="true"] .route-container:last-child [class*="side-drawer-button-layer"] {
+            opacity: 1 !important;
+            pointer-events: auto !important;
+            visibility: visible !important;
+        }
+
+        /* Ensure audio menu popup and its contents are visible when bridge is active */
+        html[${BRIDGE_SURFACE_ACTIVE_ATTR}="true"] .route-container:last-child [class*="audio-menu"],
+        html[${BRIDGE_SURFACE_ACTIVE_ATTR}="true"] .route-container:last-child [class*="audio-menu"] *,
+        html[${BRIDGE_SURFACE_ACTIVE_ATTR}="true"] .route-container:last-child [${BRIDGE_AUDIO_MENU_ATTR}="true"],
+        html[${BRIDGE_SURFACE_ACTIVE_ATTR}="true"] .route-container:last-child [${BRIDGE_AUDIO_MENU_ATTR}="true"] * {
+            visibility: visible !important;
+            pointer-events: auto !important;
+        }
+        html[${BRIDGE_SURFACE_ACTIVE_ATTR}="true"] .route-container:last-child [class*="audio-menu"] {
+            background-color: var(--modal-background-color, rgba(24, 22, 33, 0.9)) !important;
+            backdrop-filter: blur(15px) !important;
+        }
+
+        /* Injected audio track buttons for embedded MPV */
+        [${BRIDGE_INJECTED_TRACK_ATTR}] {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            width: 100%;
+            height: 4rem;
+            padding: 0 1.5rem;
+            border: none;
+            background: transparent;
+            color: var(--primary-foreground-color, #fff);
+            cursor: pointer;
+            font-family: inherit;
+            font-size: inherit;
+            text-align: left;
+            outline: none;
+            box-sizing: border-box;
+            border-radius: var(--border-radius, 0.5rem);
+        }
+        [${BRIDGE_INJECTED_TRACK_ATTR}]:hover,
+        [${BRIDGE_INJECTED_TRACK_ATTR}][${BRIDGE_AUDIO_SELECTED_ATTR}="true"] {
+            background-color: var(--overlay-color, rgba(255, 255, 255, 0.08));
+        }
+        [${BRIDGE_INJECTED_TRACK_ATTR}] .injected-track-info {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+            overflow: hidden;
+        }
+        [${BRIDGE_INJECTED_TRACK_ATTR}] .injected-track-lang {
+            font-size: 1.1rem;
+            line-height: 1.5rem;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            color: var(--primary-foreground-color, #fff);
+        }
+        [${BRIDGE_INJECTED_TRACK_ATTR}] .injected-track-label {
+            font-size: 0.9rem;
+            color: var(--color-placeholder-text, rgba(255, 255, 255, 0.4));
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        /* Green dot indicator - uses a real <div> to avoid pseudo-element CSS wars */
+        [${BRIDGE_INJECTED_TRACK_ATTR}] .injected-track-dot {
+            flex: none;
+            width: 0.5rem;
+            height: 0.5rem;
             border-radius: 100%;
             background-color: var(--secondary-accent-color, #1dd760);
         }
@@ -1071,6 +1160,128 @@ function syncAudioMenuSelection(): void {
                 option.setAttribute(BRIDGE_AUDIO_SELECTED_ATTR, 'true');
             }
         }
+    }
+}
+
+function getLanguageDisplayLabel(langCode: string | null | undefined): string {
+    if (!langCode) {
+        return '';
+    }
+
+    const displayNames = getLanguageDisplayNames();
+    if (displayNames) {
+        try {
+            const label = displayNames.of(langCode);
+            if (label && label !== langCode) {
+                return label;
+            }
+        } catch {
+            // Ignore invalid language codes.
+        }
+    }
+
+    return langCode;
+}
+
+function populateEmptyAudioMenu(): void {
+    if (!bridgePrepared || !isBridgeEnabledForCurrentRoute() || !currentState?.active) {
+        return;
+    }
+
+    if (!currentState.audioTracks.length) {
+        return;
+    }
+
+    const menuRoots = document.querySelectorAll<HTMLElement>(AUDIO_MENU_SELECTOR);
+
+    for (const menuRoot of menuRoots) {
+        // Skip if Stremio already populated the menu with native options
+        // (Stremio Button renders as <div>, not <button>)
+        const nativeButtons = menuRoot.querySelectorAll<HTMLElement>(
+            `[data-id]:not([${BRIDGE_INJECTED_TRACK_ATTR}])`,
+        );
+        if (nativeButtons.length > 0) {
+            continue;
+        }
+
+        // Skip if we already injected the right number of tracks
+        const injectedButtons = menuRoot.querySelectorAll<HTMLElement>(`[${BRIDGE_INJECTED_TRACK_ATTR}]`);
+        if (injectedButtons.length === currentState.audioTracks.length) {
+            // Just update selection state on existing injected buttons
+            const effectiveTrackId = resolveEffectiveAudioTrackId(currentState);
+            const effectiveTrackIndex = findAudioTrackIndexById(effectiveTrackId, currentState);
+            const effectiveId = toEmbeddedTrackId(effectiveTrackIndex);
+            for (const btn of injectedButtons) {
+                const isSelected = btn.getAttribute('data-id') === effectiveId;
+                const dot = btn.querySelector('.injected-track-dot');
+                if (isSelected) {
+                    btn.setAttribute(BRIDGE_AUDIO_SELECTED_ATTR, 'true');
+                    if (!dot) {
+                        const newDot = document.createElement('div');
+                        newDot.className = 'injected-track-dot';
+                        btn.appendChild(newDot);
+                    }
+                } else {
+                    btn.removeAttribute(BRIDGE_AUDIO_SELECTED_ATTR);
+                    dot?.remove();
+                }
+            }
+            continue;
+        }
+
+        // Remove stale injected items
+        for (const old of injectedButtons) {
+            old.remove();
+        }
+
+        // Find the scrollable list container inside the menu
+        const listContainer = menuRoot.querySelector<HTMLElement>('[class*="list"]')
+            ?? menuRoot.querySelector<HTMLElement>('[class*="container"]')
+            ?? menuRoot;
+
+        const effectiveTrackId = resolveEffectiveAudioTrackId(currentState);
+        const effectiveTrackIndex = findAudioTrackIndexById(effectiveTrackId, currentState);
+
+        for (let i = 0; i < currentState.audioTracks.length; i++) {
+            const track = currentState.audioTracks[i];
+            const trackId = toEmbeddedTrackId(i) ?? String(i);
+            const isSelected = i === effectiveTrackIndex;
+
+            const button = document.createElement('button');
+            button.setAttribute('data-id', trackId);
+            button.setAttribute(BRIDGE_INJECTED_TRACK_ATTR, 'true');
+            if (isSelected) {
+                button.setAttribute(BRIDGE_AUDIO_SELECTED_ATTR, 'true');
+            }
+            button.title = track.label;
+
+            const info = document.createElement('div');
+            info.className = 'injected-track-info';
+
+            const lang = document.createElement('div');
+            lang.className = 'injected-track-lang';
+            lang.textContent = getLanguageDisplayLabel(track.language) || track.label;
+
+            const label = document.createElement('div');
+            label.className = 'injected-track-label';
+            label.textContent = track.label;
+
+            info.appendChild(lang);
+            info.appendChild(label);
+            button.appendChild(info);
+
+            // Green dot indicator for selected track (real <div>, not ::after)
+            if (isSelected) {
+                const dot = document.createElement('div');
+                dot.className = 'injected-track-dot';
+                button.appendChild(dot);
+            }
+
+            listContainer.appendChild(button);
+        }
+
+        // Mark the menu so syncAudioMenuSelection can find it
+        menuRoot.setAttribute(BRIDGE_AUDIO_MENU_ATTR, 'true');
     }
 }
 
@@ -2355,6 +2566,7 @@ function refreshVideoVisibility(): void {
         applyVideoVisibilityPatch(video);
     }
 
+    populateEmptyAudioMenu();
     syncAudioMenuSelection();
 }
 
@@ -2383,7 +2595,8 @@ function ensureDomObserver(): void {
 }
 
 function syncBridgeState(): void {
-    dispatchPagePatchState(buildPagePatchState(currentState));
+    const patchState = buildPagePatchState(currentState);
+    dispatchPagePatchState(patchState);
     syncPlayerAudioTrackState(resolveEffectiveAudioTrackId(currentState));
     updateBridgeSurfaceState();
     refreshVideoVisibility();
