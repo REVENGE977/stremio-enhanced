@@ -49,5 +49,6 @@ export type EmbeddedMpvCommand =
     | { command: "set-volume"; value: number }
     | { command: "set-audio-track"; value: number | null }
     | { command: "set-subtitle-track"; value: number | null }
+    | { command: "set-video-margin-ratio-top"; value: number }
     | { command: "set-fullscreen"; value: boolean }
     | { command: "stop" };

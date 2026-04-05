@@ -624,6 +624,11 @@ class EmbeddedMpvController {
                 case 'set-subtitle-track':
                     await this.sendMpvCommand(['set_property', 'sid', command.value ?? 'no']);
                     break;
+                case 'set-video-margin-ratio-top': {
+                    const nextRatio = Math.max(0, Math.min(1, command.value));
+                    await this.sendMpvCommand(['set_property', 'video-margin-ratio-top', nextRatio]);
+                    break;
+                }
                 case 'set-fullscreen':
                     mainWindow?.setFullScreen(command.value);
                     this.setState({ fullscreen: command.value });

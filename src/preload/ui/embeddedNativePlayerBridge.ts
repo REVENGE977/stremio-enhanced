@@ -27,6 +27,8 @@ const BRIDGE_CONTROL_SURFACE_ATTR = 'data-stremio-enhanced-embedded-mpv-control-
 const BRIDGE_AUDIO_MENU_ATTR = 'data-stremio-enhanced-embedded-mpv-audio-menu';
 const BRIDGE_AUDIO_OPTION_ATTR = 'data-stremio-enhanced-embedded-mpv-audio-option';
 const BRIDGE_AUDIO_SELECTED_ATTR = 'data-stremio-enhanced-embedded-mpv-audio-selected';
+const STREMIO_NAV_BAR_LAYER_SELECTOR = '[class*="nav-bar-layer"]';
+const STREMIO_CONTROL_BAR_LAYER_SELECTOR = '[class*="control-bar-layer"]';
 const DEFAULT_SEEK_STEP_SECONDS = 10;
 // Mirror the standard HTMLMediaElement readyState/networkState numeric constants so the
 // injected fake video reports browser-like values back to Stremio Web.
@@ -142,6 +144,11 @@ let cachedDisplayNames: Intl.DisplayNames | null = null;
 let lastSyncedPlayerAudioTrackId: string | null | undefined;
 let pendingPlayerAudioTrackSyncId: string | null = null;
 let nextPlayerAudioTrackSyncSequence = 0;
+let titleBarResizeObserver: ResizeObserver | null = null;
+let observedTitleBarElement: HTMLElement | null = null;
+let marginSyncFrameId: number | null = null;
+let lastAppliedVideoMarginRatioTop: number | null = null;
+let marginSyncListenersBound = false;
 
 // ──────────────────────────────────────────────────────────────────────────────
 // CSS Surface & Visibility
@@ -189,6 +196,44 @@ function ensureBridgeSurfaceStyle(): void {
         html[${BRIDGE_SURFACE_ACTIVE_ATTR}="true"] .route-container:last-child .title-bar * {
             visibility: visible !important;
             pointer-events: auto !important;
+        }
+
+        html[${BRIDGE_SURFACE_ACTIVE_ATTR}="true"] .route-container:last-child ${STREMIO_NAV_BAR_LAYER_SELECTOR},
+        html[${BRIDGE_SURFACE_ACTIVE_ATTR}="true"] .route-container:last-child ${STREMIO_CONTROL_BAR_LAYER_SELECTOR} {
+            overflow: visible !important;
+        }
+
+        html[${BRIDGE_SURFACE_ACTIVE_ATTR}="true"] .route-container:last-child ${STREMIO_NAV_BAR_LAYER_SELECTOR}::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: -1;
+            pointer-events: none;
+            visibility: visible !important;
+            box-shadow: 0 0 8rem 6rem var(--primary-background-color, rgba(12, 11, 17, 1)) !important;
+        }
+
+        html[${BRIDGE_SURFACE_ACTIVE_ATTR}="true"] .route-container:last-child ${STREMIO_CONTROL_BAR_LAYER_SELECTOR}::before {
+            content: '';
+            position: absolute;
+            right: 0;
+            bottom: 0;
+            left: 0;
+            z-index: -1;
+            pointer-events: none;
+            visibility: visible !important;
+            box-shadow: 0 0 8rem 8rem var(--primary-background-color, rgba(12, 11, 17, 1)) !important;
+        }
+
+        html[${BRIDGE_SURFACE_ACTIVE_ATTR}="true"] .route-container:last-child .title-bar {
+            background: #000000 !important;
+            background-color: #000000 !important;
+            background-image: none !important;
+            backdrop-filter: none !important;
+            box-shadow: none !important;
+            opacity: 1 !important;
         }
 
         html[${BRIDGE_SURFACE_ACTIVE_ATTR}="true"] .route-container:last-child video,
@@ -246,6 +291,8 @@ function clearControlSurfaceMarkers(): void {
         return;
     }
 
+    routeRoot.removeAttribute(BRIDGE_CONTROL_SURFACE_ATTR);
+
     for (const element of routeRoot.querySelectorAll<HTMLElement>(`[${BRIDGE_CONTROL_SURFACE_ATTR}="true"]`)) {
         element.removeAttribute(BRIDGE_CONTROL_SURFACE_ATTR);
     }
@@ -290,8 +337,6 @@ function markControlSurfaceElements(): void {
             current = current.parentElement;
         }
     }
-
-    routeRoot.setAttribute(BRIDGE_CONTROL_SURFACE_ATTR, 'true');
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -304,6 +349,106 @@ function isBridgeEnabledForCurrentRoute(): boolean {
 
 function normalizeText(value: string | null | undefined): string {
     return (value ?? '').trim().toLowerCase().replace(/\s+/g, ' ');
+}
+
+function getTitleBarElement(): HTMLElement | null {
+    const titleBar = document.querySelector('.route-container:last-child .title-bar');
+    return titleBar instanceof HTMLElement ? titleBar : null;
+}
+
+function getVisibleTitleBarHeight(): number {
+    const titleBar = getTitleBarElement();
+    if (!titleBar) {
+        return 0;
+    }
+
+    const style = window.getComputedStyle(titleBar);
+    if (style.display === 'none' || style.visibility === 'hidden') {
+        return 0;
+    }
+
+    return Math.max(0, titleBar.getBoundingClientRect().height);
+}
+
+function refreshTitleBarObserver(): void {
+    const titleBar = getTitleBarElement();
+    if (observedTitleBarElement === titleBar) {
+        return;
+    }
+
+    if (titleBarResizeObserver && observedTitleBarElement) {
+        titleBarResizeObserver.unobserve(observedTitleBarElement);
+    }
+
+    observedTitleBarElement = titleBar;
+
+    if (!titleBar || typeof ResizeObserver !== 'function') {
+        return;
+    }
+
+    if (!titleBarResizeObserver) {
+        titleBarResizeObserver = new ResizeObserver(() => {
+            scheduleVideoMarginRatioTopSync();
+        });
+    }
+
+    titleBarResizeObserver.observe(titleBar);
+}
+
+function getVideoMarginRatioTop(): number {
+    if (!bridgePrepared || !isBridgeEnabledForCurrentRoute() || !currentState?.active || currentState.fullscreen) {
+        return 0;
+    }
+
+    const titleBarHeight = getVisibleTitleBarHeight();
+    if (titleBarHeight <= 0) {
+        return 0;
+    }
+
+    return Math.max(0, Math.min(1, titleBarHeight / Math.max(window.innerHeight, 1)));
+}
+
+function syncVideoMarginRatioTop(): void {
+    if (!bridgePrepared || !isBridgeEnabledForCurrentRoute() || !currentState?.active) {
+        lastAppliedVideoMarginRatioTop = null;
+        return;
+    }
+
+    refreshTitleBarObserver();
+
+    const nextRatio = getVideoMarginRatioTop();
+    if (!currentState.connected) {
+        lastAppliedVideoMarginRatioTop = null;
+        return;
+    }
+
+    if (lastAppliedVideoMarginRatioTop !== null && Math.abs(lastAppliedVideoMarginRatioTop - nextRatio) < 0.0001) {
+        return;
+    }
+
+    void externalPlayerAPI.sendEmbeddedMpvCommand({
+        command: 'set-video-margin-ratio-top',
+        value: nextRatio,
+    }).then((result) => {
+        if (result.success) {
+            lastAppliedVideoMarginRatioTop = nextRatio;
+        } else {
+            lastAppliedVideoMarginRatioTop = null;
+        }
+    }).catch(() => {
+        lastAppliedVideoMarginRatioTop = null;
+    });
+}
+
+function scheduleVideoMarginRatioTopSync(): void {
+    if (marginSyncFrameId !== null) {
+        return;
+    }
+
+    marginSyncFrameId = window.requestAnimationFrame(() => {
+        marginSyncFrameId = null;
+        syncVideoMarginRatioTop();
+    });
 }
 
 function getProfileSettings(): Record<string, unknown> | null {
@@ -2224,6 +2369,8 @@ function ensureDomObserver(): void {
 
     domObserver = new MutationObserver(() => {
         refreshVideoVisibility();
+        refreshTitleBarObserver();
+        scheduleVideoMarginRatioTopSync();
         if (bridgePrepared) {
             dispatchPagePatchState(buildPagePatchState(currentState));
         }
@@ -2240,6 +2387,8 @@ function syncBridgeState(): void {
     syncPlayerAudioTrackState(resolveEffectiveAudioTrackId(currentState));
     updateBridgeSurfaceState();
     refreshVideoVisibility();
+    refreshTitleBarObserver();
+    scheduleVideoMarginRatioTopSync();
 }
 
 function ensureStateSubscription(): void {
@@ -2418,6 +2567,12 @@ function prepareEmbeddedNativePlayerBridge(): void {
     ensureStateSubscription();
     ensureDomObserver();
     installControlInterceptors();
+    refreshTitleBarObserver();
+    if (!marginSyncListenersBound) {
+        window.addEventListener('resize', scheduleVideoMarginRatioTopSync, true);
+        window.addEventListener('fullscreenchange', scheduleVideoMarginRatioTopSync, true);
+        marginSyncListenersBound = true;
+    }
     resetPlayerAudioTrackStateForPreferredAudio();
     syncBridgeState();
 }
@@ -2443,12 +2598,29 @@ export function deactivateEmbeddedNativePlayerBridge(): void {
     lastSeenAudioTracks = null;
     lastSyncedPlayerAudioTrackId = undefined;
     pendingPlayerAudioTrackSyncId = null;
+    lastAppliedVideoMarginRatioTop = null;
     dispatchPagePatchState(buildPagePatchState(null));
     clearControlSurfaceMarkers();
     clearAudioMenuSelectionMarkers();
     updateBridgeSurfaceState();
     restoreVideoVisibilityPatch();
     uninstallControlInterceptors();
+    if (marginSyncListenersBound) {
+        window.removeEventListener('resize', scheduleVideoMarginRatioTopSync, true);
+        window.removeEventListener('fullscreenchange', scheduleVideoMarginRatioTopSync, true);
+        marginSyncListenersBound = false;
+    }
+
+    if (marginSyncFrameId !== null) {
+        window.cancelAnimationFrame(marginSyncFrameId);
+        marginSyncFrameId = null;
+    }
+
+    if (titleBarResizeObserver) {
+        titleBarResizeObserver.disconnect();
+        titleBarResizeObserver = null;
+    }
+    observedTitleBarElement = null;
 
     if (domObserver) {
         domObserver.disconnect();
