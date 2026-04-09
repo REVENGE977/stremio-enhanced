@@ -7,58 +7,8 @@ const logger = getLogger("EmbeddedSubtitles");
 class EmbeddedSubtitles {
     private static extractedAlready = false;
 
-    private static patchReactDom() {
-        // prevents React from crashing when we add subtitle tracks from DOM, which we need to do if Stremio fails to load embedded subtitles natively for some reason.
-        if (typeof window === 'undefined' || typeof Node === 'undefined' || (window as any)._patchedReactDom) {
-            return;
-        }
-
-        const originalRemoveChild = Node.prototype.removeChild;
-        const originalInsertBefore = Node.prototype.insertBefore;
-        const originalReplaceChild = Node.prototype.replaceChild;
-
-        Node.prototype.removeChild = function<T extends Node>(child: T): T {
-            try {
-                // If the browser knows this isn't a child, silently reject to save React
-                if (child && child.parentNode !== this) {
-                    return child;
-                }
-                return originalRemoveChild.call(this, child) as T;
-            } catch (e) {
-                logger.warn('[Stremio Enhanced] Prevented React removeChild crash');
-                return child;
-            }
-        };
-
-        Node.prototype.insertBefore = function<T extends Node>(newNode: T, refNode: Node | null): T {
-            try {
-                if (refNode && refNode.parentNode !== this) {
-                    return originalInsertBefore.call(this, newNode, null) as T; 
-                }
-                return originalInsertBefore.call(this, newNode, refNode) as T;
-            } catch (e) {
-                logger.warn('[Stremio Enhanced] Prevented React insertBefore crash');
-                return newNode;
-            }
-        };
-
-        Node.prototype.replaceChild = function<T extends Node>(newChild: Node, oldChild: T): T {
-            try {
-                if (oldChild && oldChild.parentNode !== this) {
-                    return originalInsertBefore.call(this, newChild, null) as T;
-                }
-                return originalReplaceChild.call(this, newChild, oldChild) as T;
-            } catch (e) {
-                logger.warn('[Stremio Enhanced] Prevented React replaceChild crash');
-                return oldChild;
-            }
-        };
-
-        (window as any)._patchedReactDom = true;
-    }
-
     public static async checkWatching() {
-        this.patchReactDom();
+        Helpers.patchReactDom();
 
         if (!location.href.includes('#/player')) {
             this.extractedAlready = false; 

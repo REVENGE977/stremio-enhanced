@@ -1,6 +1,5 @@
 import { join } from "path";
 import { mkdirSync, existsSync, writeFileSync } from "fs";
-import helpers from './utils/Helpers';
 import Updater from "./core/Updater";
 import Properties from "./core/Properties";
 import logger from "./utils/logger";
@@ -92,9 +91,7 @@ async function createWindow() {
     
     mainWindow.setMenu(null);
     mainWindow.loadURL(URLS.STREMIO_WEB);
-    
-    helpers.setMainWindow(mainWindow);
-    
+        
     if (transparencyEnabled) {
         mainWindow.on('enter-full-screen', () => {
             mainWindow?.webContents.send(IPC_CHANNELS.FULLSCREEN_CHANGED, true);

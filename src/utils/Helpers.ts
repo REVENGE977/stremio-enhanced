@@ -1,26 +1,10 @@
-import { dialog, BrowserWindow } from "electron";
+import { dialog } from "electron";
 import logger from "./logger";
 import { SELECTORS, TIMEOUTS } from "../constants";
 import { getToastTemplate } from "../components/toast/toast";
 
-class Helpers {
-    private static instance: Helpers;
-    private mainWindow: BrowserWindow | null = null;
-    
-    private constructor() {}
-    
-    public static getInstance(): Helpers {
-        if (!Helpers.instance) {
-            Helpers.instance = new Helpers();
-        }
-        return Helpers.instance;
-    }
-    
-    setMainWindow(mainWindow: BrowserWindow): void {
-        this.mainWindow = mainWindow;
-    }
-    
-    public async showAlert(
+class Helpers {        
+    public static async showAlert(
         alertType: 'info' | 'warning' | 'error' | 'question' | 'none', 
         title: string, 
         message: string, 
@@ -34,7 +18,7 @@ class Helpers {
         };
         
         try {
-            const response = await dialog.showMessageBox(this.mainWindow!, options);
+            const response = await dialog.showMessageBox(options);
             return response.response;
         } catch (error) {
             logger.error('Error displaying alert: ' + (error as Error).message);
@@ -42,7 +26,7 @@ class Helpers {
         }
     }
     
-    public waitForElm(selector: string, timeout: number = TIMEOUTS.ELEMENT_WAIT): Promise<Element> {
+    public static waitForElm(selector: string, timeout: number = TIMEOUTS.ELEMENT_WAIT): Promise<Element> {
         return new Promise((resolve, reject) => {
             const existingElement = document.querySelector(selector);
             if (existingElement) {
@@ -69,7 +53,7 @@ class Helpers {
         });
     }
 
-    public waitForElmByXPath(xpath: string, timeout: number = TIMEOUTS.ELEMENT_WAIT): Promise<Node> {
+    public static waitForElmByXPath(xpath: string, timeout: number = TIMEOUTS.ELEMENT_WAIT): Promise<Node> {
         return new Promise((resolve, reject) => {
             const evaluateXPath = (): Node | null => {
                 const result = document.evaluate(
@@ -107,7 +91,7 @@ class Helpers {
         });
     }    
 
-    public waitForTitleChange(timeout: number = TIMEOUTS.ELEMENT_WAIT): Promise<string> {
+    public static waitForTitleChange(timeout: number = TIMEOUTS.ELEMENT_WAIT): Promise<string> {
         return new Promise((resolve, reject) => {
             const headElement = document.querySelector('head');
             if (!headElement) {
@@ -131,7 +115,65 @@ class Helpers {
         });
     }
 
-    public async createToast(toastId: string, title: string, message: string, status: "success" | "fail" | "info", timeoutMs:number = 3000) {
+    /**
+     * Patches React DOM methods in the PAGE context to prevent
+     * crashes when the browser modifies DOM nodes during audio track switches.
+     * Uses script injection to bypass Electron's contextIsolation.
+     */
+    public static patchReactDom() {
+        // Prevent injecting the script multiple times
+        if (document.getElementById('enhanced-react-dom-patch')) return;
+
+        const script = document.createElement('script');
+        script.id = 'enhanced-react-dom-patch';
+        
+        script.textContent = `
+            if (!window._patchedReactDomPage) {
+                var originalRemoveChild = Node.prototype.removeChild;
+                var originalInsertBefore = Node.prototype.insertBefore;
+                var originalReplaceChild = Node.prototype.replaceChild;
+
+                Node.prototype.removeChild = function(child) {
+                    try {
+                        if (child && child.parentNode !== this) return child;
+                        return originalRemoveChild.call(this, child);
+                    } catch (e) {
+                        console.warn('[Stremio Enhanced] Prevented React removeChild crash');
+                        return child;
+                    }
+                };
+
+                Node.prototype.insertBefore = function(newNode, refNode) {
+                    try {
+                        if (refNode && refNode.parentNode !== this) {
+                            return originalInsertBefore.call(this, newNode, null); 
+                        }
+                        return originalInsertBefore.call(this, newNode, refNode);
+                    } catch (e) {
+                        console.warn('[Stremio Enhanced] Prevented React insertBefore crash');
+                        return newNode;
+                    }
+                };
+
+                Node.prototype.replaceChild = function(newChild, oldChild) {
+                    try {
+                        if (oldChild && oldChild.parentNode !== this) {
+                            return originalInsertBefore.call(this, newChild, null);
+                        }
+                        return originalReplaceChild.call(this, newChild, oldChild);
+                    } catch (e) {
+                        console.warn('[Stremio Enhanced] Prevented React replaceChild crash');
+                        return oldChild;
+                    }
+                };
+
+                window._patchedReactDomPage = true;
+            }
+        `;
+        document.head.appendChild(script);
+    }
+
+    public static async createToast(toastId: string, title: string, message: string, status: "success" | "fail" | "info", timeoutMs:number = 3000) {
         let template = await getToastTemplate(toastId, title, message, status);
         let toastContainer = document.querySelector(SELECTORS.TOAST_CONTAINER);
         if(toastContainer) {
@@ -148,7 +190,7 @@ class Helpers {
      * @param js - JavaScript code to execute
      * @returns Promise with the result of the execution
      */
-    public _eval(js: string): Promise<unknown> {
+    public static _eval(js: string): Promise<unknown> {
         return new Promise((resolve, reject) => {
             try {
                 const eventName = 'stremio-enhanced';
@@ -184,7 +226,7 @@ class Helpers {
         });
     }
 
-    public getElementByXpath(path: string): Node | null {
+    public static getElementByXpath(path: string): Node | null {
         return document.evaluate(
             path, 
             document, 
@@ -194,12 +236,12 @@ class Helpers {
         ).singleNodeValue;
     }
 
-    public getFileNameFromUrl(url: string): string {
+    public static getFileNameFromUrl(url: string): string {
         const parts = url.split('/');
         return parts[parts.length - 1] || '';
     }
 
-    public formatTime(seconds: number): string {
+    public static formatTime(seconds: number): string {
         const hours = Math.floor(seconds / 3600);
         const minutes = Math.floor((seconds % 3600) / 60);
         const remainingSeconds = Math.floor(seconds % 60);
@@ -211,7 +253,7 @@ class Helpers {
      * Compare two semantic version strings
      * @returns true if version1 > version2
      */
-    public isNewerVersion(version1: string, version2: string): boolean {
+    public static isNewerVersion(version1: string, version2: string): boolean {
         const normalize = (v: string): number[] => 
             v.replace(/^v/, '').split('.').map(n => parseInt(n, 10) || 0);
         
@@ -229,6 +271,4 @@ class Helpers {
     }
 }
 
-const helpersInstance = Helpers.getInstance();
-
-export default helpersInstance;
+export default Helpers;

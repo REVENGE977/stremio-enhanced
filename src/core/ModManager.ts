@@ -2,12 +2,12 @@ import { readFileSync, writeFileSync, readdirSync, statSync, existsSync, mkdirSy
 import { shell } from "electron";
 import { basename, join } from "path";
 import Properties from "./Properties";
-import helpers from '../utils/Helpers';
 import { MetaData } from "../interfaces/MetaData";
 import { getLogger } from "../utils/logger";
 import { FILE_EXTENSIONS, URLS } from "../constants";
 import ExtractMetaData from "../utils/ExtractMetaData";
 import RegistryMetaData from "../interfaces/RegistryMetaData";
+import Helpers from "../utils/Helpers";
 
 class ModManager {
     private static logger = getLogger("ModManager");
@@ -106,7 +106,7 @@ class ModManager {
                 return null;
             }
 
-            if (helpers.isNewerVersion(extractedMetaData.version, installedMetaData.version)) {
+            if (Helpers.isNewerVersion(extractedMetaData.version, installedMetaData.version)) {
                 this.logger.info(`New update found for plugin ${installedMetaData.name} (v${installedMetaData.version} -> v${extractedMetaData.version})`)
 
                 let registryVersion = null;

@@ -1,11 +1,11 @@
 import { homedir } from "os";
 import { shell } from "electron"
 import { readFileSync, writeFileSync } from "fs";
-import helpers from '../utils/Helpers';
 import { getLogger } from "../utils/logger";
 import { join } from "path";
 import { getUpdateModalTemplate } from "../components/update-modal/updateModal";
 import { URLS } from "../constants";
+import Helpers from "../utils/Helpers";
 
 class Updater {
     private static logger = getLogger("Updater");
@@ -20,7 +20,7 @@ class Updater {
             const latestVersion = await this.getLatestVersion();
             const currentVersion = this.getCurrentVersion();
             
-            if (helpers.isNewerVersion(latestVersion, currentVersion)) {
+            if (Helpers.isNewerVersion(latestVersion, currentVersion)) {
                 this.logger.info(`Update available: v${latestVersion} (current: v${currentVersion})`);
                 
                 const modalsContainer = document.getElementsByClassName("modals-container")[0];
@@ -34,7 +34,7 @@ class Updater {
                 }
                 return true;
             } else if (showNoUpdatePrompt) {
-                await helpers.showAlert(
+                await Helpers.showAlert(
                     "info", 
                     "No update available!", 
                     `You're running the latest version (v${currentVersion}).`, 
@@ -45,7 +45,7 @@ class Updater {
         } catch (error) {
             this.logger.error(`Failed to check for updates: ${(error as Error).message}`);
             if (showNoUpdatePrompt) {
-                await helpers.showAlert(
+                await Helpers.showAlert(
                     "error",
                     "Update check failed",
                     "Could not check for updates. Please check your internet connection.",

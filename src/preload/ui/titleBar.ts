@@ -1,5 +1,5 @@
 import { ipcRenderer } from "electron";
-import { IPC_CHANNELS, SELECTORS } from "../../constants";
+import { ICONS, IPC_CHANNELS, SELECTORS } from "../../constants";
 import { getTitleBarTemplate } from "../../components/title-bar/titleBar";
 import logger from "../../utils/logger";
 
@@ -22,8 +22,6 @@ export function addTitleBar(): void {
     const titleBar = activeRoute.querySelector(".title-bar") as HTMLElement;
     if (!titleBar) return;
     
-    logger.info("Title bar added to active route");
-
     let isWindowMaximized = false;
     let isWindowFullscreen = false;
     let isDragging = false;
@@ -33,11 +31,8 @@ export function addTitleBar(): void {
     const updateMaximizeIcon = (isMax: boolean) => {
         const pathElement = titleBar.querySelector("#maximizeApp-btn svg path");
         if (!pathElement) return;
-
-        const maximizeIcon = "M3,3H21V21H3V3M5,5V19H19V5H5Z"; 
-        const restoreIcon = "M4,8H8V4H20V16H16V20H4V8M16,8V14H18V6H10V8H16M6,12V18H14V12H6Z"; 
         
-        pathElement.setAttribute("d", isMax ? restoreIcon : maximizeIcon);
+        pathElement.setAttribute("d", isMax ? ICONS.RESTORE : ICONS.MAXIMIZE);
     };
 
     ipcRenderer.invoke(IPC_CHANNELS.IS_MAXIMIZED).then((isMax: boolean) => {
