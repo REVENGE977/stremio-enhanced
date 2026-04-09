@@ -13,7 +13,8 @@ export const gpuController = {
 
         let enabledFeatures = [
             'PlatformHEVCDecoderSupport',
-            'disable-gpu-driver-bug-workaround'
+            'disable-gpu-driver-bug-workaround',
+            'AudioVideoTracks'
         ];
 
         const bootConfigPath = join(userDataPath, 'boot-config.json');
