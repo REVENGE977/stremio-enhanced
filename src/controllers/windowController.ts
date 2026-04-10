@@ -2,7 +2,8 @@ import { ipcMain } from 'electron';
 import { IPC_CHANNELS } from "../constants";
 import { mainWindow } from '../main';
 
-// this is for if transparency mode is enabled.
+const isWindows = process.platform === 'win32';
+
 export function setupWindowControls() {
     ipcMain.on(IPC_CHANNELS.MINIMIZE_WINDOW, () => {
         mainWindow?.minimize();
@@ -27,22 +28,22 @@ export function setupWindowControls() {
     });
 
     mainWindow?.on('maximize', () => {
-        mainWindow?.setResizable(false);
+        if (isWindows) mainWindow?.setResizable(false);
         mainWindow?.webContents.send(IPC_CHANNELS.WINDOW_MAXIMIZED, true);
     });
 
     mainWindow?.on('unmaximize', () => {
-        mainWindow?.setResizable(true);
+        if (isWindows) mainWindow?.setResizable(true);
         mainWindow?.webContents.send(IPC_CHANNELS.WINDOW_MAXIMIZED, false);
     });
 
     mainWindow?.on('enter-full-screen', () => {
-        mainWindow?.setResizable(false); 
+        if (isWindows) mainWindow?.setResizable(false); 
         mainWindow?.webContents.send(IPC_CHANNELS.FULLSCREEN_CHANGED, true);
     });
 
     mainWindow?.on('leave-full-screen', () => {
-        if (!mainWindow?.isMaximized()) {
+        if (isWindows && !mainWindow?.isMaximized()) {
             mainWindow?.setResizable(true); 
         }
         

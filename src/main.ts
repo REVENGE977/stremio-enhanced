@@ -192,7 +192,7 @@ app.on("ready", async () => {
     setupPluginSettingsAPI();
     setupPluginAlertAPI();
     createWindow();
-    setupWindowControls();
+    if(transparencyEnabled) setupWindowControls();
     setupUpdater();
     setupWindowTransparency(transparencyFlagPath);
     gpuController.initIPC(userDataPath);
