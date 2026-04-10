@@ -218,3 +218,7 @@ xattr -d com.apple.quarantine /path/to/Stremio.Enhanced.app
 - Added the option in the settings to use an external player under the Enhanced section (currently supports MPV and VLC).
 - Fixed a bug where if the Window Transparency option is enabled, the window title bar would not hide when the app is in fullscreen.
 - The community marketplace now displays correct theme/plugin version text.
+
+## Update v1.1.3
+- Minor bug fix: Fixed community marketplace install/uninstall buttons not working
+- Minor bug fix: Fixed a bug where if the user uninstalls a theme from the community marketplace, the currently active theme would get disabled regardless of whether it's the theme they uninstalled or not.

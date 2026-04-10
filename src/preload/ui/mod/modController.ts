@@ -83,8 +83,8 @@ export const modController = {
         } else if (type === "theme") {
             if (localStorage.getItem(STORAGE_KEYS.CURRENT_THEME) === fileName) {
                 localStorage.setItem(STORAGE_KEYS.CURRENT_THEME, "Default");
+                document.getElementById("activeTheme")?.remove();
             }
-            document.getElementById("activeTheme")?.remove();
         }
     },
 
