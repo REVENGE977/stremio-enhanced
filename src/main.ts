@@ -64,12 +64,10 @@ async function createWindow() {
             // to work properly. The app loads web.stremio.com and needs to:
             // 1. Make cross-origin requests to local streaming server (webSecurity: false)
             // 2. Access Node.js APIs for file operations (nodeIntegration: true)
-            // 3. Share context between preload and renderer (contextIsolation: false)
-            // TODO: Consider implementing a contextBridge-based architecture for better security
             webSecurity: false,
             nodeIntegration: true,
             contextIsolation: true,
-            // Additional security hardening
+            // Additional security hardening/performance settings
             allowRunningInsecureContent: false,
             experimentalFeatures: false,
             spellcheck: false,

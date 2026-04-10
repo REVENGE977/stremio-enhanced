@@ -121,7 +121,6 @@ class Helpers {
      * Uses script injection to bypass Electron's contextIsolation.
      */
     public static patchReactDom() {
-        // Prevent injecting the script multiple times
         if (document.getElementById('enhanced-react-dom-patch')) return;
 
         const script = document.createElement('script');
@@ -133,38 +132,29 @@ class Helpers {
                 var originalInsertBefore = Node.prototype.insertBefore;
                 var originalReplaceChild = Node.prototype.replaceChild;
 
+                var isInPlayer = function() {
+                    return location.href.includes('#/player');
+                };
+
                 Node.prototype.removeChild = function(child) {
-                    try {
-                        if (child && child.parentNode !== this) return child;
-                        return originalRemoveChild.call(this, child);
-                    } catch (e) {
-                        console.warn('[Stremio Enhanced] Prevented React removeChild crash');
+                    if (isInPlayer() && child && child.parentNode !== this) {
                         return child;
                     }
+                    return originalRemoveChild.call(this, child);
                 };
 
                 Node.prototype.insertBefore = function(newNode, refNode) {
-                    try {
-                        if (refNode && refNode.parentNode !== this) {
-                            return originalInsertBefore.call(this, newNode, null); 
-                        }
-                        return originalInsertBefore.call(this, newNode, refNode);
-                    } catch (e) {
-                        console.warn('[Stremio Enhanced] Prevented React insertBefore crash');
-                        return newNode;
+                    if (isInPlayer() && refNode && refNode.parentNode !== this) {
+                        return originalInsertBefore.call(this, newNode, null); 
                     }
+                    return originalInsertBefore.call(this, newNode, refNode);
                 };
 
                 Node.prototype.replaceChild = function(newChild, oldChild) {
-                    try {
-                        if (oldChild && oldChild.parentNode !== this) {
-                            return originalInsertBefore.call(this, newChild, null);
-                        }
-                        return originalReplaceChild.call(this, newChild, oldChild);
-                    } catch (e) {
-                        console.warn('[Stremio Enhanced] Prevented React replaceChild crash');
-                        return oldChild;
+                    if (isInPlayer() && oldChild && oldChild.parentNode !== this) {
+                        return originalInsertBefore.call(this, newChild, null);
                     }
+                    return originalReplaceChild.call(this, newChild, oldChild);
                 };
 
                 window._patchedReactDomPage = true;

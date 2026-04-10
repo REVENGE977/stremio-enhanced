@@ -209,3 +209,12 @@ xattr -d com.apple.quarantine /path/to/Stremio.Enhanced.app
 - **New download option in the update notice**: Now if there's a new Stremio Enhanced update, you can download the new update by clicking the new download button and it'll download and automatically download/install the update setup if you're on Windows. On macOS it should download the update and mount the dmg, and on Linux it will download and show the file in file explorer.
 
 - **Codebase improvements**: Better seperation of frontend and backend parts of the app as well as better use of contextBridge to improve code readability and maintainability.
+
+## Update v1.1.1
+- Fixed an issue where streams sometimes wouldn't load or load slow.
+
+## Update v1.1.2
+- Added a fallback workaround for loading audio tracks in case the native Stremio Web implementation fails. (PR https://github.com/REVENGE977/stremio-enhanced/pull/89)
+- Added the option in the settings to use an external player under the Enhanced section (currently supports MPV and VLC).
+- Fixed a bug where if the Window Transparency option is enabled, the window title bar would not hide when the app is in fullscreen.
+- The community marketplace now displays correct theme/plugin version text.
