@@ -111,7 +111,7 @@ export const URLS = {
 } as const;
 
 // server.js (Stremio streaming server) Download URL
-export const SERVER_JS_URL = "https://dl.strem.io/server/v4.20.12/desktop/server.js";
+export const SERVER_JS_URL = "https://dl.strem.io/server/v4.20.17/desktop/server.js";
 
 // FFmpeg Download URLs
 export const FFMPEG_URLS = {
