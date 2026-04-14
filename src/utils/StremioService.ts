@@ -5,9 +5,10 @@ import { execFile, spawn } from "child_process";
 import { promisify } from "util";
 import * as process from 'process';
 import { homedir } from 'os';
-import { app } from "electron";
+import { app, shell } from "electron";
 import https from "https";
 import { TIMEOUTS, URLS } from "../constants/index";
+import Helpers from "./Helpers";
 
 class StremioService {
     private static logger = getLogger("StremioService");
@@ -52,38 +53,50 @@ class StremioService {
     public static async downloadAndInstallService() {
         const platform = process.platform;
         
-        const release = await this.fetchLatestRelease();
-        if (!release) {
-            console.error("Failed to fetch latest release info");
-            return;
-        }
-        
-        const assetUrl = this.getAssetUrlForPlatform(release, platform);
-        if (!assetUrl) {
-            console.error("No suitable asset found for platform:", platform);
-            return;
-        }
-        
-        const tempDir = app.getPath("temp");
-        const fileName = basename(assetUrl);
-        const destPath = join(tempDir, fileName);
+        try {
+            const release = await this.fetchLatestRelease();
+            if (!release) {
+                console.error("Failed to fetch latest release info");
+                return;
+            }
+            
+            const assetInfo = this.getAssetInfoForPlatform(release, platform);
+            if (!assetInfo) {
+                console.error("No suitable asset found for platform:", platform);
+                return;
+            }
+            
+            const { url: assetUrl, isZip } = assetInfo;
+            const tempDir = app.getPath("temp");
+            const fileName = basename(assetUrl);
+            const destPath = join(tempDir, fileName);
 
-        this.logger.info(`Downloading latest Stremio Service (${release.tag_name}) in ${destPath}`);
-        await this.downloadFile(assetUrl, destPath);
-        this.logger.info("Download complete. Installing...");
+            this.logger.info(`Downloading latest Stremio Service (${release.tag_name}) in ${destPath}`);
+            await this.downloadFile(assetUrl, destPath);
+            this.logger.info("Download complete. Installing...");
 
-        switch (platform) {
-            case "win32":
-                await this.installWindows(destPath);
-            break;
-            case "darwin":
-                await this.installMac(destPath);
-            break;
-            case "linux":
-                await this.installLinux(destPath);
-            break;
-            default:
-                this.logger.warn("No install routine defined for: " + platform);
+            switch (platform) {
+                case "win32":
+                    if (isZip) 
+                        await this.installWindowsZip(destPath);
+                    else 
+                        await this.installWindows(destPath);
+                break;
+                case "darwin":
+                    await this.installMac(destPath);
+                break;
+                case "linux":
+                    await this.installLinux(destPath);
+                break;
+                default:
+                    this.logger.warn("No install routine defined for: " + platform);
+            }
+        } catch (err) {
+            this.logger.error(`Automated download/install failed: ${(err as Error).message}. Opening manual download page.`);
+            Helpers.showAlert("error", "Failed to download and install Stremio Service automatically.", "Please download and install it manually from here: " + URLS.STREMIO_SERVICE_DOWNLOAD_PAGE, ["Close"]);
+            shell.openExternal(URLS.STREMIO_SERVICE_DOWNLOAD_PAGE).catch((e) => {
+                this.logger.error("Failed to open download page: " + (e as Error).message);
+            });
         }
     }
     
@@ -112,11 +125,21 @@ class StremioService {
         });
     }
     
-    private static getAssetUrlForPlatform(release: any, platform: string): string | null {
+    private static getAssetInfoForPlatform(release: any, platform: string): { url: string, isZip?: boolean } | null {
         if (!release.assets || !Array.isArray(release.assets)) return null;
         
+        // For windows, check if a .exe setup file is available, if not fallback to zip archive
+        if (platform === "win32") {
+            let asset = release.assets.find((a: any) => /\.exe$/i.test(a.name));
+            if (asset) return { url: asset.browser_download_url, isZip: false };
+            
+            asset = release.assets.find((a: any) => /-windows\.zip$/i.test(a.name));
+            if (asset) return { url: asset.browser_download_url, isZip: true };
+            
+            return null;
+        }
+
         const matchers: Record<string, RegExp> = {
-            win32: /\.exe$/i,
             darwin: /\.dmg$/i,
             linux: /\.flatpak$/i,
         };
@@ -125,7 +148,7 @@ class StremioService {
         if (!pattern) return null;
         
         const asset = release.assets.find((a: any) => pattern.test(a.name));
-        return asset ? asset.browser_download_url : null;
+        return asset ? { url: asset.browser_download_url } : null;
     }
     
     private static async downloadFile(url: string, dest: string): Promise<void> {
@@ -231,6 +254,27 @@ class StremioService {
 
         const servicePath = join(localAppData, "Programs", "StremioService", "stremio-service.exe");
         return existsSync(servicePath);
+    }
+
+    private static async installWindowsZip(zipPath: string) {
+        const localAppData = process.env.LOCALAPPDATA || join(homedir(), 'AppData', 'Local');
+        const extractPath = join(localAppData, "Programs", "StremioService");
+
+        this.logger.info(`Extracting Stremio Service zip to ${extractPath}...`);
+
+        const ps = `Expand-Archive -Path "${zipPath}" -DestinationPath "${extractPath}" -Force`;
+        await this.execFileAsync("powershell.exe", ["-ExecutionPolicy", "Bypass", "-NoProfile", "-Command", ps], {
+            windowsHide: true,
+        });
+        
+        this.logger.info("Waiting for Stremio Service extraction to finish...");
+        const success = await this.waitForInstallCompletion(TIMEOUTS.INSTALL_COMPLETION, zipPath);
+        
+        if (success) {
+            this.logger.info("Stremio Service detected as extracted and running.");
+        } else {
+            this.logger.warn("Extraction timeout or failed to detect Stremio Service.");
+        }
     }
 
     private static async installWindows(filePath: string) {
