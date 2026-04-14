@@ -222,3 +222,6 @@ xattr -d com.apple.quarantine /path/to/Stremio.Enhanced.app
 ## Update v1.1.3
 - Minor bug fix: Fixed community marketplace install/uninstall buttons not working
 - Minor bug fix: Fixed a bug where if the user uninstalls a theme from the community marketplace, the currently active theme would get disabled regardless of whether it's the theme they uninstalled or not.
+
+## Update v1.1.4 - hotfix
+- Stremio Service installation fix: Implemented a fallback to download the .zip archive if the setup file is unavailable upstream during initial setup. ([Issue #92](https://github.com/REVENGE977/stremio-enhanced/issues/92))
