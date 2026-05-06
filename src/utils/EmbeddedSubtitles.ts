@@ -8,8 +8,6 @@ class EmbeddedSubtitles {
     private static extractedAlready = false;
 
     public static async checkWatching() {
-        Helpers.patchReactDom();
-
         if (!location.href.includes('#/player')) {
             this.extractedAlready = false; 
             return;

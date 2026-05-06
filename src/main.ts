@@ -135,8 +135,6 @@ async function useStremioService() {
             logger.info("User declined to download Stremio Service.");
         }
     }
-    
-    Properties.isUsingStremioService = true;
 }
 
 app.on("ready", async () => {
@@ -184,7 +182,6 @@ app.on("ready", async () => {
             }
         } else {
             logger.info("Stremio Service is already running.");
-            Properties.isUsingStremioService = true;
         }
     } else logger.info("Launching without Stremio streaming server.");
     

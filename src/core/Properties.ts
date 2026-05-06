@@ -14,7 +14,6 @@ class Properties {
 
     public static themesPath = join(Properties.enhancedPath, "themes");
     public static pluginsPath = join(Properties.enhancedPath, "plugins");
-    public static isUsingStremioService = false;
 }
 
 export default Properties;

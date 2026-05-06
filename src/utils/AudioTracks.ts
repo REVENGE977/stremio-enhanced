@@ -16,8 +16,6 @@ class AudioTracks {
             return;
         }
 
-        Helpers.patchReactDom();
-
         await Helpers.waitForElm('video');
         const video = document.querySelector("video") as HTMLVideoElement;
         if (!video) return;

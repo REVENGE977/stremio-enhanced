@@ -19,6 +19,7 @@ import { applyThemeAPI } from "./api/applyTheme";
 import { gpuRendererAPI } from "./api/gpuRenderer";
 import { externalPlayerAPI } from "./api/externalPlayer";
 import { pluginLogger } from "./api/pluginLogger";
+import Helpers from "../utils/Helpers";
 
 export const stremioEnhancedAPI = {
     ...alertAPI,
@@ -31,7 +32,8 @@ export const stremioEnhancedAPI = {
 
 contextBridge.exposeInMainWorld('StremioEnhancedAPI', stremioEnhancedAPI);
 
-window.addEventListener("load", () => { 
+window.addEventListener("load", () => {
+    Helpers.patchReactDom();
     initializeUserSettings();
     reloadServer();
     applyUserTheme();

@@ -143,20 +143,6 @@ class Helpers {
                     return originalRemoveChild.call(this, child);
                 };
 
-                Node.prototype.insertBefore = function(newNode, refNode) {
-                    if (isInPlayer() && refNode && refNode.parentNode !== this) {
-                        return originalInsertBefore.call(this, newNode, null); 
-                    }
-                    return originalInsertBefore.call(this, newNode, refNode);
-                };
-
-                Node.prototype.replaceChild = function(newChild, oldChild) {
-                    if (isInPlayer() && oldChild && oldChild.parentNode !== this) {
-                        return originalInsertBefore.call(this, newChild, null);
-                    }
-                    return originalReplaceChild.call(this, newChild, oldChild);
-                };
-
                 window._patchedReactDomPage = true;
             }
         `;
@@ -167,8 +153,8 @@ class Helpers {
         let template = await getToastTemplate(toastId, title, message, status);
         let toastContainer = document.querySelector(SELECTORS.TOAST_CONTAINER);
         if(toastContainer) {
-            toastContainer.innerHTML += template;
-
+            toastContainer.insertAdjacentHTML('beforeend', template);
+            
             setTimeout(() => {
                 document.getElementById(toastId)?.remove();
             }, timeoutMs);

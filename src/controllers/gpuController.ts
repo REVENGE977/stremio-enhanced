@@ -13,7 +13,6 @@ export const gpuController = {
 
         let enabledFeatures = [
             'PlatformHEVCDecoderSupport',
-            'disable-gpu-driver-bug-workaround',
             'AudioVideoTracks'
         ];
 
@@ -33,18 +32,20 @@ export const gpuController = {
             logger.warn("User forced Software Rendering.");
             app.disableHardwareAcceleration();
             return;
-        } else { 
-            // if not using software rendering, enable GPU related features
+        } else if(process.platform !== "darwin") { 
+            // if not using software rendering and not on macOS, enable GPU related features
             logger.info("Enabling GPU features");
             enabledFeatures.push("AcceleratedVideoEncoder");
+            enabledFeatures.push("disable-gpu-driver-bug-workaround");
             app.commandLine.appendSwitch('ignore-gpu-blocklist');
             app.commandLine.appendSwitch('enable-zero-copy');
             app.commandLine.appendSwitch('enable-gpu-rasterization');
         }
 
         if (process.platform === 'darwin') {
-            logger.info('Running on macOS, forcing Metal');
-            app.commandLine.appendSwitch('use-angle', 'metal');
+            // logger.info('Running on macOS, forcing Metal');
+            // app.commandLine.appendSwitch('use-angle', 'metal');
+            enabledFeatures.push("VideoToolboxVideoDecoder");
         } else if (process.platform === 'win32') {
             const renderer = userRenderer === 'auto' ? 'd3d11' : userRenderer;
             logger.info(`Running on Windows, using ${renderer}`);
