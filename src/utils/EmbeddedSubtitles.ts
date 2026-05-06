@@ -211,7 +211,7 @@ class EmbeddedSubtitles {
         Helpers.createToast(
             "embeddedSubsToast", 
             "Subtitles ready", 
-            `Loaded ${tracksAdded} embedded subtitle tracks.`, 
+            `Loaded ${tracksAdded} embedded subtitle tracks via workaround.`, 
             "success"
         );
     }
