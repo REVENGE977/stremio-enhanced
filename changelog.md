@@ -225,3 +225,10 @@ xattr -d com.apple.quarantine /path/to/Stremio.Enhanced.app
 
 ## Update v1.1.4 - hotfix
 - Stremio Service installation fix: Implemented a fallback to download the .zip archive if the setup file is unavailable upstream during initial setup. ([Issue #92](https://github.com/REVENGE977/stremio-enhanced/issues/92))
+
+## Update v1.1.5
+- Fixed an issue where sometimes the subtitles loaded toast would get stuck in the UI. (https://github.com/REVENGE977/stremio-enhanced/issues/95)
+  
+### Important Note: Currently, the latest official Windows version of Stremio Service on GitHub includes faulty FFmpeg binaries. This can lead to issues like no audio in streams. To fix this for the time being, you can either use server.js directly or replace the ffmpeg binaries using the following steps:
+- download ffmpeg from here https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-win64-gpl.zip
+- extract the zip archive to local appdata > programs > StremioService and select replace existing files.
