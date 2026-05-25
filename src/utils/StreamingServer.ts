@@ -1,14 +1,17 @@
 import { fork, execSync } from "child_process";
-import { createWriteStream, existsSync, mkdirSync, chmodSync, unlinkSync } from "fs";
+import * as unzipper from "unzipper";
+import { createWriteStream, existsSync, mkdirSync, chmodSync, unlinkSync, readFileSync, writeFileSync } from "fs";
 import { join } from "path";
 import { getLogger } from "./logger";
 import Properties from "../core/Properties";
 import https from "https";
 import { shell } from "electron";
 import { FFMPEG_URLS, MACOS_FFPROBE_URLS } from "../constants";
+import Helpers from "./Helpers";
 
 class StreamingServer {
     private static logger = getLogger("StreamingServer");
+    public static latestServerJsUrl: string = "";
 
     // Use config directory instead of executable directory for cross-platform compatibility (especially AppImage)
     private static streamingServerDir = join(Properties.enhancedPath, "streamingserver");
@@ -190,15 +193,29 @@ class StreamingServer {
                 unlinkSync(ffprobeArchivePath);
                 return true;
             } else if (process.platform === "win32") {
-                // Handle Windows zip file
-                // Extract the whole archive first
-                execSync(`powershell -Command "Expand-Archive -Path '${archivePath}' -DestinationPath '${this.streamingServerDir}' -Force"`, { encoding: "utf8" });
+                // Handle Windows zip file natively to avoid PowerShell module issues
+                const fs = require('fs');
+                await new Promise<void>((resolve, reject) => {
+                    fs.createReadStream(archivePath)
+                        .pipe(unzipper.Extract({ path: this.streamingServerDir }))
+                        .on('close', resolve)
+                        .on('error', reject);
+                });
                 
-                // Move bin folder contents to the streamingserver directory
-                execSync(`powershell -Command "Move-Item -Path '${this.streamingServerDir}\\ffmpeg-master-latest-win64-gpl\\bin\\*' -Destination '${this.streamingServerDir}' -Force"`, { encoding: "utf8" });
+                const extDir = join(this.streamingServerDir, "ffmpeg-master-latest-win64-gpl");
+                const ffmpegSource = join(extDir, "bin", "ffmpeg.exe");
+                const ffprobeSource = join(extDir, "bin", "ffprobe.exe");
                 
-                // Cleanup: remove extracted directory
-                execSync(`powershell -Command "Remove-Item -Recurse -Force '${this.streamingServerDir}\\ffmpeg-master-latest-win64-gpl'"`, { encoding: "utf8" });
+                if (fs.existsSync(ffmpegSource)) {
+                    fs.renameSync(ffmpegSource, join(this.streamingServerDir, "ffmpeg.exe"));
+                }
+                if (fs.existsSync(ffprobeSource)) {
+                    fs.renameSync(ffprobeSource, join(this.streamingServerDir, "ffprobe.exe"));
+                }
+                
+                if (fs.existsSync(extDir)) {
+                    fs.rmSync(extDir, { recursive: true, force: true });
+                }
 
                 unlinkSync(archivePath);
                 return true;
@@ -278,6 +295,101 @@ class StreamingServer {
         }
 
         return true;
+    }
+
+    private static async fetchText(url: string): Promise<string> {
+        return new Promise((resolve, reject) => {
+            const request = (fetchUrl: string) => {
+                https.get(fetchUrl, { headers: { "User-Agent": "Stremio-Enhanced" } }, (res) => {
+                    if (res.statusCode && res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+                        request(new URL(res.headers.location, fetchUrl).toString());
+                        return;
+                    }
+                    if (res.statusCode !== 200) {
+                        reject(new Error(`HTTP ${res.statusCode}`));
+                        return;
+                    }
+                    let data = '';
+                    res.on('data', chunk => data += chunk);
+                    res.on('end', () => resolve(data));
+                }).on("error", err => reject(err));
+            };
+            request(url);
+        });
+    }
+
+    public static async checkServerJsUpdate(): Promise<void> {
+        try {
+            this.logger.info("Checking for server.js updates...");
+            const tomlContent = await this.fetchText("https://raw.githubusercontent.com/Stremio/stremio-service/refs/heads/master/Cargo.toml");
+            const match = tomlContent.match(/\[package\.metadata\.server\][\s\S]*?version\s*=\s*"([^"]+)"/);
+            
+            if (!match) {
+                this.logger.warn("Could not extract server.js version from Cargo.toml");
+                return;
+            }
+            
+            const latestVersion = match[1];
+            const skipVersionPath = join(Properties.enhancedPath, "skip_server_version.txt");
+            const currentVersionPath = join(this.streamingServerDir, "version.txt");
+            
+            if (existsSync(skipVersionPath)) {
+                const skippedVersion = readFileSync(skipVersionPath, "utf8").trim();
+                if (skippedVersion === latestVersion) {
+                    this.logger.info(`User skipped update to ${latestVersion}`);
+                    return;
+                }
+            }
+            
+            let currentVersion = "";
+            if (existsSync(currentVersionPath)) {
+                currentVersion = readFileSync(currentVersionPath, "utf8").trim();
+            }
+            
+            if (currentVersion === latestVersion && existsSync(this.serverScriptPath)) {
+                this.logger.info(`server.js is up to date (${latestVersion})`);
+                return;
+            }
+            
+            const downloadUrl = `https://dl.strem.io/server/${latestVersion}/desktop/server.js`;
+            this.latestServerJsUrl = downloadUrl;
+
+            const isMissing = !existsSync(this.serverScriptPath);
+            const promptMessage = isMissing 
+                ? `The local streaming server (server.js) version ${latestVersion} is required to play videos. Do you want to download and install it now?`
+                : `A new version of the Stremio local server (${latestVersion}) is available. Do you want to update it now?`;
+
+            const response = await Helpers.showAlert(
+                "question",
+                "Server Update",
+                promptMessage,
+                ["Yes", "No", "No and don't ask again"]
+            );
+            
+            if (response === 0) { // Yes
+                if (!isMissing) {
+                    this.logger.info(`Deleting old server.js to trigger update to ${latestVersion}...`);
+                    if (existsSync(this.serverScriptPath)) {
+                        unlinkSync(this.serverScriptPath);
+                    }
+                    if (existsSync(currentVersionPath)) {
+                        unlinkSync(currentVersionPath);
+                    }
+                }
+                // Write the new version to version.txt so that when they manually download it, the version is tracked
+                if (!existsSync(this.streamingServerDir)) {
+                    mkdirSync(this.streamingServerDir, { recursive: true });
+                }
+                writeFileSync(currentVersionPath, latestVersion, "utf8");
+                
+            } else if (response === 2) { // No and don't ask again
+                writeFileSync(skipVersionPath, latestVersion, "utf8");
+                this.logger.info(`Saved skip preference for version ${latestVersion}`);
+            }
+            
+        } catch (error) {
+            this.logger.error("Failed to check for server.js updates: " + error);
+        }
     }
 
     public static start() {

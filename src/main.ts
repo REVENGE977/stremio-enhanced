@@ -240,6 +240,9 @@ async function chooseStreamingServer() {
 }
 
 async function useServerJS() {
+    // Check for server.js updates from Cargo.toml first
+    await StreamingServer.checkServerJsUpdate();
+
     // First, try to ensure streaming server files are available
     logger.info("Checking for streaming server files...");
     const filesStatus = await StreamingServer.ensureStreamingServerFiles();
@@ -251,7 +254,7 @@ async function useServerJS() {
         // server.js is missing - show instructions to the user in a loop
         logger.info("server.js not found. Showing download instructions to user...");
         const serverDir = StreamingServer.getStreamingServerDir();
-        const downloadUrl = SERVER_JS_URL;
+        const downloadUrl = StreamingServer.latestServerJsUrl || SERVER_JS_URL;
         
         let serverJsFound = false;
         while (!serverJsFound) {
@@ -291,12 +294,18 @@ async function useServerJS() {
                     }
                 } else {
                     // File still not there - warn and show dialog again
-                    await Helpers.showAlert(
+                    const warnResult = await Helpers.showAlert(
                         "warning",
                         "File Not Found",
-                        `server.js was not found in:\n${serverDir}\n\nPlease download the file and place it in the correct location.`,
-                        ["OK"]
+                        `server.js was not found in:\n${serverDir}\n\nPlease download the file and place it in the correct location. Do you want to try again or fallback to Stremio Service?`,
+                        ["Try Again", "Use Stremio Service"]
                     );
+                    
+                    if (warnResult === 1) {
+                        serverJsFound = true; // exit loop
+                        logger.info("User abandoned server.js setup. Falling back to Stremio Service...");
+                        await useStremioService();
+                    }
                 }
             }
         }
