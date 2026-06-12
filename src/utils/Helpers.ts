@@ -182,7 +182,7 @@ class Helpers {
                 script.id = eventName;
                 script.appendChild(
                     document.createTextNode(`
-                        var core = window.services.core;
+                        var core = window.core || window.services?.core;
                         var result = ${js};
                 
                         if (result instanceof Promise) {
