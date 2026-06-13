@@ -2,7 +2,11 @@ import Helpers from "../../utils/Helpers";
 import PlaybackState from "../../utils/PlaybackState";
 import DiscordPresence from "../../core/DiscordPresence";
 
+export let lastPlayerState: any = null;
+
 export const discordTracker = {
+    _externalPlayerActive: false,
+    lastPlayerState: null as any,
 
     init: () => {
         window.addEventListener('hashchange', discordTracker.handleNavigation);
@@ -14,6 +18,7 @@ export const discordTracker = {
     },
 
     handleNavigation: () => {
+        if (discordTracker._externalPlayerActive) return;
         discordTracker._checkWatching();
         discordTracker._checkExploring();
         discordTracker._checkMainMenu();
@@ -21,6 +26,7 @@ export const discordTracker = {
 
     _checkWatching: async () => {
         if (!location.href.includes('#/player')) return;
+        discordTracker._externalPlayerActive = false; // new stream started in built-in player
 
         try {
             await Helpers.waitForElm('video');

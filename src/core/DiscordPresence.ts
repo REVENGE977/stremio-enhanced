@@ -71,7 +71,7 @@ class DiscordPresence {
         details: string,
         state: string,
         startTimestamp: number,
-        endTimestamp: number,
+        endTimestamp: number | undefined,
         imageKey: string | undefined
     ): void {
         this._updateActivity({

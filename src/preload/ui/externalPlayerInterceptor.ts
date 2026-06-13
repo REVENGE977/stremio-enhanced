@@ -4,6 +4,7 @@ import { type ExternalPlayer } from '../../interfaces/ExternalPlayerTypes';
 import PlaybackState from '../../utils/PlaybackState';
 import Helpers from '../../utils/Helpers';
 import { getLogger } from '../../utils/logger';
+import { discordTracker } from '../ui/discordTracker';
 
 const logger = getLogger("ExternalPlayerInterceptor");
 
@@ -33,17 +34,20 @@ async function launchExternal(player: ExternalPlayer): Promise<void> {
         const streamUrl = playerState.stream.content.url;
         logger.info(`Launching ${player} with stream URL: ${streamUrl}`);
 
+       
+        discordTracker.lastPlayerState = playerState;
         // Navigate back before launching to prevent the built-in player from loading
         history.back();
-
         const customPath = localStorage.getItem(PLAYER_PATH_STORAGE_KEY[player]);
-
+        
         const result = await externalPlayerAPI.launchExternalPlayer(player, streamUrl, customPath || undefined);
+        
         if (result.success) {
             Helpers.createToast("extPlayerLaunch", "External Player", `Opening stream in ${player.toUpperCase()}...`, "success");
         } else {
+            discordTracker._externalPlayerActive = false;
             Helpers.createToast("extPlayerError", "External Player", result.error ?? "Failed to launch player.", "fail");
-        }
+        }    
     } finally {
         isLaunching = false;
     }
