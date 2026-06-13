@@ -9,18 +9,24 @@ import { discordTracker } from '../ui/discordTracker';
 const logger = getLogger("ExternalPlayerInterceptor");
 
 let isLaunching = false;
+let lastLaunchTime = 0;
+const LAUNCH_COOLDOWN = 3000;
 
 export function checkExternalPlayer(): void {
     if (isLaunching) return;
+    if (Date.now() - lastLaunchTime < LAUNCH_COOLDOWN) return;
+    
     const externalPlayer = localStorage.getItem(STORAGE_KEYS.EXTERNAL_PLAYER);
+    
     if (!externalPlayer || externalPlayer === 'disabled') return;
     if (!location.href.includes('#/player')) return;
-
+    
     launchExternal(externalPlayer as ExternalPlayer);
 }
 
 async function launchExternal(player: ExternalPlayer): Promise<void> {
     isLaunching = true;
+    lastLaunchTime = Date.now();
     try {
         logger.info(`External player interceptor triggered for ${player}`);
 
@@ -33,9 +39,10 @@ async function launchExternal(player: ExternalPlayer): Promise<void> {
 
         const streamUrl = playerState.stream.content.url;
         logger.info(`Launching ${player} with stream URL: ${streamUrl}`);
-
        
-        discordTracker.lastPlayerState = playerState;
+        discordTracker.lastPlayerState = playerState;  
+        discordTracker._externalPlayerActive = true;  
+        
         // Navigate back before launching to prevent the built-in player from loading
         history.back();
         const customPath = localStorage.getItem(PLAYER_PATH_STORAGE_KEY[player]);

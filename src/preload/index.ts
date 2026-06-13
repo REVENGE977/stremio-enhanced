@@ -68,8 +68,7 @@ window.addEventListener("load", () => {
         DiscordPresence.start();
         discordTracker.init();
 
-        ipcRenderer.on(IPC_CHANNELS.EXTERNAL_PLAYER_POSITION, (_, { position }: { position: number }) => {
-            
+        ipcRenderer.on(IPC_CHANNELS.EXTERNAL_PLAYER_POSITION, (_, { position, state }: { position: number, state: string}) => {
             if (localStorage.getItem(STORAGE_KEYS.DISCORD_RPC) !== "true") return;
             if (!discordTracker.lastPlayerState) return;
             
@@ -79,14 +78,24 @@ window.addEventListener("load", () => {
             const startTimestamp = now - Math.floor(position);
             const duration = parseRuntime(metaDetails.runtime);
             const endTimestamp = duration ? startTimestamp + duration : undefined;
-            
+
             if (metaDetails.type === "series" && seriesInfoDetails) {
                 const isKitsu = metaDetails.id.startsWith("kitsu:");
                 const stateStr = `Watching ${!isKitsu ? `S${seriesInfoDetails.season} E${seriesInfoDetails.episode}` : `E${seriesInfoDetails.episode}`}`;
                 
-                DiscordPresence.setPlaying(metaDetails.name, stateStr, startTimestamp, endTimestamp, metaDetails.poster);
+                if (state === "playing") {
+                    DiscordPresence.setPlaying(metaDetails.name, stateStr, startTimestamp, endTimestamp, metaDetails.poster);
+                } else if (state == "paused") {
+                    DiscordPresence.setPaused(metaDetails.name, stateStr, metaDetails.poster);
+                }
+
             } else if (metaDetails.type === "movie") {
-                DiscordPresence.setPlaying(metaDetails.name, 'Watching', startTimestamp, endTimestamp, metaDetails.poster);
+                
+                if (state === "playing") {
+                    DiscordPresence.setPlaying(metaDetails.name, 'Watching', startTimestamp, endTimestamp, metaDetails.poster);
+                } else if (state === "paused") {
+                    DiscordPresence.setPaused(metaDetails.name, "Watching", metaDetails.poster);
+                }
             }
         });
 
@@ -94,6 +103,7 @@ window.addEventListener("load", () => {
             discordTracker._externalPlayerActive = false;
             discordTracker.lastPlayerState = null;
             discordTracker.handleNavigation();
+            DiscordPresence.setMainMenu("Home");
         });
     }
 
