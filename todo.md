@@ -35,10 +35,11 @@
     - [ ] Thumbnail preview
     - [ ] Upscale model support
     - [ ] Native playback
-- [x] create API for plugins to put alert and prompt dialogs
+- [x] Create API for plugins to put alert and prompt dialogs
 - [x] Put applyTheme in preload and use contextBridge for cleaner implementation
 - [x] Add the ability for themes to set required plugins that the user must install first
 - [x] Give users the choice of what Hardware Acceleration Engine they want Stremio Enhanced to use
 - [x] Create API for plugins to use winston logger
 - [x] Add option to always open streams in either VLC or MPV
 - [x] Check for server.js updates (if the user is using server.js directly) by checking the latest version of server.js available [in Cargo.toml](https://github.com/Stremio/stremio-service/blob/master/Cargo.toml)
+- [ ] Memorize current volume for future streams
