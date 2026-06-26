@@ -1,4 +1,4 @@
-import { contextBridge, ipcRenderer } from "electron";
+import { contextBridge, ipcRenderer, webFrame } from "electron";
 import Updater from "../core/Updater";
 import DiscordPresence from "../core/DiscordPresence";
 import { discordTracker } from "./ui/discordTracker";
@@ -29,6 +29,44 @@ export const stremioEnhancedAPI = {
     ...gpuRendererAPI,
     ...externalPlayerAPI,
 };
+
+
+// Patch the history methods to trigger a hashchange event when they are called
+webFrame.executeJavaScript(`
+    ['pushState', 'replaceState'].forEach(method => {
+        const original = history[method];
+        history[method] = function (...args) {
+            const result = original.apply(this, args);
+            window.dispatchEvent(new Event('hashchange')); 
+            return result;
+        };
+    });
+`);
+
+// For some reason with the new Stremio Web version they made it so window.core functions aren't available when the user watches a stream. This caches the functions permanently so we can still use them in our injected code.
+const PermanentCore = {
+    getState: null as Function | null,
+    dispatch: null as Function | null,
+};
+
+let originalServices: any = undefined;
+Object.defineProperty(window, 'services', {
+    get() {
+        return originalServices;
+    },
+    set(val) {
+        originalServices = val;
+        if (val && val.core) {
+            if (val.core.getState && !PermanentCore.getState) {
+                PermanentCore.getState = val.core.getState.bind(val.core);
+            }
+            if (val.core.dispatch && !PermanentCore.dispatch) {
+                PermanentCore.dispatch = val.core.dispatch.bind(val.core);
+            }
+        }
+    },
+    configurable: true
+});
 
 contextBridge.exposeInMainWorld('StremioEnhancedAPI', stremioEnhancedAPI);
 

@@ -169,29 +169,68 @@ class Helpers {
     public static _eval(js: string): Promise<unknown> {
         return new Promise((resolve, reject) => {
             try {
-                const eventName = 'stremio-enhanced';
+                const uniqueId = `stremio-enhanced-${Math.random().toString(36).slice(2, 11)}`;
                 const script = document.createElement('script');
                 
                 const handler = (data: Event) => {
                     script.remove();
+                    window.removeEventListener(uniqueId, handler); 
                     resolve((data as CustomEvent).detail);
                 };
 
-                window.addEventListener(eventName, handler, { once: true });
+                window.addEventListener(uniqueId, handler);
                 
-                script.id = eventName;
                 script.appendChild(
                     document.createTextNode(`
-                        var core = window.core || window.services?.core;
-                        var result = ${js};
-                
-                        if (result instanceof Promise) {
-                            result.then((awaitedResult) => {
-                                window.dispatchEvent(new CustomEvent("${eventName}", { detail: awaitedResult }));
-                            });
-                        } else {
-                            window.dispatchEvent(new CustomEvent("${eventName}", { detail: result }));
-                        }
+                        (() => {
+                            if (!window.__permanentCore) {
+                                window.__permanentCore = { getState: null, dispatch: null };
+                            }
+                            
+                            var liveCore = window.core || window.services?.core;
+                            if (liveCore) {
+                                if (liveCore.getState && !window.__permanentCore.getState) {
+                                    window.__permanentCore.getState = liveCore.getState.bind(liveCore);
+                                }
+                                if (liveCore.dispatch && !window.__permanentCore.dispatch) {
+                                    window.__permanentCore.dispatch = liveCore.dispatch.bind(liveCore);
+                                }
+                            }
+
+                            const executeQuery = () => {
+                                var currentCore = window.core || window.services?.core;
+                                var activeGetState = currentCore?.getState || window.__permanentCore?.getState;
+                                var activeDispatch = currentCore?.dispatch || window.__permanentCore?.dispatch;
+
+                                if (!activeGetState && !activeDispatch) {
+                                    setTimeout(executeQuery, 30);
+                                    return;
+                                }
+
+                                try {
+                                    const core = {
+                                        getState: activeGetState,
+                                        dispatch: activeDispatch
+                                    };
+
+                                    var result = eval(\`${js.replace(/`/g, '\\`').replace(/\$/g, '\\$')}\`);
+                                
+                                    if (result instanceof Promise) {
+                                        result.then((awaitedResult) => {
+                                            window.dispatchEvent(new CustomEvent("${uniqueId}", { detail: awaitedResult }));
+                                        }).catch((err) => {
+                                            window.dispatchEvent(new CustomEvent("${uniqueId}", { detail: { error: err.message } }));
+                                        });
+                                    } else {
+                                        window.dispatchEvent(new CustomEvent("${uniqueId}", { detail: result }));
+                                    }
+                                } catch (evalError) {
+                                    window.dispatchEvent(new CustomEvent("${uniqueId}", { detail: { error: evalError.message } }));
+                                }
+                            };
+
+                            executeQuery();
+                        })();
                     `),
                 );
                     

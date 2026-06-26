@@ -23,7 +23,7 @@ export function initializeUserSettings(): void {
 
 export function reloadServer(): void {
     setTimeout(() => {
-        Helpers._eval(`core.transport.dispatch({ action: 'StreamingServer', args: { action: 'Reload' } });`);
+        Helpers._eval(`core.dispatch({ action: 'StreamingServer', args: { action: 'Reload' } });`);
         logger.info("Stremio streaming server reloaded.");
     }, TIMEOUTS.SERVER_RELOAD_DELAY);
 }

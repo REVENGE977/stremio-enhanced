@@ -38,6 +38,7 @@ app.commandLine.appendSwitch('disable-background-timer-throttling');
 app.commandLine.appendSwitch('disable-renderer-backgrounding');
 app.commandLine.appendSwitch('enable-quic');
 app.commandLine.appendSwitch('enable-async-dns');
+app.commandLine.appendSwitch('disable-rtc-smoothness-algorithm');
 
 gpuController.setup(userDataPath);
 
