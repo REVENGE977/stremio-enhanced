@@ -14,7 +14,8 @@ class Helpers {
             type: alertType,
             title,
             message,
-            buttons
+            buttons,
+            cancelId: buttons.length > 1 ? 1 : 0
         };
         
         try {
