@@ -65,6 +65,8 @@ export const applyThemeAPI = {
                 }
 
                 currentThemeElement.innerText = "Apply";
+                currentThemeElement.style.color = "white";
+                currentThemeElement.style.fontWeight = "bold";
             }
         }
 
@@ -83,6 +85,8 @@ export const applyThemeAPI = {
             }
 
             newThemeElement.innerText = "Applied";
+            newThemeElement.style.color = "white";
+            newThemeElement.style.fontWeight = "bold";
         }
 
         logger.info(`${theme} applied!`);
