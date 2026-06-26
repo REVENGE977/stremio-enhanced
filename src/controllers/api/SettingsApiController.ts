@@ -80,7 +80,7 @@ export function setupPluginSettingsAPI() {
         }
         
         if(registeredPluginSchemas[pluginFileName]) {
-            return Promise.reject("This plugin already has a settings schema registered!");
+            return Promise.reject(`Plugin ${pluginFileName} already has a settings schema registered!`);
         }
 
         registeredPluginSchemas[pluginFileName] = pluginSchema;

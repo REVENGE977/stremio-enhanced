@@ -74,9 +74,7 @@ export function checkSettings() {
 
     Helpers.waitForElm(SELECTORS.THEMES_CATEGORY).then(() => {
         const isCurrentThemeDefault = localStorage.getItem(STORAGE_KEYS.CURRENT_THEME) === "Default";
-        const defaultThemeContainer = document.createElement("div");
-        defaultThemeContainer.innerHTML = getDefaultThemeTemplate(isCurrentThemeDefault);
-        document.querySelector(SELECTORS.THEMES_CATEGORY)?.appendChild(defaultThemeContainer);
+        document.querySelector(SELECTORS.THEMES_CATEGORY)?.insertAdjacentHTML("afterbegin", getDefaultThemeTemplate(isCurrentThemeDefault));
         
         themesList.forEach(theme => {
             const metaData = ExtractMetaData.extractMetadataFromFile(join(properties.themesPath, theme));
