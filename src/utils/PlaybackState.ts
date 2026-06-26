@@ -11,7 +11,7 @@ class PlaybackState {
     public static async getMetaDetails(): Promise<MetaDetails | null> {
         for (let attempt = 0; attempt < TIMEOUTS.CORESTATE_MAX_RETRIES; attempt++) {
             try {
-                const metaDetailsState = await Helpers._eval('core.transport.getState("meta_details")') as {
+                const metaDetailsState = await Helpers._eval('core.getState("meta_details")') as {
                     metaItem?: { content?: { content?: MetaDetails } }
                 };
                 
@@ -32,7 +32,7 @@ class PlaybackState {
     public static async getPlayerState(): Promise<PlayerState | null> {
         for (let attempt = 0; attempt < TIMEOUTS.CORESTATE_MAX_RETRIES; attempt++) {
             try {
-                const playerState = await Helpers._eval('core.transport.getState("player")') as {
+                const playerState = await Helpers._eval('core.getState("player")') as {
                     seriesInfo?: SeriesInfo;
                     metaItem?: { content?: MetaDetails }
                     stream?: { content: { url: string } }

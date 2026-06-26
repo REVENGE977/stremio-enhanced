@@ -9,27 +9,34 @@ class DiscordPresence {
     private static rpc: DiscordClient | null = null;
     private static enabled = false;
 
+    private static ready = false;
+
     public static start(): void {
         if (this.enabled) return;
         this.enabled = true;
+        this.ready = false; 
         this.connect();
     }
 
     private static connect(): void {
         if (!this.enabled) return;
-        
-        try {            
+
+        try {
             this.rpc = new DiscordClient({ clientId: DISCORD.CLIENT_ID });
 
             this.rpc.on('ready', () => {
+                this.ready = true;
                 this.logger.info('Connected to DiscordRPC.');
+
+                window.dispatchEvent(new HashChangeEvent('hashchange'));
             });
 
             this.rpc.on('disconnected', () => {
+                this.ready = false;
                 this.logger.warn(`DiscordRPC Disconnected! Attempting to reconnect...`);
                 this.handleReconnect();
             });
-            
+
             this.rpc.login().catch(() => {
                 this.logger.error("Failed to connect to DiscordRPC.");
                 this.handleReconnect();
@@ -41,7 +48,7 @@ class DiscordPresence {
     }
 
     private static handleReconnect(): void {
-        if (!this.enabled) return; 
+        if (!this.enabled) return;
         setTimeout(() => {
             this.connect();
         }, DISCORD.RECONNECT_INTERVAL);
@@ -50,6 +57,7 @@ class DiscordPresence {
     public static stop(): void {
         if (!this.enabled) return;
         this.enabled = false;
+        this.ready = false;
 
         if (this.rpc) {
             this.logger.info('Clearing DiscordRPC.');
@@ -59,10 +67,16 @@ class DiscordPresence {
         }
     }
 
-    public static setPlaying(details: string, state: string, startTimestamp: number, endTimestamp: number, imageKey: string | undefined): void {
-        this._updateActivity({ 
-            details, 
-            state, 
+    public static setPlaying(
+        details: string,
+        state: string,
+        startTimestamp: number,
+        endTimestamp: number | undefined,
+        imageKey: string | undefined
+    ): void {
+        this._updateActivity({
+            details,
+            state,
             startTimestamp,
             endTimestamp,
             largeImageKey: imageKey || DISCORD.DEFAULT_IMAGE,
@@ -88,7 +102,7 @@ class DiscordPresence {
     }
 
     public static setExploring(details: string, imageKey: string | undefined): void {
-        this._updateActivity({ 
+        this._updateActivity({
             details,
             state: 'Exploring',
             largeImageKey: imageKey || DISCORD.DEFAULT_IMAGE,
@@ -114,10 +128,12 @@ class DiscordPresence {
 
     private static _updateActivity(newActivity: SetActivity): void {
         if (!this.rpc || !this.enabled) return;
+        if (!this.ready) return;
+
         this.rpc.user?.setActivity(newActivity).catch((error) => {
             this.logger.error(`Failed to set Discord activity: ${(error as Error).message}`);
-        });                
+        });
     }
 }
-    
+
 export default DiscordPresence;

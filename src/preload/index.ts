@@ -1,10 +1,10 @@
-import { contextBridge } from "electron";
+import { contextBridge, ipcRenderer } from "electron";
 import Updater from "../core/Updater";
 import DiscordPresence from "../core/DiscordPresence";
 import { discordTracker } from "./ui/discordTracker";
 import EmbeddedSubtitles from "../utils/EmbeddedSubtitles";
 import AudioTracks from "../utils/AudioTracks";
-import { STORAGE_KEYS } from "../constants";
+import { STORAGE_KEYS, IPC_CHANNELS } from "../constants";
 
 // plugin API bridges
 import { alertAPI } from './api/alert';
@@ -32,6 +32,12 @@ export const stremioEnhancedAPI = {
 
 contextBridge.exposeInMainWorld('StremioEnhancedAPI', stremioEnhancedAPI);
 
+function parseRuntime(runtime: string | undefined): number | undefined {
+    if (!runtime) return undefined;
+    const match = runtime.match(/(\d+)/);
+    return match ? parseInt(match[1]) * 60 : undefined;
+}
+
 window.addEventListener("load", () => {
     Helpers.patchReactDom();
     initializeUserSettings();
@@ -41,7 +47,7 @@ window.addEventListener("load", () => {
 
     let isTransparencyEnabled = false;
 
-    if(location.href.includes("#/settings")) 
+    if (location.href.includes("#/settings"))
         checkSettings();
 
     window.addEventListener("hashchange", () => {
@@ -51,7 +57,7 @@ window.addEventListener("load", () => {
         EmbeddedSubtitles.checkWatching();
         AudioTracks.checkWatching();
     });
-    
+
     // Auto update check
     if (localStorage.getItem(STORAGE_KEYS.CHECK_UPDATES_ON_STARTUP) === "true") {
         Updater.checkForUpdates(false).catch(console.error);
@@ -61,12 +67,49 @@ window.addEventListener("load", () => {
     if (localStorage.getItem(STORAGE_KEYS.DISCORD_RPC) === "true") {
         DiscordPresence.start();
         discordTracker.init();
+
+        ipcRenderer.on(IPC_CHANNELS.EXTERNAL_PLAYER_POSITION, (_, { position, state }: { position: number, state: string}) => {
+            if (localStorage.getItem(STORAGE_KEYS.DISCORD_RPC) !== "true") return;
+            if (!discordTracker.lastPlayerState) return;
+            
+            const { metaDetails, seriesInfoDetails } = discordTracker.lastPlayerState;
+            
+            const now = Math.floor(Date.now() / 1000);
+            const startTimestamp = now - Math.floor(position);
+            const duration = parseRuntime(metaDetails.runtime);
+            const endTimestamp = duration ? startTimestamp + duration : undefined;
+
+            if (metaDetails.type === "series" && seriesInfoDetails) {
+                const isKitsu = metaDetails.id.startsWith("kitsu:");
+                const stateStr = `Watching ${!isKitsu ? `S${seriesInfoDetails.season} E${seriesInfoDetails.episode}` : `E${seriesInfoDetails.episode}`}`;
+                
+                if (state === "playing") {
+                    DiscordPresence.setPlaying(metaDetails.name, stateStr, startTimestamp, endTimestamp, metaDetails.poster);
+                } else if (state == "paused") {
+                    DiscordPresence.setPaused(metaDetails.name, stateStr, metaDetails.poster);
+                }
+
+            } else if (metaDetails.type === "movie") {
+                
+                if (state === "playing") {
+                    DiscordPresence.setPlaying(metaDetails.name, 'Watching', startTimestamp, endTimestamp, metaDetails.poster);
+                } else if (state === "paused") {
+                    DiscordPresence.setPaused(metaDetails.name, "Watching", metaDetails.poster);
+                }
+            }
+        });
+
+        ipcRenderer.on(IPC_CHANNELS.EXTERNAL_PLAYER_CLOSED, () => {
+            discordTracker._externalPlayerActive = false;
+            discordTracker.lastPlayerState = null;
+            discordTracker.handleNavigation();
+            DiscordPresence.setMainMenu("Home");
+        });
     }
 
     // UI Hooks (Transparency)
     getTransparencyStatus().then((status) => {
         isTransparencyEnabled = status;
-        
         if (isTransparencyEnabled) {
             const observer = new MutationObserver(() => addTitleBar());
             observer.observe(document.body, { childList: true, subtree: true });
