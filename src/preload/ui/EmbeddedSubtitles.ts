@@ -1,6 +1,5 @@
-import Helpers from "./Helpers";
-import { getLogger } from "./logger";
-import PlaybackState from "./PlaybackState";
+import Helpers from "../../utils/Helpers";
+import { getLogger } from "../../utils/logger";
 
 const logger = getLogger("EmbeddedSubtitles");
 
@@ -42,17 +41,8 @@ class EmbeddedSubtitles {
         });
     }
 
-    private static async getStreamURL(): Promise<string | undefined> {
-        const playerState = await PlaybackState.getPlayerState();
-        if (!playerState) {
-            logger.error("Failed to get player state.");
-            return undefined;
-        }
-        return playerState.stream?.content?.url;
-    }
-
     private static async initializeJITSubtitles(video: HTMLVideoElement) {
-        const streamURL = await this.getStreamURL();
+        const streamURL = await Helpers.getStreamURL();
         if (!streamURL) throw new Error("No stream URL available.");
 
         const urlObj = new URL(streamURL);

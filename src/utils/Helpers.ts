@@ -2,6 +2,7 @@ import { dialog } from "electron";
 import logger from "./logger";
 import { SELECTORS, TIMEOUTS } from "../constants";
 import { getToastTemplate } from "../components/toast/toast";
+import PlaybackState from "./PlaybackState";
 
 class Helpers {        
     public static async showAlert(
@@ -114,6 +115,15 @@ class Helpers {
                 reject(new Error('Timeout waiting for document.title to change'));
             }, timeout);
         });
+    }
+
+    public static async getStreamURL(): Promise<string | undefined> {
+        const playerState = await PlaybackState.getPlayerState();
+        if (!playerState) {
+            logger.error("Failed to get player state.");
+            return undefined;
+        }
+        return playerState.stream?.content?.url;
     }
 
     /**

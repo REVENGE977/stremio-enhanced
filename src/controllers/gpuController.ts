@@ -40,7 +40,7 @@ export const gpuController = {
             app.commandLine.appendSwitch('ignore-gpu-blocklist');
             app.commandLine.appendSwitch('enable-zero-copy');
             app.commandLine.appendSwitch('enable-gpu-rasterization');
-            app.commandLine.appendSwitch('enable-accelerated-video-decode');
+            // app.commandLine.appendSwitch('enable-accelerated-video-decode');
         }
 
         if (process.platform === 'darwin') {

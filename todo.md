@@ -31,10 +31,15 @@
 - [x] Fix embedded subs not loading some streams by having manually extracting the subs and loading them.
 - [x] Clean up preload.ts
 - [ ] Features from Zaarrg/stremio-community-v5
-  - [ ] MPV support
-    - [ ] Thumbnail preview
-    - [ ] Upscale model support
-    - [ ] Native playback
+  - [ ] MPV embedding
+    - [ ] Replace the HTML5 player with MPV
+    - [ ] Bind player controls to call functions to MPV rather than the default player:
+      - [ ] Volume control
+      - [ ] Playback speed
+      - [ ] Audio track switching
+      - [ ] Embedded subtitles switching
+  - [ ] Thumbnail preview
+  - [ ] Upscale model support
 - [x] Create API for plugins to put alert and prompt dialogs
 - [x] Put applyTheme in preload and use contextBridge for cleaner implementation
 - [x] Add the ability for themes to set required plugins that the user must install first

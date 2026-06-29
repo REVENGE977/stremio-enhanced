@@ -90,7 +90,6 @@ export const IPC_CHANNELS = {
     FULLSCREEN_CHANGED: 'fullscreen-changed',
     GET_GPU_RENDERER: 'get-gpu-renderer',
     SET_GPU_RENDERER: 'set-gpu-renderer',
-    SHOW_ALERT: 'show-alert',
     LAUNCH_EXTERNAL_PLAYER: 'launch-external-player',
     GET_EXTERNAL_PLAYER_PATHS: 'get-external-player-paths',
 } as const;
@@ -156,8 +155,8 @@ export const TIMEOUTS = {
     CORESTATE_MAX_RETRIES: 30,
 } as const;
 
-
-export const ENHANCED_PLUGINS_API = {
+// Enhanced Plugins API
+export const ENHANCED_API = {
     GET_SETTING: 'get-plugin-setting',
     GET_SETTINGS: 'get-plugin-settings',
     SAVE_SETTING: 'save-plugin-setting',
@@ -166,5 +165,10 @@ export const ENHANCED_PLUGINS_API = {
     CLEAR_REGISTERED_SETTINGS: 'clear-registered-schema',
     ON_SETTINGS_SAVED: "on-plugin-settings-saved",
     SHOW_ALERT: 'show-alert',
-    SHOW_PROMPT: 'show-prompt'
+    SHOW_PROMPT: 'show-prompt',
+    MPV_ATTACH: 'mpv-attach',
+    MPV_RESIZE: 'mpv-resize',
+    MPV_COMMAND: 'mpv-command',
+    MPV_SET_PROPERTY: 'mpv-set-property',
+    MPV_GET_PROPERTY: 'mpv-get-property',
 } as const;

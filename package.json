@@ -33,10 +33,14 @@
 	"dependencies": {
 		"@xhayper/discord-rpc": "^1.2.1",
 		"discord-api-types": "^0.37.119",
+		"electron-libmpv": "github:REVENGE977/electron-libmpv",
 		"marked": "^15.0.7",
 		"p-limit": "^7.2.0",
 		"unzipper": "^0.12.3",
 		"winston": "^3.11.0"
+	},
+	"overrides": {
+		"node-gyp": "^12.1.0"
 	},
 	"optionalDependencies": {
 		"dmg-license": "^1.0.11"

@@ -2,8 +2,8 @@ import { contextBridge, ipcRenderer, webFrame } from "electron";
 import Updater from "../core/Updater";
 import DiscordPresence from "../core/DiscordPresence";
 import { discordTracker } from "./ui/discordTracker";
-import EmbeddedSubtitles from "../utils/EmbeddedSubtitles";
-import AudioTracks from "../utils/AudioTracks";
+import EmbeddedSubtitles from "./ui/EmbeddedSubtitles";
+import AudioTracks from "./ui/AudioTracks";
 import { STORAGE_KEYS, IPC_CHANNELS } from "../constants";
 
 // plugin API bridges
@@ -18,8 +18,10 @@ import { checkExternalPlayer } from "./ui/externalPlayerInterceptor";
 import { applyThemeAPI } from "./api/applyTheme";
 import { gpuRendererAPI } from "./api/gpuRenderer";
 import { externalPlayerAPI } from "./api/externalPlayer";
+import { mpvPlayerAPI } from "./api/mpvPlayer";
 import { pluginLogger } from "./api/pluginLogger";
 import Helpers from "../utils/Helpers";
+import MpvPlayerInjector from "./ui/MpvPlayerInjector";
 
 export const stremioEnhancedAPI = {
     ...alertAPI,
@@ -28,6 +30,7 @@ export const stremioEnhancedAPI = {
     ...applyThemeAPI,
     ...gpuRendererAPI,
     ...externalPlayerAPI,
+    ...mpvPlayerAPI
 };
 
 
@@ -92,6 +95,7 @@ window.addEventListener("load", () => {
         if (isTransparencyEnabled) addTitleBar();
         checkSettings();
         checkExternalPlayer();
+        MpvPlayerInjector.checkWatching();
         EmbeddedSubtitles.checkWatching();
         AudioTracks.checkWatching();
     });

@@ -20,11 +20,14 @@ import { setupUpdater } from "./controllers/updaterController";
 import { setupWindowTransparency } from "./controllers/transparencyController";
 import { gpuController } from "./controllers/gpuController";
 import { externalPlayerController } from "./controllers/externalPlayerController";
+import MPV from "electron-libmpv";
+import { mpvPlayerController } from "./controllers/mpvPlayerController";
 
 app.setName("stremio-enhanced");
 const userDataPath = app.getPath('userData');
 
 export let mainWindow: BrowserWindow | null;
+export let mpvPlayer: MPV | null;
 const gotLock = app.requestSingleInstanceLock();
 const transparencyFlagPath = join(app.getPath("userData"), "transparency");
 const useStremioServiceFlagPath = join(app.getPath("userData"), "use_stremio_service_for_streaming");
@@ -38,7 +41,6 @@ app.commandLine.appendSwitch('disable-background-timer-throttling');
 app.commandLine.appendSwitch('disable-renderer-backgrounding');
 app.commandLine.appendSwitch('enable-quic');
 app.commandLine.appendSwitch('enable-async-dns');
-app.commandLine.appendSwitch('disable-rtc-smoothness-algorithm');
 
 gpuController.setup(userDataPath);
 
@@ -90,6 +92,14 @@ async function createWindow() {
     
     mainWindow.setMenu(null);
     mainWindow.loadURL(URLS.STREMIO_WEB);
+
+    mpvPlayer = new MPV({
+		onEvent: () => {
+			if (!mainWindow?.isDestroyed()) {
+				mainWindow?.webContents.send("mpv-event");
+			}
+		}
+	});
         
     if (transparencyEnabled) {
         mainWindow.on('enter-full-screen', () => {
@@ -194,6 +204,7 @@ app.on("ready", async () => {
     setupUpdater();
     setupWindowTransparency(transparencyFlagPath);
     gpuController.initIPC(userDataPath);
+    mpvPlayerController.initIPC();
     externalPlayerController.initIPC();
 
     // macOS: protocol URLs are sent via 'open-url'
