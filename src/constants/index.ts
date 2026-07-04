@@ -30,7 +30,29 @@ export const SELECTORS = {
     SEARCH_INPUT: '.search-input-bAgAh',
     HORIZONTAL_NAV: '.horizontal-nav-bar-container-Y_zvK',
     TOAST_ITEM: '.toast-item-container-nG0uk',
-    TOAST_CONTAINER: '.toasts-container-oKECy'
+    TOAST_CONTAINER: '.toasts-container-oKECy',
+    MPV_PLAYER_OVERLAY: {
+        TOP_NAV: '.player-nav-McZjs',
+        BOTTOM_BAR: '.control-bar-layer-m2jto',
+        SIDE_DRAWER_BUTTON: '.side-drawer-button-layer-RrB8k',
+        BACK_BUTTON: '#backButton',
+        PLAY_PAUSE_BUTTON: '#playPauseButton',
+        NEXT_BUTTON: '#nextButton',
+        MUTE_BUTTON: '#muteButton',
+        FULLSCREEN_BUTTON: '#fullscreenButton',
+        TIME_CURRENT: '#timeCurrent',
+        TIME_TOTAL: '#timeTotal',
+        SEEK_BAR_SLIDER: '#seekBarSlider',
+        SEEK_TRACK_BEFORE: '#seekTrackBefore',
+        SEEK_TRACK_AFTER: '#seekTrackAfter',
+        SEEK_THUMB: '#seekThumb',
+        VOLUME_SLIDER: '#volumeSlider',
+        VOLUME_TRACK_BEFORE: '#volumeTrackBefore',
+        VOLUME_TRACK_AFTER: '#volumeTrackAfter',
+        VOLUME_THUMB: '#volumeThumb',
+        STREAM_TITLE: '.player-title-qywea'
+    },
+    MPV_PLACEHOLDER: "#enhanced-mpv-placeholder"
 } as const;
 
 // CSS Classes used for styling
@@ -51,7 +73,13 @@ export const ICONS = {
     THEME: "M4 3h16a1 1 0 0 1 1 1v5a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1zm2 9h6a1 1 0 0 1 1 1v3h1v6h-4v-6h1v-2H5a1 1 0 0 1-1-1v-2h2v1zm11.732 1.732l1.768-1.768 1.768 1.768a2.5 2.5 0 1 1-3.536 0z",
     ABOUT: "M12 22C6.477 22 2 17.523 2 12S6.477 2 12 2s10 4.477 10 10-4.477 10-10 10zm-1-11v6h2v-6h-2zm0-4v2h2V7h-2z",
     MAXIMIZE: "M3,3H21V21H3V3M5,5V19H19V5H5Z",
-    RESTORE: "M4,8H8V4H20V16H16V20H4V8M16,8V14H18V6H10V8H16M6,12V18H14V12H6Z"
+    RESTORE: "M4,8H8V4H20V16H16V20H4V8M16,8V14H18V6H10V8H16M6,12V18H14V12H6Z",
+    PLAYER_OVERLAY_PAUSE: "M182.593 93h-18.4v330.5h18.4zM347.791 93h-18.4v330.5h18.4z",
+    PLAYER_OVERLAY_PLAY: "M396.097 246.1 164.194 85.5a13.5 13.5 0 0 0-4.787-2.08c-1.717-.37-3.492-.4-5.219-.07-1.728.3-3.377.97-4.852 1.91a13.4 13.4 0 0 0-3.743 3.64 13.7 13.7 0 0 0-2.4 7.61v321.4a13.3 13.3 0 0 0 1.029 5.1 13.2 13.2 0 0 0 2.909 4.32 13.4 13.4 0 0 0 4.347 2.89c1.624.65 3.363 1 5.116.98 2.723.03 5.382-.82 7.6-2.39l231.903-160.6c1.448-1 2.684-2.28 3.64-3.75a13.4 13.4 0 0 0 1.925-4.85c.316-1.72.287-3.51-.084-5.22a13.2 13.2 0 0 0-2.08-4.78 13.8 13.8 0 0 0-3.401-3.41z",
+    PLAYER_OVERLAY_FULLSCREEN: "M406.5 311.9v95.8h-95.8M105.5 202.5v-95.8h95.8M310.7 106.7h95.8v95.8M201.3 407.7h-95.8v-95.8",
+    PLAYER_OVERLAY_EXIT_FULLSCREEN: "M310.7 407.7v-95.8h95.8M201.3 106.7v95.8h-95.8M406.5 202.5h-95.8v-95.8M105.5 311.99h95.8v95.8",
+    PLAYER_OVERLAY_MUTE: "M121.89 188.9h-72.6c-1.09 0-2.16.21-3.18.63a8.24 8.24 0 0 0-4.49 4.49c-.41 1.01-.62 2.1-.62 3.18V314c0 1.09.21 2.18.62 3.19a8.1 8.1 0 0 0 1.8 2.69c.78.78 1.68 1.39 2.69 1.8a8.3 8.3 0 0 0 3.18.62h72.6c3.88-.01 7.64 1.32 10.61 3.81l95.39 78.09a8.44 8.44 0 0 0 6.22 1.51c2.19-.35 4.17-1.53 5.48-3.31a7.95 7.95 0 0 0 1.61-4.99v-283.9c0-1.1-.21-2.18-.63-3.19a8.6 8.6 0 0 0-1.8-2.68 8.2 8.2 0 0 0-2.7-1.81c-1-.42-2.09-.62-3.18-.62-1.76 0-3.46.57-4.9 1.6L132.6 184.9a16.57 16.57 0 0 1-10.71 4M324.49 322.3a148.9 148.9 0 0 0 16.71-66.7c-.08-23.25-5.81-46.14-16.71-66.7M374.6 372.4A213.56 213.56 0 0 0 408 255.6c.71-41.39-10.93-82.05-33.4-116.79M421.69 415.6c69.41-88.2 61.41-242.3-1.29-321.3",
+    PLAYER_OVERLAY_UNMUTE: "M423.8 441.5 54.7 72.3",
 } as const;
 
 // LocalStorage keys
@@ -166,9 +194,18 @@ export const ENHANCED_API = {
     ON_SETTINGS_SAVED: "on-plugin-settings-saved",
     SHOW_ALERT: 'show-alert',
     SHOW_PROMPT: 'show-prompt',
-    MPV_ATTACH: 'mpv-attach',
-    MPV_RESIZE: 'mpv-resize',
-    MPV_COMMAND: 'mpv-command',
-    MPV_SET_PROPERTY: 'mpv-set-property',
-    MPV_GET_PROPERTY: 'mpv-get-property',
+    // mpv stuff
+    MPV: {
+        ATTACH: 'mpv-attach',
+        RESIZE: 'mpv-resize',
+        COMMAND: 'mpv-command',
+        SET_PROPERTY: 'mpv-set-property',
+        GET_PROPERTY: 'mpv-get-property',
+        DESTROY_OVERLAY: 'mpv-destroy-overlay',
+        OVERLAY_SET_IGNORE_MOUSE: 'overlay-set-ignore-mouse',
+        OVERLAY_SET_STREAM_TITLE: 'overlay-set-stream-title',
+        MAIN_WINDOW_MOUSE_MOVE: 'main-window-mouse-move',
+        TRIGGER_MAIN_BACK_NAVIGATION: 'trigger-main-back-navigation',
+        TRIGGER_MAIN_FULLSCREEN: 'trigger-main-fullscreen',
+    }
 } as const;
