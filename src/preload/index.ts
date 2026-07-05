@@ -4,6 +4,7 @@ import DiscordPresence from "../core/DiscordPresence";
 import { discordTracker } from "./ui/discordTracker";
 import EmbeddedSubtitles from "../utils/EmbeddedSubtitles";
 import AudioTracks from "../utils/AudioTracks";
+import VolumePersistency from "../utils/VolumePersistency";
 import { STORAGE_KEYS, IPC_CHANNELS } from "../constants";
 
 // plugin API bridges
@@ -94,6 +95,7 @@ window.addEventListener("load", () => {
         checkExternalPlayer();
         EmbeddedSubtitles.checkWatching();
         AudioTracks.checkWatching();
+        VolumePersistency.checkWatching();
     });
 
     // Auto update check
