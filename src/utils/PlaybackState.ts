@@ -35,14 +35,16 @@ class PlaybackState {
                 const playerState = await Helpers._eval('core.getState("player")') as {
                     seriesInfo?: SeriesInfo;
                     metaItem?: { content?: MetaDetails }
-                    stream?: { content: { url: string } }
+                    stream?: { content: { url: string; subtitles?: { url: string; lang: string }[] } };
+                    subtitles?: { url: string; lang: string }[];
                 };
                 
                 if(playerState?.metaItem?.content) {
                     return {
                         seriesInfoDetails: playerState?.seriesInfo ?? null,
                         metaDetails: playerState!.metaItem!.content,
-                        stream: playerState?.stream
+                        stream: playerState?.stream,
+                        subtitles: playerState?.subtitles
                     };
                 }
 
