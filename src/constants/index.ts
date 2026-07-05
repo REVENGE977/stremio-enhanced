@@ -117,6 +117,9 @@ export const URLS = {
 // server.js (Stremio streaming server) Download URL
 export const SERVER_JS_URL = "https://dl.strem.io/server/v4.20.17/desktop/server.js";
 
+// stremio-server-go (open source MIT-licensed streaming server) GitHub Releases API URL
+export const STREMIO_SERVER_GO_RELEASES_API = "https://api.github.com/repos/M0Rf30/stremio-server-go/releases/latest";
+
 // FFmpeg Download URLs
 export const FFMPEG_URLS = {
     win32: {

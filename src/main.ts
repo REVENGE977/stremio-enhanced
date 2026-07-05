@@ -13,6 +13,7 @@ import { BrowserWindow, shell } from "electron";
 import StreamingServer from "./utils/StreamingServer";
 import Helpers from "./utils/Helpers";
 import StremioService from "./utils/StremioService";
+import StremioServerGo from "./utils/StremioServerGo";
 import { setupPluginSettingsAPI } from "./controllers/api/SettingsApiController";
 import { setupPluginAlertAPI } from "./controllers/api/AlertApiController";
 import { setupWindowControls } from "./controllers/windowController";
@@ -29,6 +30,7 @@ const gotLock = app.requestSingleInstanceLock();
 const transparencyFlagPath = join(app.getPath("userData"), "transparency");
 const useStremioServiceFlagPath = join(app.getPath("userData"), "use_stremio_service_for_streaming");
 const useServerJSFlagPath = join(app.getPath("userData"), "use_server_js_for_streaming");
+const useStremioServerGoFlagPath = join(app.getPath("userData"), "use_stremio_server_go_for_streaming");
 const transparencyEnabled = existsSync(transparencyFlagPath);
 
 app.commandLine.appendSwitch('disable-features', 'BlockInsecurePrivateNetworkRequests,PrivateNetworkAccessSendPreflights');
@@ -168,18 +170,24 @@ app.on("ready", async () => {
         if(!await StremioService.isProcessRunning()) {
             let platform = process.platform;
             
-            // If the user is on Windows, give the option to either use Stremio Service or server.js
+            // If the user is on Windows, give the option to use Stremio Service, server.js, or stremio-server-go
             if(platform === "win32") {
                 if(existsSync(useStremioServiceFlagPath)) {
                     await useStremioService();
                 } else if(existsSync(useServerJSFlagPath)) {
                     await useServerJS();
+                } else if(existsSync(useStremioServerGoFlagPath)) {
+                    await useStremioServerGo();
                 } else {
                     await chooseStreamingServer();
                 }
-                // For macOS and Linux, just give the instruction to use server.js
+                // For macOS and Linux, default to stremio-server-go (open source, auto-download)
             } else if (platform === "darwin" || platform === "linux") {
-                useServerJS();
+                if(existsSync(useServerJSFlagPath)) {
+                    await useServerJS();
+                } else {
+                    await useStremioServerGo();
+                }
             }
         } else {
             logger.info("Stremio Service is already running.");
@@ -215,28 +223,64 @@ app.on("ready", async () => {
     });
 });
 
-// Handle the choice of streaming server on Windows. This is only used for Windows. macOS and Linux will always use server.js to avoid problems.
+// Handle the choice of streaming server on Windows.
 async function chooseStreamingServer() {
     const result = await Helpers.showAlert(
         "info",
         "Stremio Streaming Server",
-        "Stremio Enhanced requires a Stremio Streaming Server for playback to function properly. You can either use the Stremio Service or set up a local streaming server manually.\nThis is a one-time setup. The option you choose will be saved for future app launches.\n\n" +
-        "Would you like to use the Stremio Service for streaming?\n\n" +
-        "Click 'No' to attempt using server.js directly",
-        ["Yes, use Stremio Service (recommended on Windows)", "No, use server.js directly (manual setup required)"]
+        "Stremio Enhanced requires a streaming server for playback. This is a one-time setup.\n\n" +
+        "• Stremio Service — Official closed-source server (separate install)\n" +
+        "• server.js — Official closed-source server (manual download required)\n" +
+        "• stremio-server-go — Community open-source server, MIT licensed (automatic setup)",
+        [
+            "Use stremio-server-go (open source, automatic setup)",
+            "Use Stremio Service",
+            "Use server.js (manual setup)"
+        ]
     );
     
     if(result === 0) {
+        logger.info("User chose to use stremio-server-go for streaming. User's choice will be saved for future launches.");
+        await useStremioServerGo();
+        writeFileSync(useStremioServerGoFlagPath, "1");
+    } else if(result === 1) {
         logger.info("User chose to use Stremio Service for streaming. User's choice will be saved for future launches.");
         await useStremioService();
         writeFileSync(useStremioServiceFlagPath, "1");
-    } else if(result === 1) {
+    } else if(result === 2) {
         logger.info("User chose to use server.js for streaming. User's choice will be saved for future launches.");
-        useServerJS();
+        await useServerJS();
         writeFileSync(useServerJSFlagPath, "1");
     } else {
         logger.info("User closed the streaming server choice dialog. Closing app...");
         app.quit();
+    }
+}
+
+// Use stremio-server-go for streaming (open source, auto-download)
+async function useStremioServerGo() {
+    try {
+        // Check for updates first
+        await StremioServerGo.checkForUpdate();
+
+        // Ensure binary is downloaded
+        const ready = await StremioServerGo.ensureBinary();
+        if (ready) {
+            logger.info("Starting stremio-server-go...");
+            StremioServerGo.start();
+        } else {
+            logger.error("Failed to set up stremio-server-go. Falling back to Stremio Service...");
+            await Helpers.showAlert(
+                "warning",
+                "stremio-server-go Setup Failed",
+                "Failed to download or set up stremio-server-go. Falling back to Stremio Service for this session.",
+                ["OK"]
+            );
+            await useStremioService();
+        }
+    } catch (error) {
+        logger.error("Error using stremio-server-go: " + error);
+        await useStremioService();
     }
 }
 
