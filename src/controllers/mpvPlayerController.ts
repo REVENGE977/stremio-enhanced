@@ -76,7 +76,7 @@ export const mpvPlayerController = {
                     transparent: true,
                     frame: false,
                     parent: mainWindow, 
-                    focusable: true,
+                    focusable: false,
                     hasShadow: false,
                     backgroundColor: '#00000000', 
                     webPreferences: {
@@ -97,6 +97,10 @@ export const mpvPlayerController = {
                     
                     triggerOverlayWakefulness();
                     uiOverlay.webContents.send(ENHANCED_API.MPV.OVERLAY_SET_STREAM_TITLE, await getStreamTitle());
+
+                    if(process.argv.includes("--devtools")) { 
+                        uiOverlay.webContents.openDevTools({ mode: "detach" }); 
+                    }
                 });
 
                 mainWindow.on('resize', syncOverlayBounds);
