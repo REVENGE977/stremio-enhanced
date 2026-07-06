@@ -50,7 +50,21 @@ export const SELECTORS = {
         VOLUME_TRACK_BEFORE: '#volumeTrackBefore',
         VOLUME_TRACK_AFTER: '#volumeTrackAfter',
         VOLUME_THUMB: '#volumeThumb',
-        STREAM_TITLE: '.player-title-qywea'
+        STREAM_TITLE: '.player-title-qywea',
+        PLAYBACK_SPEED_BUTTON: '#playbackSpeedButton',
+        PLAYBACK_SPEED_MENU: '.speed-menu-container-ABjzc',
+        PLAYBACK_SPEED_OPTION: '.option-GcPlB',
+        PLAYBACK_SPEED_LABEL: '.label-FEOiu',
+        SUBTITLES_MENU: '.subtitles-menu-container-PxBRZ',
+        SUBTITLES_MENU_BUTTON: '.control-bar-buttons-menu-container-M6L0_ > .control-bar-button-FQUsj:nth-child(4)',
+        SUBTITLES_LANGUAGES_LIST: ".languages-list-sxIwI",
+        SUBTITLES_VARIENTS_LIST: ".variants-list-yZo6B",
+        SUBTITLES_VARIANT: ".variant-option-RT1Op",
+        SUBTITLES_LANGUAGE: ".language-option-O1Yr9",
+        AUDIO_MENU_BUTTON: "#audioMenuButton",
+        AUDIO_MENU: ".audio-menu-qB4SQ",
+        AUDIO_TRACKS_LIST: ".list-lt_h8",
+        AUDIO_TRACK: ".option-COcvW"
     },
     MPV_PLACEHOLDER: "#enhanced-mpv-placeholder"
 } as const;
@@ -194,6 +208,7 @@ export const ENHANCED_API = {
     ON_SETTINGS_SAVED: "on-plugin-settings-saved",
     SHOW_ALERT: 'show-alert',
     SHOW_PROMPT: 'show-prompt',
+    EXECUTE_STREMIO_ROUTER_NAV: 'execute-stremio-router-nav',
     // mpv stuff
     MPV: {
         ATTACH: 'mpv-attach',
@@ -204,8 +219,14 @@ export const ENHANCED_API = {
         DESTROY_OVERLAY: 'mpv-destroy-overlay',
         OVERLAY_SET_IGNORE_MOUSE: 'overlay-set-ignore-mouse',
         OVERLAY_SET_STREAM_TITLE: 'overlay-set-stream-title',
+        OVERLAY_TRIGGER_NEXTVIDEO: 'overlay-trigger-nextvideo',
+        OVERLAY_SET_NEXTVIDEO: 'overlay-set-nextvideo',
         MAIN_WINDOW_MOUSE_MOVE: 'main-window-mouse-move',
         TRIGGER_MAIN_BACK_NAVIGATION: 'trigger-main-back-navigation',
         TRIGGER_MAIN_FULLSCREEN: 'trigger-main-fullscreen',
+        ADD_SUBTITLE_ENTRY: 'mpv-add-subtitle-entry',
+        LOAD_EXTERNAL_SUBTITLE: 'mpv-load-external-subtitle',
+        AVAILABLE_ADDON_SUBTITLES: 'available-addon-subtitles',
+        TRACKS_CHANGED: "mpv-tracks-changed"
     }
 } as const;

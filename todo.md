@@ -32,15 +32,22 @@
 - [x] Clean up preload.ts
 - [ ] Features from Zaarrg/stremio-community-v5
   - [ ] MPV embedding
-    - [x] Replace the HTML5 player with MPV
-    - [ ] Bind player controls to call functions to MPV rather than the default player:
+    - [x] Replace the HTML5 player with mpv
+    - [ ] Bind the new player overlay controls to call functions to mpv:
       - [x] Play/Pause 
       - [x] Back button
       - [x] Fullscreen
       - [x] Volume control
-      - [ ] Playback speed
-      - [ ] Audio track switching
-      - [ ] Embedded subtitles switching
+      - [x] Playback speed
+      - [x] Next video
+      - [x] Audio track switching
+      - [x] Subtitles switching
+        - [x] Addon subtitles
+        - [x] Embedded subtitles
+        - [ ] Auto choose default subtitle based on language preference set in the settings
+      - [ ] Open in external player
+      - [ ] Fit button
+      - [ ] Side drawer
     - [ ] Pass current theme CSS to the overlay window
   - [ ] Thumbnail preview
   - [ ] Upscale model support

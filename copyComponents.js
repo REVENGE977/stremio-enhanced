@@ -38,4 +38,8 @@ if (fs.existsSync(versionFileSrc)) {
 const srcDir = 'src/components';
 const destDir = 'dist/components';
 
+const playerOverlaySrc = 'src/renderers/player-overlay/components'
+const playerOverlayDest = 'dist/renderers/player-overlay/components';
+
 copyFiles(srcDir, destDir);
+copyFiles(playerOverlaySrc, playerOverlayDest)

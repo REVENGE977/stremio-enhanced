@@ -1,10 +1,14 @@
 import { ipcMain, BrowserWindow } from 'electron';
 import { mainWindow, mpvPlayer } from '../main';
 import { ENHANCED_API, SELECTORS } from '../constants';
-import { getPlayerOverlayTemplate, getPlayerOverlayPreloadTemplate } from "../components/player-overlay/playerOverlay";
+import { getPlayerOverlayTemplate, getPlayerOverlayPreloadTemplate } from "../renderers/player-overlay/components/playerOverlay";
+import { getLogger } from '../utils/logger';
 
 let uiOverlay: BrowserWindow | null = null;
 let hideTimer: NodeJS.Timeout | null = null;
+let nextVideoLink: string | null = null;
+
+const logger = getLogger("MpvPlayerController");
 
 function setOverlayVisibility(visible: boolean) {
     if (!uiOverlay || uiOverlay.isDestroyed()) return;
@@ -124,13 +128,53 @@ export const mpvPlayerController = {
         ipcMain.on(ENHANCED_API.MPV.SET_PROPERTY, (_event, name, value) => {
             mpvPlayer?.property(name, value);
         });
-        
+
+        ipcMain.on(ENHANCED_API.MPV.AVAILABLE_ADDON_SUBTITLES, (event, subtitlesList: { id: string, lang: string, url: string, addonSubtitleId?: string, origin: string }[]) => {
+            if(subtitlesList) {
+                subtitlesList.forEach(subtitle => {
+                    uiOverlay?.webContents.send(ENHANCED_API.MPV.ADD_SUBTITLE_ENTRY, subtitle.addonSubtitleId, subtitle.origin, subtitle.lang, "external");
+                });
+            }
+
+            event.returnValue = true;
+        })
+
+        ipcMain.on(ENHANCED_API.MPV.LOAD_EXTERNAL_SUBTITLE, (_event, sub_id:string) => {
+            if (!mpvPlayer) return;
+
+            try {
+                logger.info("Loading external subtitle: " + sub_id)
+                mainWindow?.webContents.send(ENHANCED_API.MPV.LOAD_EXTERNAL_SUBTITLE, sub_id);
+            } catch (err) {
+                logger.error("Failed to add external subtitle to MPV: " + err);
+            }
+        });
+                
         ipcMain.on(ENHANCED_API.MPV.GET_PROPERTY, (event, name) => {
             event.returnValue = mpvPlayer?.getRawProperty(name);
         });
 
         ipcMain.on(ENHANCED_API.MPV.MAIN_WINDOW_MOUSE_MOVE, () => {
             triggerOverlayWakefulness();
+        });
+
+        ipcMain.on(ENHANCED_API.MPV.OVERLAY_TRIGGER_NEXTVIDEO, () => {
+            if (!uiOverlay || uiOverlay.isDestroyed() || !nextVideoLink) return;
+            
+            if (mpvPlayer) mpvPlayer.command("stop");
+            
+            if (uiOverlay && !uiOverlay.isDestroyed()) uiOverlay.close();
+            uiOverlay = null;
+
+            const targetRoute = nextVideoLink;
+            nextVideoLink = null;
+
+            mainWindow?.webContents.send(ENHANCED_API.EXECUTE_STREMIO_ROUTER_NAV, targetRoute);
+        });
+
+        ipcMain.on(ENHANCED_API.MPV.OVERLAY_SET_NEXTVIDEO, (_event, link: string) => {
+            if (!uiOverlay || uiOverlay.isDestroyed()) return;
+            nextVideoLink = link;
         });
 
         ipcMain.on(ENHANCED_API.MPV.TRIGGER_MAIN_BACK_NAVIGATION, () => {

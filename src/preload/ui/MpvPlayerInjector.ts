@@ -3,8 +3,22 @@ import Helpers from "../../utils/Helpers";
 import { getLogger } from "../../utils/logger";
 import { mpvPlayerAPI } from "../api/mpvPlayer";
 import { ENHANCED_API, SELECTORS } from "../../constants";
+import PlaybackState from "../../utils/PlaybackState";
 
 const logger = getLogger("MpvPlayerInjector");
+
+ipcRenderer.on(ENHANCED_API.EXECUTE_STREMIO_ROUTER_NAV, (_event, routeLink: string) => {
+    try {
+
+        window.location.hash = "#/";
+
+        setTimeout(() => {
+            window.location.hash = routeLink.startsWith('#') ? routeLink : `#${routeLink}`;
+        }, 50);
+    } catch (err) {
+        logger.error("Failed handling client SPA single page routing navigation loop: " + err);
+    }
+});
 
 class MpvPlayerInjector {
     private static isAttached = false;
@@ -51,6 +65,18 @@ class MpvPlayerInjector {
         if (this.isAttached) return;
         this.isAttached = true; 
 
+        ipcRenderer.on(ENHANCED_API.MPV.LOAD_EXTERNAL_SUBTITLE, async (_, sub_id: string) => {
+            let getSubtitlesList = await PlaybackState.getPlayerState();
+            let list = getSubtitlesList?.subtitles;
+            let subtitleToLoad = list?.find(sub => sub.addonSubtitleId === sub_id);
+
+            if (subtitleToLoad) {
+                const { url, origin, lang } = subtitleToLoad;
+                mpvPlayerAPI.command("sub-add", url, "select", origin || "Addon Subtitle", lang || "und");
+                logger.info(`Instructed MPV to load remote subtitle: ${url}`);
+            }
+        });
+
         let videoSrc = await Helpers.getStreamURL();
 
         videoElement.pause();
@@ -88,6 +114,16 @@ class MpvPlayerInjector {
 
         mpvPlayerAPI.command("loadfile", videoSrc!);
         mpvPlayerAPI.setProperty("pause", "no");
+        mpvPlayerAPI.setProperty("sid", "no");
+        
+        setTimeout(async () => {
+            const subtitlesList = await this.getAddonSubs();
+            if (subtitlesList && subtitlesList.length > 0) {
+                ipcRenderer.send(ENHANCED_API.MPV.AVAILABLE_ADDON_SUBTITLES, subtitlesList);
+            } else logger.warn("No addon subtitles found.");
+        }, 3000);
+
+        // mpvPlayerAPI.command("sub-add", "https://subs5.strem.io/en/download/subencoding-stremio-utf8/src-api/file/1957994779", "select", "Arabic", "ar")
 
         // Copy current stylesheets to the overlay
         // const stylesToSync = Array.from(document.styleSheets)
@@ -96,7 +132,11 @@ class MpvPlayerInjector {
         //         catch (e) { return ''; }
         //     }).join('\n');
 
-        
+        const nextVideoLink = await Helpers.getNextVideo();
+        if (nextVideoLink) {
+            ipcRenderer.send(ENHANCED_API.MPV.OVERLAY_SET_NEXTVIDEO, nextVideoLink);
+        }
+
         document.body.addEventListener('mousemove', () => {
             ipcRenderer.send(ENHANCED_API.MPV.MAIN_WINDOW_MOUSE_MOVE);
         });
@@ -113,6 +153,13 @@ class MpvPlayerInjector {
         ipcRenderer.send(ENHANCED_API.MPV.DESTROY_OVERLAY);
         mpvPlayerAPI.command("stop");
         logger.info("Native MPV instance terminated safely.");
+    }
+
+    private static async getAddonSubs() {
+        let getSubtitlesList = await PlaybackState.getPlayerState();
+        let list = getSubtitlesList?.subtitles;
+
+        return list;
     }
 }
 

@@ -35,14 +35,18 @@ class PlaybackState {
                 const playerState = await Helpers._eval('core.getState("player")') as {
                     seriesInfo?: SeriesInfo;
                     metaItem?: { content?: MetaDetails }
-                    stream?: { content: { url: string } }
+                    stream?: { content: { url: string } },
+                    nextVideo?: { deepLinks: { metaDetailsStreams: string, metaDetailsVideos: string, player: string } },
+                    subtitles?: { id: string, lang: string, url: string, addonSubtitleId?: string, origin: string }[]
                 };
                 
                 if(playerState?.metaItem?.content) {
                     return {
                         seriesInfoDetails: playerState?.seriesInfo ?? null,
                         metaDetails: playerState!.metaItem!.content,
-                        stream: playerState?.stream
+                        stream: playerState?.stream,
+                        nextVideo: playerState?.nextVideo,
+                        subtitles: playerState?.subtitles   
                     };
                 }
 

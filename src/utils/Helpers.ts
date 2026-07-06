@@ -125,6 +125,16 @@ class Helpers {
         }
         return playerState.stream?.content?.url;
     }
+    
+    public static async getNextVideo() {
+        const playerState = await PlaybackState.getPlayerState();
+        if (!playerState) {
+            logger.error("Failed to get player state.");
+            return undefined;
+        }
+    
+        return playerState?.nextVideo?.deepLinks.player;
+    }
 
     /**
      * Patches React DOM methods in the PAGE context to prevent

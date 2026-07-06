@@ -100,6 +100,12 @@ window.addEventListener("load", () => {
         AudioTracks.checkWatching();
     });
 
+    window.addEventListener('popstate', () => {
+        MpvPlayerInjector.checkWatching();
+    });
+
+    MpvPlayerInjector.checkWatching();
+
     // Auto update check
     if (localStorage.getItem(STORAGE_KEYS.CHECK_UPDATES_ON_STARTUP) === "true") {
         Updater.checkForUpdates(false).catch(console.error);
