@@ -48,6 +48,7 @@
       - [ ] Open in external player
       - [ ] Fit button
       - [ ] Side drawer
+      - [ ] Statistics button
     - [ ] Pass current theme CSS to the overlay window
   - [ ] Thumbnail preview
   - [ ] Upscale model support
