@@ -14,10 +14,18 @@ function setOverlayVisibility(visible: boolean) {
     if (!uiOverlay || uiOverlay.isDestroyed()) return;
 
     if (visible) {
-        uiOverlay.show();
+        uiOverlay.setOpacity(1);
         uiOverlay.setIgnoreMouseEvents(true, { forward: true });
+
+        const showCursorCSS = "document.body.style.cursor = 'default';";
+        uiOverlay.webContents.executeJavaScript(showCursorCSS);
+        mainWindow?.webContents.executeJavaScript(showCursorCSS);
     } else {
-        uiOverlay.hide();
+        const hideCursorCSS = "document.body.style.cursor = 'none';";
+        uiOverlay.webContents.executeJavaScript(hideCursorCSS);
+        mainWindow?.webContents.executeJavaScript(hideCursorCSS);
+
+        uiOverlay.setOpacity(0);
     }
 }
 
@@ -26,7 +34,7 @@ function triggerOverlayWakefulness() {
         return;
     }
 
-    if (uiOverlay && !uiOverlay.isVisible()) {
+    if (uiOverlay && uiOverlay.getOpacity() === 0) {
         setOverlayVisibility(true);
     }
 
@@ -78,6 +86,7 @@ export const mpvPlayerController = {
                     parent: mainWindow, 
                     focusable: false,
                     hasShadow: false,
+                    opacity: 0,
                     backgroundColor: '#00000000', 
                     webPreferences: {
                         preload: getPlayerOverlayPreloadTemplate(), 
@@ -91,6 +100,8 @@ export const mpvPlayerController = {
 
                 uiOverlay.webContents.once('did-finish-load', async () => {
                     if (!mainWindow || !uiOverlay) return;
+                    uiOverlay.webContents.zoomFactor = mainWindow.webContents.zoomFactor;
+
                     const mainHandle = mainWindow.getNativeWindowHandle();
                     const overlayHandle = uiOverlay.getNativeWindowHandle();
                     mpvPlayer?.lockOverlayToParent(mainHandle, overlayHandle);
@@ -106,15 +117,43 @@ export const mpvPlayerController = {
                 mainWindow.on('resize', syncOverlayBounds);
                 mainWindow.on('move', syncOverlayBounds);
 
-                uiOverlay.webContents.on('before-input-event', (event, input) => {
-                    if (input.key === 'F11' && input.type === 'keyDown') {
-                        event.preventDefault(); 
-                        
-                        if (mainWindow && !mainWindow.isDestroyed()) {
-                            const isFullScreen = mainWindow.isFullScreen();
-                            mainWindow.setFullScreen(!isFullScreen);
+                // Since uiOverlay is not focusable, we have to implement the key event listeners from here.
+                mainWindow.webContents.on('before-input-event', (event, input) => {
+                    if (input.key === ' ' && input.type === 'keyDown') {
+                        event.preventDefault();
+
+                        if (mpvPlayer) {
+                            const isPaused = mpvPlayer.getRawProperty("pause") === "yes";
+                            mpvPlayer.property("pause", isPaused ? "no" : "yes");
+                            
+                            uiOverlay?.webContents.send(ENHANCED_API.MPV.PLAYBACK_STATE_CHANGED, isPaused ? "playing" : "paused");
+                            triggerOverlayWakefulness();
                         }
                     }
+
+                    if (input.key === 'ArrowRight' && input.type === 'keyDown') {
+                        event.preventDefault();
+                        if (mpvPlayer) {
+                            mpvPlayer.command("seek", "5", "relative");
+                            triggerOverlayWakefulness(); 
+                        }
+                    }
+
+                    if (input.key === 'ArrowLeft' && input.type === 'keyDown') {
+                        event.preventDefault();
+                        if (mpvPlayer) {
+                            mpvPlayer.command("seek", "-5", "relative");
+                            triggerOverlayWakefulness();
+                        }
+                    }
+
+                    if(input.key === "Escape" && input.type === 'keyDown') {
+                        event.preventDefault();
+
+                        if(mainWindow && !mainWindow.isDestroyed() && mainWindow.isFullScreen()) {
+                            mainWindow.setFullScreen(false);
+                        }
+                    } 
                 });
             }
 

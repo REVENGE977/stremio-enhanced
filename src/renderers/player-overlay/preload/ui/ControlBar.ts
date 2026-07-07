@@ -33,6 +33,19 @@ export class ControlBar {
             }
         });
 
+        ipcRenderer.on(ENHANCED_API.MPV.PLAYBACK_STATE_CHANGED, (_event, state) => {
+            const playPauseBtnIcon = playPauseBtn?.querySelector("svg > path") as HTMLElement | null;
+            if (!playPauseBtn) return;
+
+            if (state === "playing") {
+                playPauseBtnIcon?.setAttribute("d", ICONS.PLAYER_OVERLAY_PAUSE);
+                playPauseBtn?.setAttribute("title", "Pause");
+            } else {
+                playPauseBtnIcon?.setAttribute("d", ICONS.PLAYER_OVERLAY_PLAY);
+                playPauseBtn?.setAttribute("title", "Play");
+            }
+        });
+
         nextBtn?.addEventListener("click", () => {
             ipcRenderer.send(ENHANCED_API.MPV.OVERLAY_TRIGGER_NEXTVIDEO);
         });

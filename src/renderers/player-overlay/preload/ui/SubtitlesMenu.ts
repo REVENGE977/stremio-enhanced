@@ -11,6 +11,9 @@ export class SubtitlesMenu {
     private static subtitleMenuLanguagesList = null as HTMLElement | null;
     private static subtitleMenuVariantsList = null as HTMLElement | null;
     private static loadInterval: NodeJS.Timeout | null = null;
+    private static currentSubDelay = 0.0;
+    private static currentSubScale = 100;
+    private static currentSubPosition = 0;
     
     public static init() {
         const subtitlesMenuBtn = document.querySelector(SELECTORS.MPV_PLAYER_OVERLAY.SUBTITLES_MENU_BUTTON) as HTMLElement | null;
@@ -19,12 +22,77 @@ export class SubtitlesMenu {
         this.subtitleMenuLanguagesList = document.querySelector(SELECTORS.MPV_PLAYER_OVERLAY.SUBTITLES_LANGUAGES_LIST);
         this.subtitleMenuVariantsList = document.querySelector(SELECTORS.MPV_PLAYER_OVERLAY.SUBTITLES_VARIENTS_LIST);
 
+        // subtitle settings properties
+        const subSettingsContainers = document.querySelectorAll('.stepper-OL8zv');
+
+        const delayContainer = subSettingsContainers[0];
+        const delayMinus = delayContainer.querySelectorAll('.button-fisbt')[0];
+        const delayPlus = delayContainer.querySelectorAll('.button-fisbt')[1];
+        const delayValueLabel = delayContainer.querySelector('.value-Z6LnU');
+
+        const sizeContainer = subSettingsContainers[1];
+        const sizeMinus = sizeContainer.querySelectorAll('.button-fisbt')[0];
+        const sizePlus = sizeContainer.querySelectorAll('.button-fisbt')[1];
+        const sizeValueLabel = sizeContainer.querySelector('.value-Z6LnU');
+
+        const posContainer = subSettingsContainers[2];
+        const posMinus = posContainer.querySelectorAll('.button-fisbt')[0];
+        const posPlus = posContainer.querySelectorAll('.button-fisbt')[1];
+        const posValueLabel = posContainer.querySelector('.value-Z6LnU');
+
         if (subtitlesMenu) subtitlesMenu.style.pointerEvents = 'auto';
 
         subtitlesMenuBtn?.addEventListener("click", () => {
             if (!subtitlesMenu) return;
             const isVisible = subtitlesMenu.style.display === "";
             subtitlesMenu.style.display = isVisible ? "none" : "";
+        });
+
+        delayMinus.addEventListener('click', () => {
+            this.currentSubDelay -= 0.1;
+            this.currentSubDelay = Math.round(this.currentSubDelay * 10) / 10;
+            delayValueLabel!.textContent = `${this.currentSubDelay}s`;
+            ipcRenderer.send(ENHANCED_API.MPV.SET_PROPERTY, "sub-delay", this.currentSubDelay);
+        });
+
+        delayPlus.addEventListener('click', () => {
+            this.currentSubDelay += 0.1;
+            this.currentSubDelay = Math.round(this.currentSubDelay * 10) / 10;
+            delayValueLabel!.textContent = `${this.currentSubDelay}s`;
+            ipcRenderer.send(ENHANCED_API.MPV.SET_PROPERTY, "sub-delay", this.currentSubDelay);
+        });
+
+
+        sizeMinus.addEventListener('click', () => {
+            if (this.currentSubScale <= 10) return; 
+            this.currentSubScale -= 10;
+            sizeValueLabel!.textContent = `${this.currentSubScale}%`;
+            ipcRenderer.send(ENHANCED_API.MPV.SET_PROPERTY, "sub-scale", this.currentSubScale / 100);
+        });
+
+        sizePlus.addEventListener('click', () => {
+            if (this.currentSubScale >= 500) return;
+            this.currentSubScale += 10;
+            sizeValueLabel!.textContent = `${this.currentSubScale}%`;
+            ipcRenderer.send(ENHANCED_API.MPV.SET_PROPERTY, "sub-scale", this.currentSubScale / 100);
+        });
+
+        posMinus.addEventListener('click', () => {
+            if (this.currentSubPosition <= 0) return; 
+            this.currentSubPosition  -= 1;
+            posValueLabel!.textContent = `${this.currentSubPosition }%`;
+            
+            const mpvInvertedPos = 100 - this.currentSubPosition;
+            ipcRenderer.send(ENHANCED_API.MPV.SET_PROPERTY, "sub-pos", mpvInvertedPos);
+        });
+
+        posPlus.addEventListener('click', () => {
+            if (this.currentSubPosition >= 100) return;
+            this.currentSubPosition += 1;
+            posValueLabel!.textContent = `${this.currentSubPosition}%`;
+            
+            const mpvInvertedPos = 100 - this.currentSubPosition;
+            ipcRenderer.send(ENHANCED_API.MPV.SET_PROPERTY, "sub-pos", mpvInvertedPos);
         });
 
         ipcRenderer.on(ENHANCED_API.MPV.ADD_SUBTITLE_ENTRY, async (_event, subId: string, source: string, langCode: string, type: "embedded" | "external") => {
@@ -106,6 +174,7 @@ export class SubtitlesMenu {
         this.startMediaLoadCheck();            
     }
 
+    // making sure the stream is fully loaded before attempting to load embedded subs
     private static startMediaLoadCheck() {
         if (this.loadInterval) clearInterval(this.loadInterval);
 

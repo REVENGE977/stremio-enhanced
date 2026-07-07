@@ -40,6 +40,7 @@
       - [x] Volume control
       - [x] Playback speed
       - [x] Next video
+        - [ ] Hide the button if watching a movie
       - [x] Audio track switching
       - [x] Subtitles switching
         - [x] Addon subtitles
@@ -49,7 +50,13 @@
       - [ ] Fit button
       - [ ] Side drawer
       - [ ] Statistics button
+      - [ ] Keybinds
+        - [x] Space to pause/play
+        - [x] ESC to exit fullscreen
+        - [x] Arrow keys to skip around
+    - [x] Scale the controls' zoomFactor based on main window's zoomFactor 
     - [ ] Pass current theme CSS to the overlay window
+    - [ ] Allow plugins to manipulate the new player controls overlay made for mpv
   - [ ] Thumbnail preview
   - [ ] Upscale model support
 - [x] Create API for plugins to put alert and prompt dialogs

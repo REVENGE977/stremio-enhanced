@@ -227,6 +227,8 @@ export const ENHANCED_API = {
         ADD_SUBTITLE_ENTRY: 'mpv-add-subtitle-entry',
         LOAD_EXTERNAL_SUBTITLE: 'mpv-load-external-subtitle',
         AVAILABLE_ADDON_SUBTITLES: 'available-addon-subtitles',
-        TRACKS_CHANGED: "mpv-tracks-changed"
+        TRACKS_CHANGED: "mpv-tracks-changed",
+        PLAYBACK_STATE_CHANGED: "mpv-playback-state-changed",
+        SEEK: "mpv-seek"
     }
 } as const;

@@ -153,14 +153,31 @@ class MpvPlayerInjector {
             mpvPlayerAPI.command("loadfile", videoSrc!);
             mpvPlayerAPI.setProperty("pause", "no");
             mpvPlayerAPI.setProperty("sid", "no");
+            mpvPlayerAPI.setProperty("sub-delay", "0.0");
+            mpvPlayerAPI.setProperty("sub-scale", "1.0");
+            mpvPlayerAPI.setProperty("sub-use-margins", "yes");
+            mpvPlayerAPI.setProperty("sub-align-y", "bottom");
+            mpvPlayerAPI.setProperty("sub-pos", "100");
             
-            setTimeout(async () => {
-                if (!this.isAttached) return; 
-                const subtitlesList = await this.getAddonSubs();
-                if (subtitlesList && subtitlesList.length > 0) {
-                    ipcRenderer.send(ENHANCED_API.MPV.AVAILABLE_ADDON_SUBTITLES, subtitlesList);
-                } else logger.warn("No addon subtitles found.");
-            }, 3000);
+            // load addon subs in the background
+            (async () => {
+                try {
+                    const subtitlesList = await PlaybackState.waitForAddonSubtitles();
+                    
+                    if (!this.isAttached) {
+                        logger.info("Subtitles arrived but player context was already terminated. Discarding.");
+                        return;
+                    }
+
+                    if (subtitlesList && subtitlesList.length > 0) {
+                        ipcRenderer.send(ENHANCED_API.MPV.AVAILABLE_ADDON_SUBTITLES, subtitlesList);
+                    } else {
+                        logger.warn("No external addon subtitles resolved within the maximum timeout bounds.");
+                    }
+                } catch (err) {
+                    logger.error("Error encountered inside subtitle population worker: " + err);
+                }
+            })();
 
             // Copy current stylesheets to the overlay
             // const stylesToSync = Array.from(document.styleSheets)
@@ -217,12 +234,6 @@ class MpvPlayerInjector {
         mpvPlayerAPI.command("stop");
         
         logger.info("Native MPV instance terminated safely.");
-    }
-
-    private static async getAddonSubs() {
-        let getSubtitlesList = await PlaybackState.getPlayerState();
-        let list = getSubtitlesList?.subtitles;
-        return list;
     }
 }
 

@@ -341,25 +341,30 @@ app.on('browser-window-created', (_, window) => {
         switch (true) {
             // Opens Devtools on Ctrl + Shift + I
             case input.control && input.shift && input.key === 'I':
-            window.webContents.toggleDevTools();
-            event.preventDefault();
-            break;
+                window.webContents.toggleDevTools();
+                event.preventDefault();
+                break;
             
             // Toggles fullscreen on F11
             case input.key === 'F11':
-            window.setFullScreen(!window.isFullScreen());
-            event.preventDefault();
-            break;
+                window.setFullScreen(!window.isFullScreen());
+                event.preventDefault();
+                break;
+            
+            case input.key === "Escape":
+                if(window.isFullScreen()) window.setFullScreen(false);
+                event.preventDefault();
+                break;
             
             // Implements zooming in/out using shortcuts (Ctrl + =, Ctrl + -)
             case input.control && input.key === '=':
-            if (mainWindow) mainWindow.webContents.zoomFactor += 0.1;
-            event.preventDefault();
-            break;
+                if (mainWindow) mainWindow.webContents.zoomFactor += 0.1;
+                event.preventDefault();
+                break;
             case input.control && input.key === '-':
-            if (mainWindow) mainWindow.webContents.zoomFactor -= 0.1;
-            event.preventDefault();
-            break;
+                if (mainWindow) mainWindow.webContents.zoomFactor -= 0.1;
+                event.preventDefault();
+                break;
             
             // Implements reload on Ctrl + R
             case input.control && input.key === 'r':

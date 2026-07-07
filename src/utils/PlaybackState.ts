@@ -60,6 +60,31 @@ class PlaybackState {
         this.logger.error('Max retries exceeded for getPlayerState');
         return null;
     }
+
+    public static async waitForAddonSubtitles(): Promise<{ id: string, lang: string, url: string, addonSubtitleId?: string, origin: string }[] | null> {
+        const maxAttempts = 15; 
+        const interval = 1000;
+
+        for (let attempt = 0; attempt < maxAttempts; attempt++) {
+            try {
+                const playerState = await Helpers._eval('core.getState("player")') as {
+                    subtitles?: { id: string, lang: string, url: string, addonSubtitleId?: string, origin: string }[]
+                };
+                
+                if (playerState?.subtitles && playerState.subtitles.length > 0) {
+                    this.logger.info(`Addon subtitles successfully loaded on attempt ${attempt + 1}.`);
+                    return playerState.subtitles;
+                }
+            } catch (err) {
+                this.logger.warn(`Attempt ${attempt + 1} checking for subtitles thrown error: ${err}`);
+            }
+
+            await new Promise(resolve => setTimeout(resolve, interval));
+        }
+
+        this.logger.warn('Timed out waiting for addon subtitles to populate inside Stremio core.');
+        return null;
+    }
 }
 
 export default PlaybackState;
