@@ -9,6 +9,9 @@ export class ControlBar {
         const nextBtn = document.querySelector(SELECTORS.MPV_PLAYER_OVERLAY.NEXT_BUTTON) as HTMLElement | null;
         const muteBtn = document.querySelector(SELECTORS.MPV_PLAYER_OVERLAY.MUTE_BUTTON) as HTMLElement | null;
         const fullscreenBtn = document.querySelector(SELECTORS.MPV_PLAYER_OVERLAY.FULLSCREEN_BUTTON) as HTMLElement | null;
+        const scaleBtn = document.querySelector(SELECTORS.MPV_PLAYER_OVERLAY.SCALE_BUTTON) as HTMLElement | null;
+        const SCALE_MODES = ['fit', 'crop', 'stretch'];
+        let currentScaleIndex = 0;
 
         ipcRenderer.on(ENHANCED_API.MPV.OVERLAY_SET_STREAM_TITLE, (_event, title: string) => {
             if (titleSpan) titleSpan.textContent = title;
@@ -16,6 +19,29 @@ export class ControlBar {
 
         backBtn?.addEventListener("click", () => {
             ipcRenderer.send(ENHANCED_API.MPV.TRIGGER_MAIN_BACK_NAVIGATION);
+        });
+
+        scaleBtn?.addEventListener('click', () => {
+            currentScaleIndex = (currentScaleIndex + 1) % SCALE_MODES.length;
+            const targetMode = SCALE_MODES[currentScaleIndex];
+
+            scaleBtn.title = targetMode.charAt(0).toUpperCase() + targetMode.slice(1);
+
+            if (targetMode === 'fit') {
+                ipcRenderer.send(ENHANCED_API.MPV.SET_PROPERTY, 'keepaspect', 'yes');
+                ipcRenderer.send(ENHANCED_API.MPV.SET_PROPERTY, 'video-unscaled', 'no');
+                ipcRenderer.send(ENHANCED_API.MPV.SET_PROPERTY, 'panscan', '0.0');
+            } 
+            else if (targetMode === 'crop') {
+                ipcRenderer.send(ENHANCED_API.MPV.SET_PROPERTY, 'keepaspect', 'yes');
+                ipcRenderer.send(ENHANCED_API.MPV.SET_PROPERTY, 'video-unscaled', 'no');
+                ipcRenderer.send(ENHANCED_API.MPV.SET_PROPERTY, 'panscan', '1.0');
+            } 
+            else if (targetMode === 'stretch') {
+                ipcRenderer.send(ENHANCED_API.MPV.SET_PROPERTY, 'keepaspect', 'no');
+                ipcRenderer.send(ENHANCED_API.MPV.SET_PROPERTY, 'video-unscaled', 'no');
+                ipcRenderer.send(ENHANCED_API.MPV.SET_PROPERTY, 'panscan', '0.0');
+            }
         });
 
         playPauseBtn?.addEventListener("click", () => {

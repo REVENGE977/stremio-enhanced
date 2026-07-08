@@ -64,7 +64,8 @@ export const SELECTORS = {
         AUDIO_MENU_BUTTON: "#audioMenuButton",
         AUDIO_MENU: ".audio-menu-qB4SQ",
         AUDIO_TRACKS_LIST: ".list-lt_h8",
-        AUDIO_TRACK: ".option-COcvW"
+        AUDIO_TRACK: ".option-COcvW",
+        SCALE_BUTTON: "#scaleButton"
     },
     MPV_PLACEHOLDER: "#enhanced-mpv-placeholder"
 } as const;

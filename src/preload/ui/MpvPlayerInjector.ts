@@ -158,6 +158,9 @@ class MpvPlayerInjector {
             mpvPlayerAPI.setProperty("sub-use-margins", "yes");
             mpvPlayerAPI.setProperty("sub-align-y", "bottom");
             mpvPlayerAPI.setProperty("sub-pos", "100");
+            mpvPlayerAPI.setProperty("keepaspect", "yes"); 
+            mpvPlayerAPI.setProperty("video-unscaled", "no");
+            mpvPlayerAPI.setProperty("panscan", "0.0");
             
             // load addon subs in the background
             (async () => {
