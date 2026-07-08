@@ -32,5 +32,7 @@ export class inputConfig {
         document.body.addEventListener('mousemove', () => {
             ipcRenderer.send(ENHANCED_API.MPV.MAIN_WINDOW_MOUSE_MOVE);
         });
+
+        ipcRenderer.send(ENHANCED_API.MPV.MAIN_WINDOW_MOUSE_MOVE);
     }
 }

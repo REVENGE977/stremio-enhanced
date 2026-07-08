@@ -105,6 +105,9 @@ export const mpvPlayerController = {
                     const mainHandle = mainWindow.getNativeWindowHandle();
                     const overlayHandle = uiOverlay.getNativeWindowHandle();
                     mpvPlayer?.lockOverlayToParent(mainHandle, overlayHandle);
+
+                    mainWindow.blur();
+                    mainWindow.focus();
                     
                     triggerOverlayWakefulness();
                     uiOverlay.webContents.send(ENHANCED_API.MPV.OVERLAY_SET_STREAM_TITLE, await getStreamTitle());
