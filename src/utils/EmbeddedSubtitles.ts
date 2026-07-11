@@ -67,6 +67,7 @@ class EmbeddedSubtitles {
         queryParams.append("maxAudioChannels", "2");
         ['h264', 'h265', 'hevc', 'vp9'].forEach(c => queryParams.append('videoCodecs', c));
         ['aac', 'mp3', 'opus'].forEach(c => queryParams.append('audioCodecs', c));
+        ['vtt', 'srt', 'ass', 'ssa'].forEach(c => queryParams.append('subtitleCodecs', c));
 
         const masterUrl = streamURL.includes('.m3u8') 
             ? streamURL 
@@ -231,7 +232,11 @@ class EmbeddedSubtitles {
             
             const startTime = this.parseVttTime(startStr);
             const endTime = this.parseVttTime(endStr);
-            const text = lines.slice(timeLineIndex + 1).join('\n');
+            let text = lines.slice(timeLineIndex + 1).join('\n');
+            
+            // Strip ASS/SSA override tags (e.g., {\an8}, {\c&H0000FF&})
+            // which ffmpeg might leave in when converting ASS to VTT
+            text = text.replace(/\{.*?\}/g, '');
 
             try {
                 track.addCue(new VTTCue(startTime, endTime, text));
