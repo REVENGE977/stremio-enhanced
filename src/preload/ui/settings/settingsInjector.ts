@@ -60,6 +60,7 @@ export function checkSettings() {
     
     settingsBuilder.addButton("Open Themes Folder", "openthemesfolderBtn", SELECTORS.THEMES_CATEGORY);
     settingsBuilder.addButton("Open Plugins Folder", "openpluginsfolderBtn", SELECTORS.PLUGINS_CATEGORY);
+    settingsBuilder.addButton("Toggle All Plugins", "toggleallpluginsBtn", SELECTORS.PLUGINS_CATEGORY);
     
     writeAbout();
     setupBrowseModsButton();
@@ -95,4 +96,5 @@ export function checkSettings() {
     modController.scrollListener();
     modController.bindPluginOptionsListeners();
     modController.bindFolderButtons();
+    modController.bindToggleAllPluginsButton();
 }

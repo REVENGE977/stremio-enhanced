@@ -196,6 +196,37 @@ export const modController = {
                 ModManager.openFolder(Properties.pluginsPath));
         });
     },
+
+    bindToggleAllPluginsButton: (): void => {
+        helpers.waitForElm("#toggleallpluginsBtn").then(() => {
+            document.getElementById("toggleallpluginsBtn")?.addEventListener("click", () => {
+                const pluginCheckboxes = document.getElementsByClassName("plugin") as HTMLCollectionOf<HTMLElement>;
+                const enabledPlugins = JSON.parse(localStorage.getItem(STORAGE_KEYS.ENABLED_PLUGINS) || "[]");
+                
+                const shouldEnableAll = enabledPlugins.length === 0;
+                
+                for (let i = 0; i < pluginCheckboxes.length; i++) {
+                    const pluginName = pluginCheckboxes[i].getAttribute('name');
+                    if (!pluginName) continue;
+                    
+                    const isChecked = pluginCheckboxes[i].classList.contains(CLASSES.CHECKED);
+                    
+                    if (shouldEnableAll && !isChecked) {
+                        pluginCheckboxes[i].classList.add(CLASSES.CHECKED);
+                        modController.loadPlugin(pluginName);
+                    } else if (!shouldEnableAll && isChecked) {
+                        pluginCheckboxes[i].classList.remove(CLASSES.CHECKED);
+                        modController.unloadPlugin(pluginName);
+                        settingsAPI.clearRegisteredSettings(pluginName.split(FILE_EXTENSIONS.PLUGIN)[0]);
+                    }
+                }
+                
+                if (!shouldEnableAll) {
+                    modController._showReloadWarning();
+                }
+            });
+        });
+    },
         
     scrollListener: (): void => {
         helpers.waitForElm('div > div[title="Enhanced"]').then(() => {
