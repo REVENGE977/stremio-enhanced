@@ -54,10 +54,11 @@
         - [x] Space to pause/play
         - [x] ESC to exit fullscreen
         - [x] Arrow keys to skip around
-        - [ ] Add other shortcuts existing in the settings menu
+        - [ ] Add other shortcuts shown in the settings menu
     - [x] Scale the controls' zoomFactor based on main window's zoomFactor 
     - [ ] Pass current theme CSS to the overlay window
     - [ ] Allow plugins to manipulate the new player controls overlay made for mpv
+    - [ ] Save current watch time for the continue watching feature
   - [ ] Thumbnail preview
   - [ ] Upscale model support
 - [x] Create API for plugins to put alert and prompt dialogs

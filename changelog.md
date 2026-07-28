@@ -232,3 +232,35 @@ xattr -d com.apple.quarantine /path/to/Stremio.Enhanced.app
 ### Important Note: Currently, the latest official Windows version of Stremio Service on GitHub includes faulty FFmpeg binaries. This can lead to issues like no audio in streams. To fix this for the time being, you can either use server.js directly or replace the ffmpeg binaries using the following steps:
 - download ffmpeg from here https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-win64-gpl.zip
 - extract the zip archive to local appdata > programs > StremioService and select replace existing files.
+
+## Update v1.3.0-preview.1
+### This is the first pre-release replacing the HTML5 video player with embedded mpv (Windows only for now). 
+
+Keep in mind that this is just a pre-release to get things tested, so definitely expect some issues.
+
+### Note on Player Controls
+Because the embedded mpv window sits on top of everything, it completely covers the default Stremio Web player controls. To fix this, I’m building a custom overlay clone to match the standard controls. It's still a work in progress and missing a few features, so here are the known issues for this build:
+
+* **External Players:** The three-dots menu to open streams in an external player isn't implemented yet.
+* **Fit button:** The Fit button does not function right now.
+* **Series Navigation:** The side drawer for quickly switching to other episodes is currently missing.
+* **Streaming Stats:** The statistics button to check your stream loading speeds is not available yet.
+* **Settings Defaults:** It won't auto-select subtitles or audio tracks based on your default Stremio settings, and it won't respect your default subtitle size preference yet.
+* **Subtitles Menu:** The Subtitles Settings section (to change subtitle size/delay or position) inside the subtitle overlay menu is not yet hooked up.
+* **Streaming Error:** The player will sometimes give a "Video not supported" error, but you can ignore it and wait, the stream will play anyway.
+
+## v1.3.0-preview.2
+### This is just a pre-release to get things tested, so definitely expect some issues.
+## If you missed the previous preview these preview builds are currently testing MPV embedding. It is still WIP. There WILL be issues and missing features.
+
+### Changes from previous preview build:
+- Fixed addon subtitles somtimes not loading
+- The transition of replacing the standard stremio controls with new ones to show on top of mpv should be smoother now
+- Scale button (fit, stretch, crop) is now implemented
+- Shortcuts implemented:
+  - Space to pause/play
+  - ESC to exit fullscreen
+  - Arrow keys to skip around
+- Now the controls' zoom is based on main window's zoom (it'll use the same size you change using ctrl +/- in the main window)
+
+[To check current progress checkout the todo.md file](https://github.com/REVENGE977/stremio-enhanced/blob/feat/electron-libmpv/todo.md) (go down to the MPV embedding section)
