@@ -221,6 +221,10 @@ export const mpvPlayerController = {
         ipcMain.on(ENHANCED_API.MPV.OVERLAY_SET_NEXTVIDEO, (_event, link: string) => {
             if (!uiOverlay || uiOverlay.isDestroyed()) return;
             nextVideoLink = link;
+
+            if(nextVideoLink === "") {
+                uiOverlay.webContents.send(ENHANCED_API.MPV.OVERLAY_SET_WATCHING_MOVIE);
+            }
         });
 
         ipcMain.on(ENHANCED_API.MPV.TRIGGER_MAIN_BACK_NAVIGATION, () => {

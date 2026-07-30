@@ -59,7 +59,9 @@
 		"extraFiles": [
 			{
 				"from": "resources/win-x64/libmpv-2.dll",
-				"to": "libmpv-2.dll"
+				"to": "libmpv-2.dll",
+				"filter": ["**/*"],
+				"os": ["win32"]
 			}
 		],
 		"icon": "images/icon",

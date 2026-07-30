@@ -190,8 +190,8 @@ class MpvPlayerInjector {
             //     }).join('\n');
 
             const nextVideoLink = await Helpers.getNextVideo();
-            if (nextVideoLink && this.isAttached) {
-                ipcRenderer.send(ENHANCED_API.MPV.OVERLAY_SET_NEXTVIDEO, nextVideoLink);
+            if (this.isAttached) {
+                ipcRenderer.send(ENHANCED_API.MPV.OVERLAY_SET_NEXTVIDEO, nextVideoLink ?? "");
             }
 
             document.body.addEventListener('mousemove', this.mouseMoveHandler);

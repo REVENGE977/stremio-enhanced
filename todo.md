@@ -38,9 +38,9 @@
       - [x] Back button
       - [x] Fullscreen
       - [x] Volume control
-      - [x] Playback speed
+      - [] Playback speed (needs reimplementation to work with the new slider design)
       - [x] Next video
-        - [ ] Hide the button if watching a movie
+        - [x] Hide the button if watching a movie
       - [x] Audio track switching
       - [x] Subtitles switching
         - [x] Addon subtitles

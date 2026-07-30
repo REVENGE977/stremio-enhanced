@@ -222,6 +222,7 @@ export const ENHANCED_API = {
         OVERLAY_SET_STREAM_TITLE: 'overlay-set-stream-title',
         OVERLAY_TRIGGER_NEXTVIDEO: 'overlay-trigger-nextvideo',
         OVERLAY_SET_NEXTVIDEO: 'overlay-set-nextvideo',
+        OVERLAY_SET_WATCHING_MOVIE: "overlay-set-watching-movie",
         MAIN_WINDOW_MOUSE_MOVE: 'main-window-mouse-move',
         TRIGGER_MAIN_BACK_NAVIGATION: 'trigger-main-back-navigation',
         TRIGGER_MAIN_FULLSCREEN: 'trigger-main-fullscreen',

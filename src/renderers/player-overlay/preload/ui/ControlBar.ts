@@ -72,6 +72,10 @@ export class ControlBar {
             }
         });
 
+        ipcRenderer.on(ENHANCED_API.MPV.OVERLAY_SET_WATCHING_MOVIE, (_) => {
+            nextBtn?.remove();
+        })
+
         nextBtn?.addEventListener("click", () => {
             ipcRenderer.send(ENHANCED_API.MPV.OVERLAY_TRIGGER_NEXTVIDEO);
         });
