@@ -56,14 +56,6 @@
 		"appId": "com.revenge977.stremio-enhanced",
 		"productName": "Stremio Enhanced",
 		"asar": true,
-		"extraFiles": [
-			{
-				"from": "resources/win-x64/libmpv-2.dll",
-				"to": "libmpv-2.dll",
-				"filter": ["**/*"],
-				"os": ["win32"]
-			}
-		],
 		"icon": "images/icon",
 		"directories": {
 			"output": "release-builds"
@@ -84,6 +76,12 @@
 				},
 				{
 					"target": "portable"
+				}
+			],
+			"extraFiles": [
+				{
+					"from": "resources/win-x64/libmpv-2.dll",
+					"to": "libmpv-2.dll"
 				}
 			]
 		},
