@@ -37,6 +37,21 @@ export const modController = {
                 onSettingsSaved: (callback) => window.StremioEnhancedAPI.onSettingsSaved('${pluginBaseName}', callback),
                 
                 showAlert: window.StremioEnhancedAPI.showAlert,
+                enqueueDownloads: window.StremioEnhancedAPI.enqueueDownloads,
+                getDownloads: window.StremioEnhancedAPI.getDownloads,
+                retryDownload: window.StremioEnhancedAPI.retryDownload,
+                getAllDownloaded: window.StremioEnhancedAPI.getAllDownloaded,
+                scanImportable: window.StremioEnhancedAPI.scanImportable,
+                importDownloaded: window.StremioEnhancedAPI.importDownloaded,
+                getDiskSpace: window.StremioEnhancedAPI.getDiskSpace,
+                cancelDownload: window.StremioEnhancedAPI.cancelDownload,
+                showDownload: window.StremioEnhancedAPI.showDownload,
+                getDownloadsPath: window.StremioEnhancedAPI.getDownloadsPath,
+                chooseDownloadFolder: window.StremioEnhancedAPI.chooseDownloadFolder,
+                getDownloaded: window.StremioEnhancedAPI.getDownloaded,
+                deleteDownloaded: window.StremioEnhancedAPI.deleteDownloaded,
+                getLibraryServerUrl: window.StremioEnhancedAPI.getLibraryServerUrl,
+                onDownloadProgress: window.StremioEnhancedAPI.onDownloadProgress,
                 showPrompt: (title, message, defaultValue) => window.StremioEnhancedAPI.showPrompt('${pluginBaseName}', title, message, defaultValue)
             };
 
