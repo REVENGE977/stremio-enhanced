@@ -20,6 +20,7 @@ import { setupUpdater } from "./controllers/updaterController";
 import { setupWindowTransparency } from "./controllers/transparencyController";
 import { gpuController } from "./controllers/gpuController";
 import { externalPlayerController } from "./controllers/externalPlayerController";
+import { WindowState } from "./utils/WindowState";
 
 app.setName("stremio-enhanced");
 const userDataPath = app.getPath('userData');
@@ -58,6 +59,9 @@ if (!gotLock) {
 }
 
 async function createWindow() {
+    const windowStateManager = new WindowState(userDataPath);
+    const windowState = windowStateManager.getState();
+
     mainWindow = new BrowserWindow({
         webPreferences: {
             preload: join(__dirname, "//preload/index.js"),
@@ -74,8 +78,10 @@ async function createWindow() {
             spellcheck: false,
             backgroundThrottling: false
         },
-        width: 1500,
-        height: 850,
+        x: windowState.x,
+        y: windowState.y,
+        width: windowState.width,
+        height: windowState.height,
         resizable: true,
         maximizable: true,
         fullscreenable: true,
@@ -88,6 +94,12 @@ async function createWindow() {
         backgroundColor: "#00000000",
     });
     
+    if (windowState.isMaximized) {
+        mainWindow.maximize();
+    }
+
+    windowStateManager.track(mainWindow);
+
     mainWindow.setMenu(null);
     mainWindow.loadURL(URLS.STREMIO_WEB);
         
