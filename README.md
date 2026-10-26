@@ -57,6 +57,8 @@
 
 Stremio Enhanced is an Electron-based [Stremio](https://www.stremio.com/) desktop client with support for plugins and themes. It enhances the default Stremio experience by adding more customization options and integrations.  
 
+If you are interested in this project, check out my forks of [stremio-linux-shell](https://github.com/REVENGE977/stremio-linux-shell) and [stremio-shell-ng](https://github.com/REVENGE977/stremio-shell-ng).
+
 ### 🛠 How It Works  
 - It runs the Stremio streaming server automatically in the background.
 - It loads [the web version of Stremio](https://web.stremio.com) within an Electron environment.
