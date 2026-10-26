@@ -21,6 +21,17 @@ import { setupUpdater } from "./controllers/updaterController";
 import { setupWindowTransparency } from "./controllers/transparencyController";
 import { gpuController } from "./controllers/gpuController";
 import { externalPlayerController } from "./controllers/externalPlayerController";
+import { setupServiceController, terminateStremioServiceIfEnabled } from "./controllers/serviceController";
+import { downloadController } from "./controllers/downloadController";
+import { WindowState } from "./utils/WindowState";
+
+// Logs are written to stdout/stderr. When the app was started from a terminal or tool that has
+// since gone away, those writes fail with EPIPE; that must not crash the app.
+for (const stream of [process.stdout, process.stderr]) {
+    stream?.on("error", (err: NodeJS.ErrnoException) => {
+        if (err.code !== "EPIPE") throw err;
+    });
+}
 
 app.setName("stremio-enhanced");
 const userDataPath = app.getPath('userData');
@@ -120,9 +131,10 @@ async function createWindow() {
         mainWindow.webContents.openDevTools({ mode: "detach" }); 
     }
     
-    // mainWindow.on('closed', () => {
-    //     if(!process.argv.includes("--no-stremio-service") && StremioService.isProcessRunning()) StremioService.terminate();
-    // });
+    mainWindow.on('closed', () => {
+        mainWindow = null;
+        terminateStremioServiceIfEnabled();
+    });
 }
 
 // Use Stremio Service for streaming
@@ -196,12 +208,14 @@ app.on("ready", async () => {
     // setup IPC and create window
     setupPluginSettingsAPI();
     setupPluginAlertAPI();
+    setupServiceController(userDataPath);
     createWindow();
     if(transparencyEnabled) setupWindowControls();
     setupUpdater();
     setupWindowTransparency(transparencyFlagPath);
     gpuController.initIPC(userDataPath);
     externalPlayerController.initIPC();
+    downloadController.initIPC();
 
     // macOS: protocol URLs are sent via 'open-url'
     app.on('open-url', (event, url) => {
@@ -323,6 +337,10 @@ async function useServerJS() {
         await useStremioService();
     }
 }
+
+app.on("before-quit", () => {
+    terminateStremioServiceIfEnabled();
+});
 
 app.on("window-all-closed", () => {
     logger.info("Closing app...");

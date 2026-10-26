@@ -37,6 +37,21 @@ export const modController = {
                 onSettingsSaved: (callback) => window.StremioEnhancedAPI.onSettingsSaved('${pluginBaseName}', callback),
                 
                 showAlert: window.StremioEnhancedAPI.showAlert,
+                enqueueDownloads: window.StremioEnhancedAPI.enqueueDownloads,
+                getDownloads: window.StremioEnhancedAPI.getDownloads,
+                retryDownload: window.StremioEnhancedAPI.retryDownload,
+                getAllDownloaded: window.StremioEnhancedAPI.getAllDownloaded,
+                scanImportable: window.StremioEnhancedAPI.scanImportable,
+                importDownloaded: window.StremioEnhancedAPI.importDownloaded,
+                getDiskSpace: window.StremioEnhancedAPI.getDiskSpace,
+                cancelDownload: window.StremioEnhancedAPI.cancelDownload,
+                showDownload: window.StremioEnhancedAPI.showDownload,
+                getDownloadsPath: window.StremioEnhancedAPI.getDownloadsPath,
+                chooseDownloadFolder: window.StremioEnhancedAPI.chooseDownloadFolder,
+                getDownloaded: window.StremioEnhancedAPI.getDownloaded,
+                deleteDownloaded: window.StremioEnhancedAPI.deleteDownloaded,
+                getLibraryServerUrl: window.StremioEnhancedAPI.getLibraryServerUrl,
+                onDownloadProgress: window.StremioEnhancedAPI.onDownloadProgress,
                 showPrompt: (title, message, defaultValue) => window.StremioEnhancedAPI.showPrompt('${pluginBaseName}', title, message, defaultValue)
             };
 
@@ -194,6 +209,37 @@ export const modController = {
         helpers.waitForElm("#openpluginsfolderBtn").then(() => {
             document.getElementById("openpluginsfolderBtn")?.addEventListener("click", () => 
                 ModManager.openFolder(Properties.pluginsPath));
+        });
+    },
+
+    bindToggleAllPluginsButton: (): void => {
+        helpers.waitForElm("#toggleallpluginsBtn").then(() => {
+            document.getElementById("toggleallpluginsBtn")?.addEventListener("click", () => {
+                const pluginCheckboxes = document.getElementsByClassName("plugin") as HTMLCollectionOf<HTMLElement>;
+                const enabledPlugins = JSON.parse(localStorage.getItem(STORAGE_KEYS.ENABLED_PLUGINS) || "[]");
+                
+                const shouldEnableAll = enabledPlugins.length === 0;
+                
+                for (let i = 0; i < pluginCheckboxes.length; i++) {
+                    const pluginName = pluginCheckboxes[i].getAttribute('name');
+                    if (!pluginName) continue;
+                    
+                    const isChecked = pluginCheckboxes[i].classList.contains(CLASSES.CHECKED);
+                    
+                    if (shouldEnableAll && !isChecked) {
+                        pluginCheckboxes[i].classList.add(CLASSES.CHECKED);
+                        modController.loadPlugin(pluginName);
+                    } else if (!shouldEnableAll && isChecked) {
+                        pluginCheckboxes[i].classList.remove(CLASSES.CHECKED);
+                        modController.unloadPlugin(pluginName);
+                        settingsAPI.clearRegisteredSettings(pluginName.split(FILE_EXTENSIONS.PLUGIN)[0]);
+                    }
+                }
+                
+                if (!shouldEnableAll) {
+                    modController._showReloadWarning();
+                }
+            });
         });
     },
         

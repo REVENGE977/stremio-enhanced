@@ -38,6 +38,10 @@ async function launchExternal(player: ExternalPlayer): Promise<void> {
         }
 
         const streamUrl = playerState.stream.content.url;
+        const streamSubs = playerState.stream.content.subtitles || [];
+        const externalSubs = playerState.subtitles || [];
+        const allSubs = [...streamSubs, ...externalSubs];
+
         logger.info(`Launching ${player} with stream URL: ${streamUrl}`);
        
         discordTracker.lastPlayerState = playerState;  
@@ -47,7 +51,7 @@ async function launchExternal(player: ExternalPlayer): Promise<void> {
         history.back();
         const customPath = localStorage.getItem(PLAYER_PATH_STORAGE_KEY[player]);
         
-        const result = await externalPlayerAPI.launchExternalPlayer(player, streamUrl, customPath || undefined);
+        const result = await externalPlayerAPI.launchExternalPlayer(player, streamUrl, customPath || undefined, allSubs);
         
         if (result.success) {
             Helpers.createToast("extPlayerLaunch", "External Player", `Opening stream in ${player.toUpperCase()}...`, "success");

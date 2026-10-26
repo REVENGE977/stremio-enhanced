@@ -18,6 +18,7 @@ import { checkExternalPlayer } from "./ui/externalPlayerInterceptor";
 import { applyThemeAPI } from "./api/applyTheme";
 import { gpuRendererAPI } from "./api/gpuRenderer";
 import { externalPlayerAPI } from "./api/externalPlayer";
+import { downloadsAPI } from "./api/downloads";
 import { pluginLogger } from "./api/pluginLogger";
 import Helpers from "../utils/Helpers";
 
@@ -28,6 +29,7 @@ export const stremioEnhancedAPI = {
     ...applyThemeAPI,
     ...gpuRendererAPI,
     ...externalPlayerAPI,
+    ...downloadsAPI,
 };
 
 
@@ -79,6 +81,7 @@ function parseRuntime(runtime: string | undefined): number | undefined {
 window.addEventListener("load", () => {
     Helpers.patchReactDom();
     initializeUserSettings();
+    ipcRenderer.send(IPC_CHANNELS.SET_AUTOKILL_SERVICE, localStorage.getItem(STORAGE_KEYS.AUTOKILL_SERVICE) !== "false");
     reloadServer();
     applyUserTheme();
     loadEnabledPlugins();

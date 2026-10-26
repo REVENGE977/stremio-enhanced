@@ -118,7 +118,7 @@ function startPolling(player: ExternalPlayer, child: ReturnType<typeof execFile>
 
 export const externalPlayerController = {
     initIPC: () => {
-        ipcMain.handle(IPC_CHANNELS.LAUNCH_EXTERNAL_PLAYER, (_, player: string, streamUrl: string, customPath?: string) => {
+        ipcMain.handle(IPC_CHANNELS.LAUNCH_EXTERNAL_PLAYER, (_, player: string, streamUrl: string, customPath?: string, subtitles?: { url: string; lang: string }[]) => {
             if (!VALID_EXTERNAL_PLAYERS.includes(player as ExternalPlayer) || player === 'disabled') {
                 logger.error(`Invalid external player: ${player}`);
                 return { success: false, error: `Invalid player: ${player}` };
@@ -142,6 +142,12 @@ export const externalPlayerController = {
             const args = player === 'mpv'
                 ? [streamUrl, `--input-ipc-server=${MPV_SOCKET}`]
                 : [streamUrl, '--extraintf=http', `--http-password=${VLC_HTTP_PASSWORD}`, `--http-port=${VLC_HTTP_PORT}`];
+
+            if (subtitles && subtitles.length > 0) {
+                for (const sub of subtitles) {
+                    args.push(`--sub-file=${sub.url}`);
+                }
+            }
 
             logger.info(`Launching ${player} at ${playerPath} with URL: ${streamUrl}`);
 
