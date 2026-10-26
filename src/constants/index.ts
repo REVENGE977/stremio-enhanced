@@ -93,6 +93,21 @@ export const IPC_CHANNELS = {
     SHOW_ALERT: 'show-alert',
     LAUNCH_EXTERNAL_PLAYER: 'launch-external-player',
     GET_EXTERNAL_PLAYER_PATHS: 'get-external-player-paths',
+    ENQUEUE_DOWNLOADS: 'enqueue-downloads',
+    GET_DOWNLOADS: 'get-downloads',
+    RETRY_DOWNLOAD: 'retry-download',
+    GET_ALL_DOWNLOADED: 'get-all-downloaded',
+    SCAN_IMPORTABLE: 'scan-importable',
+    IMPORT_DOWNLOADED: 'import-downloaded',
+    GET_DISK_SPACE: 'get-disk-space',
+    CANCEL_DOWNLOAD: 'cancel-download',
+    SHOW_DOWNLOAD: 'show-download',
+    GET_DOWNLOADS_PATH: 'get-downloads-path',
+    CHOOSE_DOWNLOAD_FOLDER: 'choose-download-folder',
+    GET_DOWNLOADED: 'get-downloaded',
+    DELETE_DOWNLOADED: 'delete-downloaded',
+    GET_LIBRARY_SERVER_URL: 'get-library-server-url',
+    DOWNLOAD_PROGRESS: 'download-progress',
 } as const;
 
 // File extensions for mods
