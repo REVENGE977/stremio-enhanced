@@ -1,136 +1,184 @@
-import { BrowserWindow, screen, Rectangle } from "electron";
+import { app, BrowserWindow, Rectangle, screen } from "electron";
 import { join } from "path";
 import { existsSync, readFileSync, writeFileSync } from "fs";
-import logger from "./logger";
+import { getLogger } from "./logger";
+
+const logger = getLogger("WindowState");
 
 export interface WindowStateData {
-    width: number;
-    height: number;
-    x?: number;
-    y?: number;
-    isMaximized: boolean;
+	x?: number;
+	y?: number;
+	width: number;
+	height: number;
+	isMaximized: boolean;
+	isFullScreen: boolean;
 }
 
 const DEFAULT_WIDTH = 1500;
 const DEFAULT_HEIGHT = 850;
 
-export class WindowState {
-    private stateFilePath: string;
-    private state: WindowStateData;
-    private debounceTimer: NodeJS.Timeout | null = null;
-
-    constructor(userDataPath: string) {
-        this.stateFilePath = join(userDataPath, "window-state.json");
-        this.state = this.loadState();
-    }
-
-    public getState(): WindowStateData {
-        return { ...this.state };
-    }
-
-    private loadState(): WindowStateData {
-        const defaultState: WindowStateData = {
-            width: DEFAULT_WIDTH,
-            height: DEFAULT_HEIGHT,
-            isMaximized: true,
-        };
-
-        if (!existsSync(this.stateFilePath)) {
-            return defaultState;
-        }
-
-        try {
-            const rawData = readFileSync(this.stateFilePath, "utf-8");
-            const parsed = JSON.parse(rawData);
-
-            const width = typeof parsed.width === "number" && parsed.width > 200 ? parsed.width : DEFAULT_WIDTH;
-            const height = typeof parsed.height === "number" && parsed.height > 200 ? parsed.height : DEFAULT_HEIGHT;
-            const isMaximized = typeof parsed.isMaximized === "boolean" ? parsed.isMaximized : true;
-
-            const loadedState: WindowStateData = {
-                width,
-                height,
-                isMaximized,
-            };
-
-            if (typeof parsed.x === "number" && typeof parsed.y === "number") {
-                if (this.isPositionVisible(parsed.x, parsed.y, width, height)) {
-                    loadedState.x = parsed.x;
-                    loadedState.y = parsed.y;
-                }
-            }
-
-            return loadedState;
-        } catch (error) {
-            logger.error(`Failed to load window state: ${error}`);
-            return defaultState;
-        }
-    }
-
-    private isPositionVisible(x: number, y: number, width: number, height: number): boolean {
-        const displays = screen.getAllDisplays();
-        return displays.some(display => {
-            const area = display.workArea;
-            return (
-                x + width > area.x &&
-                x < area.x + area.width &&
-                y + height > area.y &&
-                y < area.y + area.height
-            );
-        });
-    }
-
-    public track(window: BrowserWindow): void {
-        const updateState = (isClosing = false) => {
-            if (window.isDestroyed()) return;
-
-            const isMaximized = window.isMaximized();
-
-            if (!isMaximized && !window.isMinimized() && !window.isFullScreen()) {
-                const bounds: Rectangle = window.getBounds();
-                this.state = {
-                    width: bounds.width,
-                    height: bounds.height,
-                    x: bounds.x,
-                    y: bounds.y,
-                    isMaximized: false,
-                };
-            } else if (!window.isFullScreen() && !window.isMinimized()) {
-                this.state.isMaximized = isMaximized;
-            }
-
-            if (isClosing) {
-                this.saveSync();
-            } else {
-                this.saveDebounced();
-            }
-        };
-
-        window.on("resize", () => updateState());
-        window.on("move", () => updateState());
-        window.on("maximize", () => updateState());
-        window.on("unmaximize", () => updateState());
-        window.on("close", () => updateState(true));
-    }
-
-    private saveDebounced(): void {
-        if (this.debounceTimer) {
-            clearTimeout(this.debounceTimer);
-        }
-        this.debounceTimer = setTimeout(() => {
-            this.saveSync();
-        }, 500);
-    }
-
-    private saveSync(): void {
-        if (this.debounceTimer) {
-            clearTimeout(this.debounceTimer);
-            this.debounceTimer = null;
-        }
-        try {
-            writeFileSync(this.stateFilePath, JSON.stringify(this.state, null, 2), "utf-8");
-        } catch (error) {
-            logger.error(`Failed to save window state: ${error}`);
-        }
-    }
+export class WindowStateManager {
+	private stateFilePath: string;
+	private state: WindowStateData;
+	private saveTimer: NodeJS.Timeout | null = null;
+	
+	constructor() {
+		this.stateFilePath = join(app.getPath("userData"), "window-state.json");
+		this.state = this.loadState();
+	}
+	
+	public getBounds(): Partial<WindowStateData> {
+		return {
+			x: this.state.x,
+			y: this.state.y,
+			width: this.state.width,
+			height: this.state.height,
+		};
+	}
+	
+	public manage(window: BrowserWindow): void {
+		if (this.state.isMaximized) {
+			window.maximize();
+		}
+		
+		if (this.state.isFullScreen) {
+			window.setFullScreen(true);
+		}
+		
+		const updateState = () => {
+			if (window.isDestroyed()) return;
+			
+			const bounds: Rectangle = window.getBounds();
+			
+			if (!window.isMinimized() && !window.isMaximized() && !window.isFullScreen()) {
+				this.state.x = bounds.x;
+				this.state.y = bounds.y;
+				this.state.width = bounds.width;
+				this.state.height = bounds.height;
+			}
+			
+			this.state.isMaximized = window.isMaximized();
+			this.state.isFullScreen = window.isFullScreen();
+		};
+		
+		const triggerSave = () => {
+			updateState();
+			
+			if (this.saveTimer) {
+				clearTimeout(this.saveTimer);
+			}
+			
+			this.saveTimer = setTimeout(() => {
+				this.saveState();
+			}, 500);
+		};
+		
+		window.on("resize", triggerSave);
+		window.on("move", triggerSave);
+		window.on("maximize", triggerSave);
+		window.on("unmaximize", triggerSave);
+		window.on("enter-full-screen", triggerSave);
+		window.on("leave-full-screen", triggerSave);
+		window.on("close", () => {
+			updateState();
+			this.saveState();
+		});
+	}
+	
+	private loadState(): WindowStateData {
+		const defaultState: WindowStateData = {
+			width: DEFAULT_WIDTH,
+			height: DEFAULT_HEIGHT,
+			isMaximized: false,
+			isFullScreen: false,
+		};
+		
+		if (!existsSync(this.stateFilePath)) {
+			return defaultState;
+		}
+		
+		try {
+			const rawData = readFileSync(this.stateFilePath, "utf-8");
+			const savedState = JSON.parse(rawData);
+			
+			const width =
+			typeof savedState.width === "number" && savedState.width > 200
+			? savedState.width
+			: DEFAULT_WIDTH;
+			
+			const height =
+			typeof savedState.height === "number" && savedState.height > 200
+			? savedState.height
+			: DEFAULT_HEIGHT;
+			
+			const isMaximized =
+			typeof savedState.isMaximized === "boolean"
+			? savedState.isMaximized
+			: false;
+			
+			const isFullScreen =
+			typeof savedState.isFullScreen === "boolean"
+			? savedState.isFullScreen
+			: false;
+			
+			const loadedState: WindowStateData = {
+				width,
+				height,
+				isMaximized,
+				isFullScreen,
+			};
+			
+			if (
+				typeof savedState.x === "number" &&
+				typeof savedState.y === "number"
+			) {
+				if (this.isPositionVisible(savedState.x, savedState.y, width, height)) {
+					loadedState.x = savedState.x;
+					loadedState.y = savedState.y;
+				}
+			}
+			
+			return loadedState;
+		} catch (error) {
+			logger.error(`Failed to load window state: ${error}`);
+			return defaultState;
+		}
+	}
+	
+	private isPositionVisible(
+		x: number,
+		y: number,
+		width: number,
+		height: number,
+	): boolean {
+		const displays = screen.getAllDisplays();
+		
+		return displays.some((display) => {
+			const area = display.workArea;
+			
+			return (
+				x + width > area.x &&
+				x < area.x + area.width &&
+				y + height > area.y &&
+				y < area.y + area.height
+			);
+		});
+	}
+	
+	private saveState(): void {
+		if (this.saveTimer) {
+			clearTimeout(this.saveTimer);
+			this.saveTimer = null;
+		}
+		
+		try {
+			writeFileSync(
+				this.stateFilePath,
+				JSON.stringify(this.state, null, 2),
+				"utf-8",
+			);
+		} catch (error) {
+			logger.error(`Failed to save window state: ${error}`);
+		}
+	}
 }

@@ -13,6 +13,7 @@ import { BrowserWindow, shell } from "electron";
 import StreamingServer from "./utils/StreamingServer";
 import Helpers from "./utils/Helpers";
 import StremioService from "./utils/StremioService";
+import { WindowStateManager } from "./utils/WindowState";
 import { setupPluginSettingsAPI } from "./controllers/api/SettingsApiController";
 import { setupPluginAlertAPI } from "./controllers/api/AlertApiController";
 import { setupWindowControls } from "./controllers/windowController";
@@ -69,8 +70,8 @@ if (!gotLock) {
 }
 
 async function createWindow() {
-    const windowStateManager = new WindowState(userDataPath);
-    const windowState = windowStateManager.getState();
+    const windowState = new WindowStateManager();
+    const bounds = windowState.getBounds();
 
     mainWindow = new BrowserWindow({
         webPreferences: {
@@ -88,10 +89,10 @@ async function createWindow() {
             spellcheck: false,
             backgroundThrottling: false
         },
-        x: windowState.x,
-        y: windowState.y,
-        width: windowState.width,
-        height: windowState.height,
+        x: bounds.x,
+        y: bounds.y,
+        width: bounds.width || 1500,
+        height: bounds.height || 850,
         resizable: true,
         maximizable: true,
         fullscreenable: true,
@@ -104,12 +105,7 @@ async function createWindow() {
         backgroundColor: "#00000000",
     });
     
-    if (windowState.isMaximized) {
-        mainWindow.maximize();
-    }
-
-    windowStateManager.track(mainWindow);
-
+    windowState.manage(mainWindow);
     mainWindow.setMenu(null);
     mainWindow.loadURL(URLS.STREMIO_WEB);
         
