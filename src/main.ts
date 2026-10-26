@@ -21,6 +21,16 @@ import { setupWindowTransparency } from "./controllers/transparencyController";
 import { gpuController } from "./controllers/gpuController";
 import { externalPlayerController } from "./controllers/externalPlayerController";
 import { setupServiceController, terminateStremioServiceIfEnabled } from "./controllers/serviceController";
+import { downloadController } from "./controllers/downloadController";
+import { WindowState } from "./utils/WindowState";
+
+// Logs are written to stdout/stderr. When the app was started from a terminal or tool that has
+// since gone away, those writes fail with EPIPE; that must not crash the app.
+for (const stream of [process.stdout, process.stderr]) {
+    stream?.on("error", (err: NodeJS.ErrnoException) => {
+        if (err.code !== "EPIPE") throw err;
+    });
+}
 
 app.setName("stremio-enhanced");
 const userDataPath = app.getPath('userData');
@@ -59,6 +69,9 @@ if (!gotLock) {
 }
 
 async function createWindow() {
+    const windowStateManager = new WindowState(userDataPath);
+    const windowState = windowStateManager.getState();
+
     mainWindow = new BrowserWindow({
         webPreferences: {
             preload: join(__dirname, "//preload/index.js"),
@@ -75,8 +88,10 @@ async function createWindow() {
             spellcheck: false,
             backgroundThrottling: false
         },
-        width: 1500,
-        height: 850,
+        x: windowState.x,
+        y: windowState.y,
+        width: windowState.width,
+        height: windowState.height,
         resizable: true,
         maximizable: true,
         fullscreenable: true,
@@ -89,6 +104,12 @@ async function createWindow() {
         backgroundColor: "#00000000",
     });
     
+    if (windowState.isMaximized) {
+        mainWindow.maximize();
+    }
+
+    windowStateManager.track(mainWindow);
+
     mainWindow.setMenu(null);
     mainWindow.loadURL(URLS.STREMIO_WEB);
         
@@ -198,6 +219,7 @@ app.on("ready", async () => {
     setupWindowTransparency(transparencyFlagPath);
     gpuController.initIPC(userDataPath);
     externalPlayerController.initIPC();
+    downloadController.initIPC();
 
     // macOS: protocol URLs are sent via 'open-url'
     app.on('open-url', (event, url) => {

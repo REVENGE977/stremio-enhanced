@@ -18,6 +18,7 @@ import { checkExternalPlayer } from "./ui/externalPlayerInterceptor";
 import { applyThemeAPI } from "./api/applyTheme";
 import { gpuRendererAPI } from "./api/gpuRenderer";
 import { externalPlayerAPI } from "./api/externalPlayer";
+import { downloadsAPI } from "./api/downloads";
 import { pluginLogger } from "./api/pluginLogger";
 import Helpers from "../utils/Helpers";
 
@@ -28,6 +29,7 @@ export const stremioEnhancedAPI = {
     ...applyThemeAPI,
     ...gpuRendererAPI,
     ...externalPlayerAPI,
+    ...downloadsAPI,
 };
 
 
