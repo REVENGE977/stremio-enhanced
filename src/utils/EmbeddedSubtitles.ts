@@ -67,6 +67,7 @@ class EmbeddedSubtitles {
         queryParams.append("maxAudioChannels", "2");
         ['h264', 'h265', 'hevc', 'vp9'].forEach(c => queryParams.append('videoCodecs', c));
         ['aac', 'mp3', 'opus'].forEach(c => queryParams.append('audioCodecs', c));
+        ['vtt', 'srt', 'ass', 'ssa'].forEach(c => queryParams.append('subtitleCodecs', c));
 
         const masterUrl = streamURL.includes('.m3u8') 
             ? streamURL 
@@ -87,19 +88,18 @@ class EmbeddedSubtitles {
         const dummyBlobUrl = URL.createObjectURL(new Blob(["WEBVTT\n\n"], { type: "text/vtt" }));
         
         const fragment = document.createDocumentFragment();
-        let isFirstTrack = true;
         let isFullyInitialized = false;
 
-        for (const subLine of subLines) {
+        const subData = await Promise.all(subLines.map(async (subLine, index) => {
             const uriMatch = subLine.match(/URI="([^"]+)"/);
             const langMatch = subLine.match(/LANGUAGE="([^"]+)"/);
             const nameMatch = subLine.match(/NAME="([^"]+)"/);
             
-            if (!uriMatch) continue;
+            if (!uriMatch) return null;
 
             const subPlaylistUrl = new URL(uriMatch[1], masterUrl).toString();
-            const subPlaylistRes = await fetch(subPlaylistUrl);
-            if (!subPlaylistRes.ok) continue;
+            const subPlaylistRes = await fetch(subPlaylistUrl).catch(() => null);
+            if (!subPlaylistRes || !subPlaylistRes.ok) return null;
 
             const lines = (await subPlaylistRes.text()).split('\n');
             const segments: { url: string, start: number, end: number, fetched: boolean }[] = [];
@@ -119,16 +119,20 @@ class EmbeddedSubtitles {
                     currentTime += duration;
                 }
             }
+            return { index, langMatch, nameMatch, segments };
+        }));
+
+        for (const data of subData) {
+            if (!data) continue;
 
             const trackEl = document.createElement("track");
             trackEl.kind = "subtitles";
-            trackEl.label = nameMatch ? nameMatch[1] : "Embedded";
-            trackEl.srclang = langMatch ? langMatch[1] : "en";
+            trackEl.label = data.nameMatch ? data.nameMatch[1] : "Embedded";
+            trackEl.srclang = data.langMatch ? data.langMatch[1] : "en";
             trackEl.src = dummyBlobUrl; 
             
-            if (isFirstTrack) {
+            if (tracksAdded === 0) {
                 trackEl.default = true; // Wakes up Stremio UI to add the subs to the subtitles menu
-                isFirstTrack = false;
             }
 
             fragment.appendChild(trackEl);
@@ -146,7 +150,7 @@ class EmbeddedSubtitles {
                     if (isFetching) return; 
 
                     const lookaheadTime = video.currentTime + 10; 
-                    const neededSegments = segments.filter(seg => 
+                    const neededSegments = data.segments.filter(seg => 
                         !seg.fetched && 
                         seg.start <= lookaheadTime && 
                         seg.end >= video.currentTime - 2
@@ -155,8 +159,8 @@ class EmbeddedSubtitles {
                     if (neededSegments.length > 0) {
                         isFetching = true;
 
-                        for (const seg of neededSegments) {
-                            if (seg.start > video.currentTime + 20 || seg.end < video.currentTime - 5) continue;
+                        const segmentPromises = neededSegments.map(async (seg) => {
+                            if (seg.start > video.currentTime + 20 || seg.end < video.currentTime - 5) return;
 
                             seg.fetched = true; 
                             
@@ -168,9 +172,10 @@ class EmbeddedSubtitles {
                             } catch (err) {
                                 logger.error(`Segment at ${seg.start} failed ${err}`);
                                 setTimeout(() => { seg.fetched = false; }, 2000);
-                                break; 
                             }
-                        }
+                        });
+
+                        await Promise.all(segmentPromises);
                         isFetching = false;
                     }
                 });
@@ -231,7 +236,11 @@ class EmbeddedSubtitles {
             
             const startTime = this.parseVttTime(startStr);
             const endTime = this.parseVttTime(endStr);
-            const text = lines.slice(timeLineIndex + 1).join('\n');
+            let text = lines.slice(timeLineIndex + 1).join('\n');
+            
+            // Strip ASS/SSA override tags (e.g., {\an8}, {\c&H0000FF&})
+            // which ffmpeg might leave in when converting ASS to VTT
+            text = text.replace(/\{.*?\}/g, '');
 
             try {
                 track.addCue(new VTTCue(startTime, endTime, text));

@@ -42,4 +42,4 @@
 - [x] Create API for plugins to use winston logger
 - [x] Add option to always open streams in either VLC or MPV
 - [x] Check for server.js updates (if the user is using server.js directly) by checking the latest version of server.js available [in Cargo.toml](https://github.com/Stremio/stremio-service/blob/master/Cargo.toml)
-- [ ] Memorize current volume for future streams
+- [x] Memorize current volume for future streams
