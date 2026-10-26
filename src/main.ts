@@ -20,6 +20,7 @@ import { setupUpdater } from "./controllers/updaterController";
 import { setupWindowTransparency } from "./controllers/transparencyController";
 import { gpuController } from "./controllers/gpuController";
 import { externalPlayerController } from "./controllers/externalPlayerController";
+import { setupServiceController, terminateStremioServiceIfEnabled } from "./controllers/serviceController";
 import { downloadController } from "./controllers/downloadController";
 import { WindowState } from "./utils/WindowState";
 
@@ -134,9 +135,10 @@ async function createWindow() {
         mainWindow.webContents.openDevTools({ mode: "detach" }); 
     }
     
-    // mainWindow.on('closed', () => {
-    //     if(!process.argv.includes("--no-stremio-service") && StremioService.isProcessRunning()) StremioService.terminate();
-    // });
+    mainWindow.on('closed', () => {
+        mainWindow = null;
+        terminateStremioServiceIfEnabled();
+    });
 }
 
 // Use Stremio Service for streaming
@@ -210,6 +212,7 @@ app.on("ready", async () => {
     // setup IPC and create window
     setupPluginSettingsAPI();
     setupPluginAlertAPI();
+    setupServiceController(userDataPath);
     createWindow();
     if(transparencyEnabled) setupWindowControls();
     setupUpdater();
@@ -338,6 +341,10 @@ async function useServerJS() {
         await useStremioService();
     }
 }
+
+app.on("before-quit", () => {
+    terminateStremioServiceIfEnabled();
+});
 
 app.on("window-all-closed", () => {
     logger.info("Closing app...");

@@ -1,7 +1,7 @@
 import { getLogger } from "./logger";
 import { basename, join, resolve } from "path";
 import { existsSync, createWriteStream, unlinkSync } from "fs";
-import { execFile, spawn } from "child_process";
+import { execFile, execSync, spawn } from "child_process";
 import { promisify } from "util";
 import * as process from 'process';
 import { homedir } from 'os';
@@ -198,34 +198,7 @@ class StremioService {
     }
     
     private static async isServiceRunning(): Promise<boolean> {
-        const platform = process.platform;
-
-        if (platform === "win32") {
-            return new Promise(resolve => {
-                execFile("tasklist", ["/FI", 'IMAGENAME eq stremio-service.exe'], (_err, stdout) => {
-                    resolve(Boolean(stdout && stdout.includes("stremio-service.exe")));
-                });
-            });
-        }
-
-        if (platform === "darwin") {
-            return new Promise(resolve => {
-                execFile("pgrep", ["-f", "StremioService"], (err) => {
-                    resolve(!err);
-                });
-            });
-        }
-
-        if (platform === "linux") {
-            return new Promise(resolve => {
-                execFile("flatpak", ["ps"], (err, stdout) => {
-                    if (!err && stdout.includes("com.stremio.Service")) return resolve(true);
-                    resolve(false);
-                });
-            });
-        }
-
-        return false;
+        return this.isProcessRunning();
     }
     
     public static async isServiceInstalled(): Promise<boolean> {
@@ -347,20 +320,73 @@ class StremioService {
     
     public static terminate(): number {
         try {
-            this.logger.info("Terminating Stremio Service.");
-            
-            const pid = this.getStremioServicePid();
-            if (pid) {
-                process.kill(pid, 'SIGTERM');
-                this.logger.info("Stremio Service terminated.");
-                return 0; 
-            } else {
-                this.logger.error("Failed to find Stremio Service PID.");
-                return 1;
+            this.logger.info("Terminating Stremio Service...");
+            const platform = process.platform;
+
+            if (platform === "win32") {
+                try {
+                    execSync('taskkill /F /IM stremio-service.exe /T', { stdio: "ignore", windowsHide: true });
+                    this.logger.info("Stremio Service terminated on Windows.");
+                    return 0;
+                } catch {
+                    const pid = this.getStremioServicePid();
+                    if (pid) {
+                        process.kill(pid, 'SIGTERM');
+                        this.logger.info("Stremio Service terminated via PID.");
+                        return 0;
+                    }
+                }
+            } else if (platform === "darwin") {
+                let killed = false;
+                try {
+                    execSync('pkill -f -i stremio-service', { stdio: "ignore" });
+                    killed = true;
+                } catch {}
+                try {
+                    execSync('pkill -f -i StremioService', { stdio: "ignore" });
+                    killed = true;
+                } catch {}
+
+                if (killed) {
+                    this.logger.info("Stremio Service terminated on macOS.");
+                    return 0;
+                }
+
+                const pid = this.getStremioServicePid();
+                if (pid) {
+                    process.kill(pid, 'SIGTERM');
+                    this.logger.info("Stremio Service terminated via PID.");
+                    return 0;
+                }
+            } else if (platform === "linux") {
+                let killed = false;
+                try {
+                    execSync('flatpak kill com.stremio.Service', { stdio: "ignore" });
+                    killed = true;
+                } catch {}
+                try {
+                    execSync('pkill -f stremio-service', { stdio: "ignore" });
+                    killed = true;
+                } catch {}
+
+                if (killed) {
+                    this.logger.info("Stremio Service terminated on Linux.");
+                    return 0;
+                }
+
+                const pid = this.getStremioServicePid();
+                if (pid) {
+                    process.kill(pid, 'SIGTERM');
+                    this.logger.info("Stremio Service terminated via PID.");
+                    return 0;
+                }
             }
+
+            this.logger.warn("No active Stremio Service process found to terminate.");
+            return 1;
         } catch (e) {
             this.logger.error(`Error terminating service: ${(e as Error).message}`);
-            return 2; 
+            return 2;
         }
     }
     
@@ -378,10 +404,8 @@ class StremioService {
     }
     
     private static getPidForWindows(): number | null {
-        const execSync = require('child_process').execSync;
         try {
             const output = execSync('tasklist /FI "IMAGENAME eq stremio-service.exe"').toString();
-            
             const lines = output.split('\n');
             
             for (const line of lines) {
@@ -395,16 +419,14 @@ class StremioService {
             
             this.logger.error("Stremio service not found in tasklist.");
         } catch (error) {
-            this.logger.error('Error retrieving PID for Stremio service on Windows:' + error);
+            this.logger.error('Error retrieving PID for Stremio service on Windows: ' + error);
         }
         return null;
     }
     
-    
     private static getPidForUnix(): number | null {
-        const execSync = require('child_process').execSync;
         try {
-            const output = execSync("pgrep -f stremio-service").toString();
+            const output = execSync("pgrep -f stremio-service || pgrep -f StremioService").toString();
             return parseInt(output.trim(), 10);
         } catch (error) {
             this.logger.error('Error retrieving PID for Stremio service on Unix: ' + error);
@@ -441,23 +463,37 @@ class StremioService {
     public static async isProcessRunning(): Promise<boolean> {
         try {
             switch (process.platform) {
-
                 case "win32": 
                     const { stdout } = await this.execFileAsync("tasklist", ["/FI", 'IMAGENAME eq stremio-service.exe']);
                     return stdout.toLowerCase().includes("stremio-service.exe");
                 case "darwin":
+                    try {
+                        await this.execFileAsync("pgrep", ["-i", "-f", "stremio-service"]);
+                        return true;
+                    } catch {
+                        try {
+                            await this.execFileAsync("pgrep", ["-i", "-f", "StremioService"]);
+                            return true;
+                        } catch {
+                            return false;
+                        }
+                    }
                 case "linux": 
                     try {
                         await this.execFileAsync("pgrep", ["-f", "stremio-service"]);
                         return true;
                     } catch {
-                        return false;
+                        try {
+                            const { stdout: flatpakPs } = await this.execFileAsync("flatpak", ["ps"]);
+                            return flatpakPs.includes("com.stremio.Service");
+                        } catch {
+                            return false;
+                        }
                     }
                 default:
                     this.logger.error("Unsupported operating system");
                     return false;
             }
-
         } catch (error: any) {
             this.logger.error(`Error checking service running state: ${error.message}`);
             return false;
