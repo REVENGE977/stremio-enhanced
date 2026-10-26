@@ -232,3 +232,14 @@ xattr -d com.apple.quarantine /path/to/Stremio.Enhanced.app
 ### Important Note: Currently, the latest official Windows version of Stremio Service on GitHub includes faulty FFmpeg binaries. This can lead to issues like no audio in streams. To fix this for the time being, you can either use server.js directly or replace the ffmpeg binaries using the following steps:
 - download ffmpeg from here https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-win64-gpl.zip
 - extract the zip archive to local appdata > programs > StremioService and select replace existing files.
+
+## Update v1.2.0
+**This update is to fix Stremio Enhanced to work with the newest Stremio Web version.**
+
+- Fixed an issue where the Enhanced section wasn't showing in the settings tab.
+- Fixed an issue where Discord Rich Presence wasn't updating status.
+- Improvements to Discord Rich Presence:
+  - Now works with external players 
+  - Now works when autoplaying next episode
+- Added update detection for server.js. If you're not using Stremio Service and you're using server.js directly, now it'll check for updates for server.js on launch and inform you if there is a newer version with a dialog to update.
+  - **Note:** Due to licensing restrictions, the download of server.js cannot be automated. You will need to download the file manually, but this script will walk you through the process and automatically delete the old version for you.

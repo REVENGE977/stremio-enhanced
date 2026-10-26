@@ -23,7 +23,6 @@ import { gpuController } from "./controllers/gpuController";
 import { externalPlayerController } from "./controllers/externalPlayerController";
 import { setupServiceController, terminateStremioServiceIfEnabled } from "./controllers/serviceController";
 import { downloadController } from "./controllers/downloadController";
-import { WindowState } from "./utils/WindowState";
 
 // Logs are written to stdout/stderr. When the app was started from a terminal or tool that has
 // since gone away, those writes fail with EPIPE; that must not crash the app.
