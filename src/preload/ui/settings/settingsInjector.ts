@@ -47,15 +47,31 @@ function writeAbout(): void {
     }).catch(err => logger.error("Failed to write about section: " + err));
 }
 
+// The pages are built asynchronously (they wait for Stremio's settings page to render), so a second
+// hashchange arriving meanwhile must not start another build.
+let buildingSince = 0;
+
 export function checkSettings() {
     if (!location.href.includes("#/settings")) return;
-    if (document.querySelector(`a[href="#settings-enhanced"]`)) return;
-        
+    settingsBuilder.updateRoute();
+    if (document.getElementById("enhanced") && document.querySelector("[data-enhanced-nav]")) return;
+    if (Date.now() - buildingSince < 3000) return;
+    buildingSince = Date.now();
+
+    // Stremio rebuilt its settings page (or this is the first visit): drop anything of ours that's left.
+    document.getElementById("enhanced")?.closest(".enhanced-page-container")?.remove();
+    document.querySelector("[data-enhanced-nav]")?.remove();
+
     const themesList = readdirSync(properties.themesPath).filter(f => f.endsWith(FILE_EXTENSIONS.THEME));
     const pluginsList = readdirSync(properties.pluginsPath).filter(f => f.endsWith(FILE_EXTENSIONS.PLUGIN));
-    
+
     logger.info("Adding 'Enhanced' sections...");
-    settingsBuilder.addSection("enhanced", "Enhanced");
+    settingsBuilder.addSection("enhanced", "Stremio Enhanced");
+    settingsBuilder.addNavGroup("Stremio Enhanced", [
+        { id: "themes", label: "Themes", icon: getThemeIcon() },
+        { id: "plugins", label: "Plugins", icon: getPluginIcon() },
+        { id: "about", label: "About", icon: getAboutIcon() },
+    ]);
     settingsBuilder.addCategory("Themes", "enhanced", getThemeIcon());
     settingsBuilder.addCategory("Plugins", "enhanced", getPluginIcon());
     settingsBuilder.addCategory("About", "enhanced", getAboutIcon());
@@ -78,7 +94,8 @@ export function checkSettings() {
 
     Helpers.waitForElm(SELECTORS.THEMES_CATEGORY).then(() => {
         const isCurrentThemeDefault = localStorage.getItem(STORAGE_KEYS.CURRENT_THEME) === "Default";
-        document.querySelector(SELECTORS.THEMES_CATEGORY)?.insertAdjacentHTML("afterbegin", getDefaultThemeTemplate(isCurrentThemeDefault));
+        // Right after the category's heading, so "Default" is listed with the other themes.
+        document.querySelector(SELECTORS.THEMES_CATEGORY)?.firstElementChild?.insertAdjacentHTML("afterend", getDefaultThemeTemplate(isCurrentThemeDefault));
         
         themesList.forEach(theme => {
             const metaData = ExtractMetaData.extractMetadataFromFile(join(properties.themesPath, theme));
@@ -96,7 +113,6 @@ export function checkSettings() {
     });
     
     modController.bindTogglePluginListener();
-    modController.scrollListener();
     modController.bindPluginOptionsListeners();
     modController.bindFolderButtons();
     modController.bindToggleAllPluginsButton();

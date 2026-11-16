@@ -61,7 +61,7 @@ export const applyThemeAPI = {
                     currentThemeElement.classList.remove("uninstall-button-container-oV4Yo");
                     currentThemeElement.classList.add("install-button-container-yfcq5");   
                 } else {
-                    currentThemeElement.style.backgroundColor = "var(--secondary-accent-color)";
+                    currentThemeElement.style.backgroundColor = "var(--action-color, var(--secondary-accent-color))";
                 }
 
                 currentThemeElement.innerText = "Apply";
@@ -81,7 +81,7 @@ export const applyThemeAPI = {
                 newThemeElement.classList.remove("install-button-container-yfcq5");
                 newThemeElement.classList.add("uninstall-button-container-oV4Yo");
             } else {
-                newThemeElement.style.backgroundColor = "var(--overlay-color)";
+                newThemeElement.style.backgroundColor = "var(--surface-background-color, var(--overlay-color))";
             }
 
             newThemeElement.innerText = "Applied";

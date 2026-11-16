@@ -6,5 +6,5 @@ export function getDefaultThemeTemplate(applied: boolean): string {
     return template
         .replace("{{ disabled }}", applied ? "disabled" : "")
         .replace("{{ label }}", applied ? "Applied" : "Apply")
-        .replace("{{ backgroundColor }}", applied ? "var(--overlay-color)" : "var(--secondary-accent-color)");
+        .replace("{{ backgroundColor }}", applied ? "var(--surface-background-color, var(--overlay-color))" : "var(--action-color, var(--secondary-accent-color))");
 }

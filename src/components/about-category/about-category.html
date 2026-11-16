@@ -1,48 +1,48 @@
 <h4 style="color: white; margin-bottom: 1rem;">
-    Developed By: <p style="display: inline !important;"><a href="https://github.com/REVENGE977" target="_blank" rel="noreferrer" style="color: var(--primary-accent-color)">REVENGE977</a></p>
+    Developed By: <p style="display: inline !important;"><a href="https://github.com/REVENGE977" target="_blank" rel="noreferrer" style="color: var(--accent-color, var(--primary-accent-color))">REVENGE977</a></p>
     <br/>
     Version: v{{ version }}
     <br/>
 </h4>
 
-<div class="option-vFOAS">
-    <div class="heading-dYMDt">
-        <div class="label-qI6Vh">Check for updates on startup</div>
+<div class="enhanced-option">
+    <div class="enhanced-option-heading">
+        <div class="enhanced-option-label">Check for updates on startup</div>
     </div>
-    <div class="content-P2T0i">
+    <div class="enhanced-option-content">
         <div tabindex="-1" class="toggle-container-lZfHP button-container-zVLH6 {{ checkForUpdatesOnStartup }}" id="checkForUpdatesOnStartup">
             <div class="toggle-toOWM"></div>
         </div>
     </div>
 </div>
 
-<div class="option-vFOAS">
-    <div class="heading-dYMDt">
-        <div class="label-qI6Vh">Discord Rich Presence</div>
+<div class="enhanced-option">
+    <div class="enhanced-option-heading">
+        <div class="enhanced-option-label">Discord Rich Presence</div>
     </div>
-    <div class="content-P2T0i">
+    <div class="enhanced-option-content">
         <div tabindex="-1" class="toggle-container-lZfHP button-container-zVLH6 {{ discordrichpresence }}" id="discordrichpresence" style="outline: none;">
             <div class="toggle-toOWM"></div>
         </div>
     </div>
 </div>
 
-<div class="option-vFOAS">
-    <div class="heading-dYMDt">
-        <div class="label-qI6Vh">Kill Stremio Service on exit</div>
+<div class="enhanced-option">
+    <div class="enhanced-option-heading">
+        <div class="enhanced-option-label">Kill Stremio Service on exit</div>
     </div>
-    <div class="content-P2T0i">
+    <div class="enhanced-option-content">
         <div tabindex="-1" class="toggle-container-lZfHP button-container-zVLH6 {{ autokillService }}" id="autokillService" style="outline: none;">
             <div class="toggle-toOWM"></div>
         </div>
     </div>
 </div>
 
-<div class="option-vFOAS">
-    <div class="heading-dYMDt">
-        <div class="label-qI6Vh">Window transparency</div>
+<div class="enhanced-option">
+    <div class="enhanced-option-heading">
+        <div class="enhanced-option-label">Window transparency</div>
     </div>
-    <div class="content-P2T0i">
+    <div class="enhanced-option-content">
         <div tabindex="-1" class="toggle-container-lZfHP button-container-zVLH6 {{ enableTransparentThemes }}" id="enableTransparentThemes" style="outline: none;">
             <div class="toggle-toOWM"></div>
         </div>
@@ -52,14 +52,14 @@
 <p style="color:rgb(204, 204, 204);">Note: The Window transparency option has to be enabled for themes that support window transparency to work. However, <b>this is still experimental and also uses more resources</b>, so don't enable it unless you're using a theme that utilizes it.</p>
 <br/>
 
-<div class="option-vFOAS">
-    <div class="heading-dYMDt">
-        <div class="label-qI6Vh">
+<div class="enhanced-option">
+    <div class="enhanced-option-heading">
+        <div class="enhanced-option-label">
             External Player
         </div>
     </div>
 
-    <div class="content-P2T0i">
+    <div class="enhanced-option-content">
         <select data-key="externalPlayer" id="external-player-dropdown" class="search-input-bAgAh text-input-hnLiz plugin-setting-select" style="width: 100%; padding: 0 15px; cursor: pointer; background-color: rgba(255, 255, 255, 0.08); color: white; border: 1px solid transparent; border-radius: 20px; outline: none; appearance: auto; box-sizing: border-box; height: 42px;">
             <option value="disabled" {{ selected_disabled }} style="background-color: #1a1a1a; color: white;">Disabled (Default)</option>
             <option value="vlc" {{ selected_vlc }} style="background-color: #1a1a1a; color: white;">VLC</option>
@@ -68,20 +68,20 @@
     </div>
 </div>
 
-<div class="option-vFOAS" id="vlc-path-option" style="display: {{ vlc_path_display }};">
-    <div class="heading-dYMDt">
-        <div class="label-qI6Vh">VLC Path (optional)</div>
+<div class="enhanced-option" id="vlc-path-option" style="display: {{ vlc_path_display }};">
+    <div class="enhanced-option-heading">
+        <div class="enhanced-option-label">VLC Path (optional)</div>
     </div>
-    <div class="content-P2T0i">
+    <div class="enhanced-option-content">
         <input type="text" id="external-player-vlc-path" class="search-input-bAgAh text-input-hnLiz" placeholder="Auto-detect (leave empty)" value="{{ vlc_custom_path }}" style="width: 100%; padding: 0 15px; background-color: rgba(255, 255, 255, 0.08); color: white; border: 1px solid transparent; border-radius: 20px; outline: none; box-sizing: border-box; height: 42px;" />
     </div>
 </div>
 
-<div class="option-vFOAS" id="mpv-path-option" style="display: {{ mpv_path_display }};">
-    <div class="heading-dYMDt">
-        <div class="label-qI6Vh">MPV Path (optional)</div>
+<div class="enhanced-option" id="mpv-path-option" style="display: {{ mpv_path_display }};">
+    <div class="enhanced-option-heading">
+        <div class="enhanced-option-label">MPV Path (optional)</div>
     </div>
-    <div class="content-P2T0i">
+    <div class="enhanced-option-content">
         <input type="text" id="external-player-mpv-path" class="search-input-bAgAh text-input-hnLiz" placeholder="Auto-detect (leave empty)" value="{{ mpv_custom_path }}" style="width: 100%; padding: 0 15px; background-color: rgba(255, 255, 255, 0.08); color: white; border: 1px solid transparent; border-radius: 20px; outline: none; box-sizing: border-box; height: 42px;" />
     </div>
 </div>
@@ -89,14 +89,14 @@
 <p style="color:rgb(204, 204, 204);">Note: When enabled, streams will always open in the selected external player instead of the built-in player. The player must be installed on your system. You can optionally set a custom path to the player executable.</p>
 <br/>
 
-<div class="option-vFOAS">
-    <div class="heading-dYMDt">
-        <div class="label-qI6Vh">
+<div class="enhanced-option">
+    <div class="enhanced-option-heading">
+        <div class="enhanced-option-label">
             ANGLE graphics backend
         </div>
     </div>
 
-    <div class="content-P2T0i">
+    <div class="enhanced-option-content">
         <select data-key="gpuRenderer" {{ disabled }} id="gpu-renderer-dropdown" class="search-input-bAgAh text-input-hnLiz plugin-setting-select" style="width: 100%; padding: 0 15px; cursor: pointer; background-color: rgba(255, 255, 255, 0.08); color: white; border: 1px solid transparent; border-radius: 20px; outline: none; appearance: auto; box-sizing: border-box; height: 42px;">
             <option value="auto" {{ selected_auto }} style="background-color: #1a1a1a; color: white;">Auto (Default)</option>
             <option value="d3d11" {{ disabled_d3d11 }} {{ selected_d3d11 }} style="background-color: #1a1a1a; color: white;">DirectX 11 (Windows only)</option>
@@ -111,17 +111,17 @@
 <p style="color:rgb(204, 204, 204);">Note: Auto uses DirectX 11 on Windows, OpenGL on Linux and Metal on macOS. If you encounter any issues like not being able to switch audio tracks in some streams, try switching to OpenGL.</p>
 <br/>
 
-<div class="option-vFOAS">
-    <div class="content-P2T0i">
-        <div tabindex="0" title="Community Plugins &amp; Themes" class="button-DNmYL button-container-zVLH6 button" id="browsePluginsThemesBtn">
+<div class="enhanced-option">
+    <div class="enhanced-option-content">
+        <div tabindex="0" title="Community Plugins &amp; Themes" class="enhanced-button button-container-zVLH6 button" id="browsePluginsThemesBtn">
             Community Marketplace
         </div>
     </div>
 </div>
 
-<div class="option-vFOAS">
-    <div class="content-P2T0i">
-        <div tabindex="0" title="Check For Updates" class="button-DNmYL button-container-zVLH6 button" id="checkforupdatesBtn">
+<div class="enhanced-option">
+    <div class="enhanced-option-content">
+        <div tabindex="0" title="Check For Updates" class="enhanced-button button-container-zVLH6 button" id="checkforupdatesBtn">
             Check For Updates
         </div>
     </div>

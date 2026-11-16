@@ -6,15 +6,15 @@
 // CSS Selectors used to interact with Stremio's UI
 // Note: These may need updating when Stremio updates their class names
 export const SELECTORS = {
-    SECTIONS_CONTAINER: '[class^="sections-container-"]',
-    SECTION: '[class^="section-"]',
-    CATEGORY: '.category-GP0hI',
-    CATEGORY_LABEL: '.label-N_O2v',
-    CATEGORY_ICON: '.icon-oZoyV',
-    CATEGORY_HEADING: '.heading-XePFl',
-    LABEL: '[class^="label-wXG3e"]',
-    NAV_MENU: '.menu-xeE06',
-    SETTINGS_CONTENT: '.settings-content-co5eU',
+    // Settings page (Stremio Web 5.1+): a sidebar of link groups next to a pane showing one page.
+    // Matched by class-name prefix, because the hash suffixes change with every Stremio Web build.
+    SETTINGS_CONTENT: '[class*="settings-content-"]',
+    NAV_MENU: '[class*="settings-content-"] > nav',
+    NAV_GROUP: '[class*="settings-content-"] > nav > div[class*="group-"]',
+    SETTINGS_PANE: '[class*="settings-content-"] > [class*="pane-"]',
+    SETTINGS_PAGE_CONTAINER: '[class*="settings-content-"] > [class*="pane-"] > [class*="page-container-"]',
+    SETTINGS_PAGE: '[class*="settings-content-"] > [class*="pane-"] > [class*="page-container-"] > [class*="page-"]',
+    SETTINGS_GROUP: '[class*="page-container-"] > [class*="page-"] > section[class*="group-"]',
     ENHANCED_SECTION: '#enhanced',
     THEMES_CATEGORY: '#enhanced > div:nth-child(2)',
     PLUGINS_CATEGORY: '#enhanced > div:nth-child(3)',
@@ -35,9 +35,10 @@ export const SELECTORS = {
 
 // CSS Classes used for styling
 export const CLASSES = {
-    OPTION: 'option-vFOAS',
-    CONTENT: 'content-P2T0i',
-    BUTTON: 'button-DNmYL',
+    // Option rows on the Enhanced pages use Stremio Enhanced's own classes (see settingsStyles.ts).
+    OPTION: 'enhanced-option',
+    CONTENT: 'enhanced-option-content',
+    BUTTON: 'enhanced-button',
     BUTTON_CONTAINER: 'button-container-zVLH6',
     SELECTED: 'selected-S7SeK',
     INSTALL_BUTTON: 'install-button-container-yfcq5',
@@ -53,6 +54,9 @@ export const ICONS = {
     MAXIMIZE: "M3,3H21V21H3V3M5,5V19H19V5H5Z",
     RESTORE: "M4,8H8V4H20V16H16V20H4V8M16,8V14H18V6H10V8H16M6,12V18H14V12H6Z"
 } as const;
+
+// Address of the Enhanced settings pages (#/settings/enhanced/themes, /plugins, /about)
+export const ENHANCED_ROUTE = '#/settings/enhanced';
 
 // LocalStorage keys
 export const STORAGE_KEYS = {
