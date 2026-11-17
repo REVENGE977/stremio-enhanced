@@ -243,3 +243,14 @@ xattr -d com.apple.quarantine /path/to/Stremio.Enhanced.app
   - Now works when autoplaying next episode
 - Added update detection for server.js. If you're not using Stremio Service and you're using server.js directly, now it'll check for updates for server.js on launch and inform you if there is a newer version with a dialog to update.
   - **Note:** Due to licensing restrictions, the download of server.js cannot be automated. You will need to download the file manually, but this script will walk you through the process and automatically delete the old version for you.
+  
+## Update v1.2.1
+**This update is to fix Stremio Enhanced to work with the newest Stremio Web version (v5.1).**
+- Now shows Enhanced's options in the settings menu with the new interface correcty.
+- Volume should now be presistent between sessions.
+- Subtitle loading optimized.
+- Now sends subtitle tracks to external players.
+- Added a toggle all button for plugins.
+- Added a toggle to kill Stremio Service on exit.
+
+**Note: If you are on Windows or Linux, I recommend checking my forks of [stremio-shell-ng](https://github.com/REVENGE977/stremio-shell-ng) and [stremio-linux-shell](https://github.com/REVENGE977/stremio-linux-shell) for a better streaming experience.**
