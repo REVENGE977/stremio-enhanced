@@ -243,28 +243,6 @@ export const modController = {
         });
     },
         
-    scrollListener: (): void => {
-        helpers.waitForElm('div > div[title="Enhanced"]').then(() => {
-            const enhanced = document.getElementById('enhanced');
-            const enhancedNav = document.querySelector('div > div[title="Enhanced"]');
-            if (!enhanced || !enhancedNav) return;
-
-            enhancedNav.addEventListener("click", () => {
-                document.querySelector("#enhanced > div")?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                settingsBuilder.activeSection(enhancedNav);
-            });
-            
-            const observer = new IntersectionObserver((entries) => {
-                entries.forEach(entry => {
-                    if (entry.isIntersecting) settingsBuilder.activeSection(enhancedNav);
-                    else enhancedNav.classList.remove(CLASSES.SELECTED);
-                });
-            }, { threshold: 0.1 });
-        
-            observer.observe(enhanced);
-        });
-    },
-    
     checkForItemUpdatesUI: async (itemFile: string): Promise<void> => {
         const updateData = await ModManager.checkUpdateData(itemFile);
         if (!updateData) return;
@@ -309,7 +287,7 @@ export const modController = {
         paragraph.style.color = "white";
         
         const link = document.createElement("a");
-        link.style.color = "var(--primary-accent-color)";
+        link.style.color = "var(--accent-color, var(--primary-accent-color))";
         link.style.cursor = "pointer";
         link.style.fontWeight = "bold";
         link.textContent = "here";
