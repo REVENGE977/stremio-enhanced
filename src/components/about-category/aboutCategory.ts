@@ -7,7 +7,8 @@ export function getAboutCategoryTemplate(
     checkForUpdatesOnStartup: boolean,
     discordRichPresence: boolean,
     enableTransparentThemes: boolean,
-    currentAngle: string,
+    autokillService: boolean = true,
+    currentAngle: string = 'auto',
     currentExternalPlayer: ExternalPlayer = 'disabled',
     vlcCustomPath: string = '',
     mpvCustomPath: string = ''
@@ -19,6 +20,7 @@ export function getAboutCategoryTemplate(
         .replace("{{ checkForUpdatesOnStartup }}", checkForUpdatesOnStartup ? "checked" : "")
         .replace("{{ discordrichpresence }}", discordRichPresence ? "checked" : "")
         .replace("{{ enableTransparentThemes }}", enableTransparentThemes ? "checked" : "")
+        .replace("{{ autokillService }}", autokillService ? "checked" : "")
         .replace("{{ disabled }}", process.platform == "darwin" ? "disabled" : "")
         .replace("{{ disabled_d3d11 }}", process.platform != "win32" ? "disabled" : "")
         .replace("{{ disabled_d3d9 }}", process.platform != "win32" ? "disabled" : "")

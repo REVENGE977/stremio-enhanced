@@ -233,34 +233,30 @@ xattr -d com.apple.quarantine /path/to/Stremio.Enhanced.app
 - download ffmpeg from here https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-win64-gpl.zip
 - extract the zip archive to local appdata > programs > StremioService and select replace existing files.
 
-## Update v1.3.0-preview.1
-### This is the first pre-release replacing the HTML5 video player with embedded mpv (Windows only for now). 
+## Update v1.2.0
+**This update is to fix Stremio Enhanced to work with the newest Stremio Web version.**
 
-Keep in mind that this is just a pre-release to get things tested, so definitely expect some issues.
+- Fixed an issue where the Enhanced section wasn't showing in the settings tab.
+- Fixed an issue where Discord Rich Presence wasn't updating status.
+- Improvements to Discord Rich Presence:
+  - Now works with external players 
+  - Now works when autoplaying next episode
+- Added update detection for server.js. If you're not using Stremio Service and you're using server.js directly, now it'll check for updates for server.js on launch and inform you if there is a newer version with a dialog to update.
+  - **Note:** Due to licensing restrictions, the download of server.js cannot be automated. You will need to download the file manually, but this script will walk you through the process and automatically delete the old version for you.
+  
+## Update v1.2.1
+**This update is to fix Stremio Enhanced to work with the newest Stremio Web version (v5.1).**
+- Now shows Enhanced's options in the settings menu with the new interface correctly.
+- Volume should now be persistent between sessions.
+- Subtitle loading optimized.
+- Now sends subtitle tracks to external players.
+- Added a toggle all button for plugins.
+- Added a toggle to kill Stremio Service on exit.
 
-### Note on Player Controls
-Because the embedded mpv window sits on top of everything, it completely covers the default Stremio Web player controls. To fix this, I’m building a custom overlay clone to match the standard controls. It's still a work in progress and missing a few features, so here are the known issues for this build:
+**Note: If you are on Windows or Linux, I recommend checking my forks of [stremio-shell-ng](https://github.com/REVENGE977/stremio-shell-ng) and [stremio-linux-shell](https://github.com/REVENGE977/stremio-linux-shell) for a better streaming experience.**
 
-* **External Players:** The three-dots menu to open streams in an external player isn't implemented yet.
-* **Fit button:** The Fit button does not function right now.
-* **Series Navigation:** The side drawer for quickly switching to other episodes is currently missing.
-* **Streaming Stats:** The statistics button to check your stream loading speeds is not available yet.
-* **Settings Defaults:** It won't auto-select subtitles or audio tracks based on your default Stremio settings, and it won't respect your default subtitle size preference yet.
-* **Subtitles Menu:** The Subtitles Settings section (to change subtitle size/delay or position) inside the subtitle overlay menu is not yet hooked up.
-* **Streaming Error:** The player will sometimes give a "Video not supported" error, but you can ignore it and wait, the stream will play anyway.
-
-## v1.3.0-preview.2
-### This is just a pre-release to get things tested, so definitely expect some issues.
-## If you missed the previous preview these preview builds are currently testing MPV embedding. It is still WIP. There WILL be issues and missing features.
-
-### Changes from previous preview build:
-- Fixed addon subtitles somtimes not loading
-- The transition of replacing the standard stremio controls with new ones to show on top of mpv should be smoother now
-- Scale button (fit, stretch, crop) is now implemented
-- Shortcuts implemented:
-  - Space to pause/play
-  - ESC to exit fullscreen
-  - Arrow keys to skip around
-- Now the controls' zoom is based on main window's zoom (it'll use the same size you change using ctrl +/- in the main window)
-
-[To check current progress checkout the todo.md file](https://github.com/REVENGE977/stremio-enhanced/blob/feat/electron-libmpv/todo.md) (go down to the MPV embedding section)
+## Update v1.3.0-preview (Cross-Platform Embedded libmpv)
+- Replaced the Windows-only `--wid` + cloned overlay window prototype with a cross-platform **zero-copy GPU shared-texture** `libmpv` render pipeline (ANGLE D3D11 NT Handles on Windows, CGL IOSurface on macOS, GBM/EGL DMA-BUF on Linux X11 & Wayland) with automatic software fallback.
+- Wired Stremio Web 5.1's native `ShellVideo` IPC transport (`qt.webChannelTransport` / `chrome.webview`) directly to embedded `libmpv`, so all stock Stremio player controls, side drawer, subtitles, audio tracks, playback speed slider, statistics, HDR metadata, continue watching, themes, and plugins work natively on top of the video canvas.
+- Supports 4K HDR playback with hardware decoding (`d3d11va` / `videotoolbox` / `vaapi`), 16-bit float (`rgbaf16`) WebGPU extended-range HDR output on HDR displays (Windows/macOS), and high-quality GPU BT.2446a HDR-to-SDR tone mapping on SDR displays.
+- Merged all Stremio Web 5.1 compatibility fixes and recent improvements from `main`.

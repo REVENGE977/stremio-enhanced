@@ -31,34 +31,10 @@
 - [x] Fix embedded subs not loading some streams by having manually extracting the subs and loading them.
 - [x] Clean up preload.ts
 - [ ] Features from Zaarrg/stremio-community-v5
-  - [ ] MPV embedding
-    - [x] Replace the HTML5 player with mpv
-    - [ ] Bind the new player overlay controls to call functions to mpv:
-      - [x] Play/Pause 
-      - [x] Back button
-      - [x] Fullscreen
-      - [x] Volume control
-      - [] Playback speed (needs reimplementation to work with the new slider design)
-      - [x] Next video
-        - [x] Hide the button if watching a movie
-      - [x] Audio track switching
-      - [x] Subtitles switching
-        - [x] Addon subtitles
-        - [x] Embedded subtitles
-        - [ ] Auto choose default subtitle based on language preference set in the settings
-      - [ ] Open in external player
-      - [x] Scale button
-      - [ ] Side drawer
-      - [ ] Statistics button
-      - [ ] Keybinds
-        - [x] Space to pause/play
-        - [x] ESC to exit fullscreen
-        - [x] Arrow keys to skip around
-        - [ ] Add other shortcuts shown in the settings menu
-    - [x] Scale the controls' zoomFactor based on main window's zoomFactor 
-    - [ ] Pass current theme CSS to the overlay window
-    - [ ] Allow plugins to manipulate the new player controls overlay made for mpv
-    - [ ] Save current watch time for the continue watching feature
+  - [x] MPV embedding (cross-platform zero-copy sharedTexture + Stremio Web native ShellVideo IPC)
+    - [x] Replace HTML5 video with embedded libmpv on Windows (ANGLE D3D11 NT Handle), macOS (CGL IOSurface), and Linux X11/Wayland (GBM/EGL DMA-BUF) with automatic software fallback
+    - [x] Wire Stremio Web 5.1 native ShellVideo transport (`qt.webChannelTransport` / `chrome.webview`) so all stock player controls (play/pause, seekbar, volume, speed slider, audio tracks, embedded + addon + ASS subtitles, auto language selection, video scale, side drawer, statistics, HDR info, next video, continue watching, keybinds) work natively over the video canvas
+    - [x] Preserve custom themes, zoom factor, and plugin compatibility via `transparencyBridge` and `videoBridge`
   - [ ] Thumbnail preview
   - [ ] Upscale model support
 - [x] Create API for plugins to put alert and prompt dialogs
@@ -68,4 +44,4 @@
 - [x] Create API for plugins to use winston logger
 - [x] Add option to always open streams in either VLC or MPV
 - [x] Check for server.js updates (if the user is using server.js directly) by checking the latest version of server.js available [in Cargo.toml](https://github.com/Stremio/stremio-service/blob/master/Cargo.toml)
-- [ ] Memorize current volume for future streams
+- [x] Memorize current volume for future streams

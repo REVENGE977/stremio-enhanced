@@ -63,6 +63,19 @@ export function setupTransparencyToggle(): void {
     }).catch(() => {});
 }
 
+export function setupAutokillServiceToggle(): void {
+    Helpers.waitForElm('#autokillService').then(() => {
+        const toggle = document.getElementById("autokillService");
+        toggle?.addEventListener("click", () => {
+            toggle.classList.toggle(CLASSES.CHECKED);
+            const isChecked = toggle.classList.contains(CLASSES.CHECKED);
+            logger.info(`Kill Stremio Service on exit toggled ${isChecked ? "ON" : "OFF"}`);
+            localStorage.setItem(STORAGE_KEYS.AUTOKILL_SERVICE, isChecked ? "true" : "false");
+            ipcRenderer.send(IPC_CHANNELS.SET_AUTOKILL_SERVICE, isChecked);
+        });
+    }).catch(() => {});
+}
+
 export function setupGpuDropdown() {
     Helpers.waitForElm('#gpu-renderer-dropdown').then(() => {
         const gpuDropdown = document.getElementById('gpu-renderer-dropdown') as HTMLSelectElement;

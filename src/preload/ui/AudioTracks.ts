@@ -116,7 +116,7 @@ class AudioTracks {
                 align-self: stretch;
                 padding: 1.5rem 2rem;
                 font-weight: 700;
-                color: var(--primary-foreground-color);
+                color: var(--foreground-color-primary, var(--primary-foreground-color));
             }
             .enhanced-audio-menu .eam-list {
                 flex: 1;
@@ -146,7 +146,7 @@ class AudioTracks {
             }
             .enhanced-audio-menu .eam-option:hover,
             .enhanced-audio-menu .eam-option.selected {
-                background-color: var(--overlay-color);
+                background-color: var(--surface-background-color, var(--overlay-color));
             }
             .enhanced-audio-menu .eam-info {
                 flex: 1;
@@ -160,7 +160,7 @@ class AudioTracks {
                 text-overflow: ellipsis;
                 font-size: 1.1rem;
                 line-height: 1.5rem;
-                color: var(--primary-foreground-color);
+                color: var(--foreground-color-primary, var(--primary-foreground-color));
             }
             .enhanced-audio-menu .eam-label {
                 flex: auto;
@@ -174,7 +174,7 @@ class AudioTracks {
                 width: 0.5rem;
                 height: 0.5rem;
                 border-radius: 100%;
-                background-color: var(--secondary-accent-color);
+                background-color: var(--action-color, var(--secondary-accent-color));
             }
         `;
         document.head.appendChild(style);

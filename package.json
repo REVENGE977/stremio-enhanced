@@ -1,6 +1,6 @@
 {
 	"name": "stremio-enhanced",
-	"version": "1.2.0",
+	"version": "1.2.1",
 	"description": "Electron-based Stremio client with plugins and themes support.",
 	"main": "./dist/main.js",
 	"scripts": {
@@ -26,7 +26,7 @@
 	"license": "MIT",
 	"devDependencies": {
 		"@types/unzipper": "^0.10.11",
-		"electron": "^41.1.0",
+		"electron": "^45.0.0",
 		"electron-builder": "^26.4.0",
 		"typescript": "^5.7.2"
 	},
@@ -67,7 +67,9 @@
 		},
 		"asarUnpack": [
 			"**/register-scheme/build/Release/*.node",
-			"**/register-scheme/node-addon-api/src/node-api.target.mk"
+			"**/register-scheme/node-addon-api/src/node-api.target.mk",
+			"**/electron-libmpv/build/Release/*.node",
+			"**/electron-libmpv/build/Release/electron-libmpv-helper"
 		],
 		"win": {
 			"target": [
@@ -95,6 +97,7 @@
 		}
 	},
 	"allowScripts": {
-		"electron@41.1.0": true
+		"electron@41.1.0": true,
+		"electron-winstaller@5.4.0": true
 	}
 }

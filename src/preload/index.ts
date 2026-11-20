@@ -4,6 +4,7 @@ import DiscordPresence from "../core/DiscordPresence";
 import { discordTracker } from "./ui/discordTracker";
 import EmbeddedSubtitles from "./ui/EmbeddedSubtitles";
 import AudioTracks from "./ui/AudioTracks";
+import VolumePersistency from "../utils/VolumePersistency";
 import { STORAGE_KEYS, IPC_CHANNELS } from "../constants";
 
 // plugin API bridges
@@ -19,9 +20,15 @@ import { applyThemeAPI } from "./api/applyTheme";
 import { gpuRendererAPI } from "./api/gpuRenderer";
 import { externalPlayerAPI } from "./api/externalPlayer";
 import { mpvPlayerAPI } from "./api/mpvPlayer";
+import { downloadsAPI } from "./api/downloads";
 import { pluginLogger } from "./api/pluginLogger";
 import Helpers from "../utils/Helpers";
-import MpvPlayerInjector from "./ui/MpvPlayerInjector";
+import { setupMpvShellBridge, isEmbeddedMpvEnabled } from "./ui/mpvShellBridge";
+import { setupTransparencyBridge } from "./ui/transparencyBridge";
+import { setupVideoBridge, ensureBridgeVideo } from "./ui/videoBridge";
+
+// Install Stremio Native Shell IPC + Zero-Copy SharedTexture Canvas receiver BEFORE Stremio Web boots.
+const embeddedMpvActive = setupMpvShellBridge();
 
 export const stremioEnhancedAPI = {
     ...alertAPI,
@@ -30,9 +37,9 @@ export const stremioEnhancedAPI = {
     ...applyThemeAPI,
     ...gpuRendererAPI,
     ...externalPlayerAPI,
-    ...mpvPlayerAPI
+    ...mpvPlayerAPI,
+    ...downloadsAPI,
 };
-
 
 // Patch the history methods to trigger a hashchange event when they are called
 webFrame.executeJavaScript(`
@@ -40,7 +47,7 @@ webFrame.executeJavaScript(`
         const original = history[method];
         history[method] = function (...args) {
             const result = original.apply(this, args);
-            window.dispatchEvent(new Event('hashchange')); 
+            window.dispatchEvent(new Event('hashchange'));
             return result;
         };
     });
@@ -82,9 +89,15 @@ function parseRuntime(runtime: string | undefined): number | undefined {
 window.addEventListener("load", () => {
     Helpers.patchReactDom();
     initializeUserSettings();
+    ipcRenderer.send(IPC_CHANNELS.SET_AUTOKILL_SERVICE, localStorage.getItem(STORAGE_KEYS.AUTOKILL_SERVICE) !== "false");
     reloadServer();
     applyUserTheme();
     loadEnabledPlugins();
+
+    if (embeddedMpvActive) {
+        setupTransparencyBridge();
+        setupVideoBridge();
+    }
 
     let isTransparencyEnabled = false;
 
@@ -95,16 +108,21 @@ window.addEventListener("load", () => {
         if (isTransparencyEnabled) addTitleBar();
         checkSettings();
         checkExternalPlayer();
-        MpvPlayerInjector.checkWatching();
-        EmbeddedSubtitles.checkWatching();
-        AudioTracks.checkWatching();
+        if (isEmbeddedMpvEnabled()) {
+            ensureBridgeVideo();
+        } else {
+            // HTML5 fallback workarounds when libmpv is unavailable
+            EmbeddedSubtitles.checkWatching();
+            AudioTracks.checkWatching();
+        }
+        VolumePersistency.checkWatching();
     });
 
     window.addEventListener('popstate', () => {
-        MpvPlayerInjector.checkWatching();
+        if (isEmbeddedMpvEnabled()) {
+            ensureBridgeVideo();
+        }
     });
-
-    MpvPlayerInjector.checkWatching();
 
     // Auto update check
     if (localStorage.getItem(STORAGE_KEYS.CHECK_UPDATES_ON_STARTUP) === "true") {
@@ -116,12 +134,12 @@ window.addEventListener("load", () => {
         DiscordPresence.start();
         discordTracker.init();
 
-        ipcRenderer.on(IPC_CHANNELS.EXTERNAL_PLAYER_POSITION, (_, { position, state }: { position: number, state: string}) => {
+        ipcRenderer.on(IPC_CHANNELS.EXTERNAL_PLAYER_POSITION, (_, { position, state }: { position: number, state: string }) => {
             if (localStorage.getItem(STORAGE_KEYS.DISCORD_RPC) !== "true") return;
             if (!discordTracker.lastPlayerState) return;
-            
+
             const { metaDetails, seriesInfoDetails } = discordTracker.lastPlayerState;
-            
+
             const now = Math.floor(Date.now() / 1000);
             const startTimestamp = now - Math.floor(position);
             const duration = parseRuntime(metaDetails.runtime);
@@ -130,7 +148,7 @@ window.addEventListener("load", () => {
             if (metaDetails.type === "series" && seriesInfoDetails) {
                 const isKitsu = metaDetails.id.startsWith("kitsu:");
                 const stateStr = `Watching ${!isKitsu ? `S${seriesInfoDetails.season} E${seriesInfoDetails.episode}` : `E${seriesInfoDetails.episode}`}`;
-                
+
                 if (state === "playing") {
                     DiscordPresence.setPlaying(metaDetails.name, stateStr, startTimestamp, endTimestamp, metaDetails.poster);
                 } else if (state == "paused") {
@@ -138,10 +156,10 @@ window.addEventListener("load", () => {
                 }
 
             } else if (metaDetails.type === "movie") {
-                
+
                 if (state === "playing") {
                     DiscordPresence.setPlaying(metaDetails.name, 'Watching', startTimestamp, endTimestamp, metaDetails.poster);
-                } else if (state === "paused") {
+                } else if (state == "paused") {
                     DiscordPresence.setPaused(metaDetails.name, "Watching", metaDetails.poster);
                 }
             }
