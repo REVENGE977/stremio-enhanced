@@ -105,22 +105,25 @@ export const modController = {
 
     bindTogglePluginListener: (): void => {
         helpers.waitForElm(SELECTORS.PLUGINS_CATEGORY).then(() => {
-            const pluginCheckboxes = document.getElementsByClassName("plugin") as HTMLCollectionOf<HTMLElement>;
-            for (let i = 0; i < pluginCheckboxes.length; i++) {
-                pluginCheckboxes[i].addEventListener("click", () => {
-                    pluginCheckboxes[i].classList.toggle(CLASSES.CHECKED);
-                    const pluginName = pluginCheckboxes[i].getAttribute('name');
-                    if (!pluginName) return;
+            const container = document.querySelector(SELECTORS.PLUGINS_CATEGORY);
+            if (!container) return;
 
-                    if (pluginCheckboxes[i].classList.contains(CLASSES.CHECKED)) {
-                        modController.loadPlugin(pluginName);
-                    } else {
-                        modController.unloadPlugin(pluginName);
-                        settingsAPI.clearRegisteredSettings(pluginName.split(FILE_EXTENSIONS.PLUGIN)[0])
-                        modController._showReloadWarning();
-                    }
-                });
-            }
+            container.addEventListener("click", (e) => {
+                const checkbox = (e.target as HTMLElement).closest(".plugin") as HTMLElement | null;
+                if (!checkbox) return;
+
+                checkbox.classList.toggle(CLASSES.CHECKED);
+                const pluginName = checkbox.getAttribute('name');
+                if (!pluginName) return;
+
+                if (checkbox.classList.contains(CLASSES.CHECKED)) {
+                    modController.loadPlugin(pluginName);
+                } else {
+                    modController.unloadPlugin(pluginName);
+                    settingsAPI.clearRegisteredSettings(pluginName.split(FILE_EXTENSIONS.PLUGIN)[0]);
+                    modController._showReloadWarning();
+                }
+            });
         }).catch(err => logger.error(`Failed to setup plugin listeners: ${err}`));
     },
 

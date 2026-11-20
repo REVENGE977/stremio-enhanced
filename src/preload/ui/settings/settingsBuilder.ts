@@ -6,6 +6,7 @@ import { getLogger } from "../../../utils/logger";
 import { SELECTORS, CLASSES, STORAGE_KEYS, FILE_EXTENSIONS, ENHANCED_ROUTE } from "../../../constants";
 import { settingsAPI } from "../../api/settings";
 import { modController } from "../mod/modController";
+import { renderMarketplaceInline } from "../mod/modBrowser";
 import { SETTINGS_STYLES, SETTINGS_STYLE_ID } from "./settingsStyles";
 
 const logger = getLogger("SettingsBuilder");
@@ -128,42 +129,56 @@ export const settingsBuilder = {
      * #/settings/enhanced[/<id>]; otherwise leave Stremio's own page alone.
      */
     updateRoute: (): void => {
-        const content = document.querySelector(SELECTORS.SETTINGS_CONTENT);
-        if (!content) return;
-        const match = location.hash.match(/^#\/settings\/enhanced(?:\/([a-z]+))?/);
-        const current = match ? (match[1] || "themes") : "";
-        const selected = selectedClass();
+        const applyRouteState = (): boolean => {
+            const content = document.querySelector(SELECTORS.SETTINGS_CONTENT);
+            if (!content) return false;
+            const match = location.hash.match(/^#\/settings\/enhanced(?:\/([a-z]+))?/);
+            const current = match ? (match[1] || "themes") : "";
+            const selected = selectedClass();
 
-        content.classList.toggle("enhanced-open", !!match);
-        const page = document.getElementById("enhanced");
-        if (page) page.setAttribute("data-show", current);
+            content.classList.toggle("enhanced-open", !!match);
+            const page = document.getElementById("enhanced");
+            if (page) page.setAttribute("data-show", current);
 
-        for (const link of Array.from(document.querySelectorAll("[data-enhanced-item]"))) {
-            link.classList.toggle(selected, link.getAttribute("data-enhanced-item") === current);
-        }
-        // Stremio shows its first page for addresses it doesn't know; unhighlight its item.
-        if (match) {
-            for (const link of Array.from(document.querySelectorAll(`${SELECTORS.NAV_MENU} a:not([data-enhanced-item])`))) {
-                link.classList.remove(selected);
+            for (const link of Array.from(document.querySelectorAll("[data-enhanced-item]"))) {
+                link.classList.toggle(selected, link.getAttribute("data-enhanced-item") === current);
             }
+            // Stremio shows its first page for addresses it doesn't know; unhighlight its item.
+            if (match) {
+                for (const link of Array.from(document.querySelectorAll(`${SELECTORS.NAV_MENU} a:not([data-enhanced-item])`))) {
+                    link.classList.remove(selected);
+                }
+                if (current === "marketplace") {
+                    renderMarketplaceInline();
+                }
+            }
+            return !!match;
+        };
+
+        if (applyRouteState()) {
+            // Re-sync after Stremio's React render pass so it doesn't re-highlight its first sidebar item.
+            requestAnimationFrame(() => {
+                applyRouteState();
+            });
         }
     },
 
     /**
-     * Add a category (Themes, Plugins, About) to a page, styled like Stremio's own sections.
+     * Add a category (Themes, Plugins, Marketplace, About) to a page, styled like Stremio's own sections.
      * The category's icon is shown on its sidebar item instead.
      */
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    addCategory: (title: string, sectionId: string, _icon: string): void => {
+    addCategory: (title: string, sectionId: string, _icon: string, categoryKey?: string): void => {
         Helpers.waitForElm(`#${sectionId}`).then(() => {
             logger.info(`Adding category: ${title} to section: ${sectionId}`);
             const section = document.getElementById(sectionId);
             if (!section) return;
             const sample = document.querySelector(SELECTORS.SETTINGS_GROUP);
+            const key = (categoryKey || title).toLowerCase();
 
             const category = document.createElement("div");
             category.className = `${classOf(sample)} enhanced-category`;
-            category.setAttribute("data-category", title.toLowerCase());
+            category.setAttribute("data-category", key);
 
             const heading = document.createElement("div");
             heading.className = classOf(sample?.firstElementChild);
@@ -173,7 +188,17 @@ export const settingsBuilder = {
             heading.appendChild(headingTitle);
 
             category.appendChild(heading);
+
+            if (key === "marketplace") {
+                const marketplaceContent = document.createElement("div");
+                marketplaceContent.id = "enhanced-marketplace-content";
+                category.appendChild(marketplaceContent);
+            }
+
             section.appendChild(category);
+            if (key === "marketplace") {
+                settingsBuilder.updateRoute();
+            }
         }).catch(err => logger.error(`Failed to add category: ${err}`));
     },
 

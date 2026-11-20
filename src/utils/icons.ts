@@ -11,6 +11,12 @@ export function getPluginIcon(): string {
         <path d="${ICONS.PLUGIN}" style="stroke:currentcolor;stroke-linecap:round;stroke-linejoin:round;stroke-width:32;fill: currentColor;"></path></svg>`;
 }
 
+export function getMarketplaceIcon(): string {
+    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="icon">
+        <g><path fill="none" d="M0 0h24v24H0z"></path>
+        <path d="${ICONS.MARKETPLACE}" style="fill: currentcolor;"></path></g></svg>`;
+}
+
 export function getAboutIcon(): string {
     return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="icon">
         <g><path fill="none" d="M0 0h24v24H0z"></path>

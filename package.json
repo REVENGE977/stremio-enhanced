@@ -40,7 +40,8 @@
 		"winston": "^3.11.0"
 	},
 	"overrides": {
-		"node-gyp": "^12.1.0"
+		"node-gyp": "^12.1.0",
+		"node-abi": "^4.43.0"
 	},
 	"optionalDependencies": {
 		"dmg-license": "^1.0.11"
@@ -98,6 +99,8 @@
 	},
 	"allowScripts": {
 		"electron@41.1.0": true,
-		"electron-winstaller@5.4.0": true
+		"electron-winstaller@5.4.0": true,
+		"github:REVENGE977/electron-libmpv#7397ab16a991cb0b88394f72c417edaa0aee8df4": true,
+		"github:REVENGE977/electron-libmpv#c86035bbd9252bd0f98e079bf372bbd16ccf3262": true
 	}
 }

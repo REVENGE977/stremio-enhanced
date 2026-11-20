@@ -1,15 +1,19 @@
+import { syncMpvCanvasVisibility } from './mpvShellBridge';
+
 let isTransparent = false;
 let isEnforcing = false;
 const modifiedElements = new Set<HTMLElement>();
 let observer: MutationObserver | null = null;
 let pollTimer: ReturnType<typeof setInterval> | null = null;
 
+/**
+ * Only trust the route hash for player detection.
+ * Stremio Web 5.1 uses class names like `video-container-ezBpK` on non-player pages
+ * (board/detail episode cards), so DOM class fallbacks cause false positives on the main menu.
+ */
 export function isPlayerRoute(): boolean {
     const hash = window.location.hash || '';
-    if (hash.startsWith('#/player') || hash.includes('/player/')) return true;
-    if (document.querySelector('[class*="player-container"]') !== null) return true;
-    if (document.querySelector('[class*="video-container"]') !== null) return true;
-    return false;
+    return hash.startsWith('#/player') || hash.includes('/player/');
 }
 
 export function enforcePlayerTransparency(force?: boolean): void {
@@ -21,8 +25,12 @@ export function enforcePlayerTransparency(force?: boolean): void {
         const html = document.documentElement;
         const body = document.body;
         const app = document.getElementById('app');
-        const playerContainer = document.querySelector<HTMLElement>('[class*="player-container"]');
-        const videoContainer = document.querySelector<HTMLElement>('[class*="video-container"]');
+        const playerContainer = shouldBeTransparent
+            ? document.querySelector<HTMLElement>('[class*="player-container"]')
+            : null;
+        const videoContainer = shouldBeTransparent && playerContainer
+            ? playerContainer.querySelector<HTMLElement>('[class*="video-container"]')
+            : null;
 
         if (shouldBeTransparent) {
             if (!html || !body) return;
@@ -78,6 +86,8 @@ export function enforcePlayerTransparency(force?: boolean): void {
                 app.style.removeProperty('z-index');
             }
         }
+
+        syncMpvCanvasVisibility();
     } finally {
         isEnforcing = false;
     }
@@ -114,9 +124,7 @@ export function setupTransparencyBridge(): void {
 
     if (!pollTimer) {
         pollTimer = setInterval(() => {
-            if (isPlayerRoute()) {
-                enforcePlayerTransparency(true);
-            }
+            enforcePlayerTransparency();
         }, 300);
     }
 }

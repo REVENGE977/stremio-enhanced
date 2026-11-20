@@ -48,8 +48,7 @@ function getPlatformIpcKey(): string {
 
 function isPlayerRoute(): boolean {
     const hash = window.location.hash || '';
-    if (hash.startsWith('#/player') || hash.includes('/player/')) return true;
-    return document.querySelector('[class*="player-container"]') !== null;
+    return hash.startsWith('#/player') || hash.includes('/player/');
 }
 
 function isDisplayHdrCapable(): boolean {
@@ -60,14 +59,45 @@ function isDisplayHdrCapable(): boolean {
     }
 }
 
+function clearCanvas(): void {
+    if (!canvasEl) return;
+    if (ctx2d && canvasEl.width > 0 && canvasEl.height > 0) {
+        ctx2d.fillStyle = '#000000';
+        ctx2d.fillRect(0, 0, canvasEl.width, canvasEl.height);
+    } else if (gpuState) {
+        try {
+            const encoder = gpuState.device.createCommandEncoder();
+            const pass = encoder.beginRenderPass({
+                colorAttachments: [{
+                    view: gpuState.context.getCurrentTexture().createView(),
+                    loadOp: 'clear',
+                    clearValue: { r: 0, g: 0, b: 0, a: 1 },
+                    storeOp: 'store',
+                }],
+            });
+            pass.end();
+            gpuState.device.queue.submit([encoder.finish()]);
+        } catch {
+            // Ignore WebGPU clear errors while hidden
+        }
+    }
+}
+
 function updateCanvasVisibility(): void {
     if (!canvasEl) return;
-    const show = activeStream || isPlayerRoute();
-    canvasEl.style.display = show ? 'block' : 'none';
-    if (!show && ctx2d && canvasEl.width > 0 && canvasEl.height > 0) {
-        ctx2d.fillStyle = '#000';
-        ctx2d.fillRect(0, 0, canvasEl.width, canvasEl.height);
+    const onPlayer = isPlayerRoute();
+    if (!onPlayer) {
+        activeStream = false;
     }
+    const show = onPlayer && activeStream;
+    canvasEl.style.display = show ? 'block' : 'none';
+    if (!show) {
+        clearCanvas();
+    }
+}
+
+export function syncMpvCanvasVisibility(): void {
+    updateCanvasVisibility();
 }
 
 function ensureCanvas(): HTMLCanvasElement | null {
@@ -235,7 +265,9 @@ async function initWebGpuForHdr(canvas: HTMLCanvasElement, hdr: boolean): Promis
 
 function drawVideoFrame2D(canvas: HTMLCanvasElement, frame: VideoFrame): void {
     if (!ctx2d) {
-        ctx2d = canvas.getContext('2d', { alpha: false, desynchronized: true });
+        // Avoid desynchronized: true on Windows DirectComposition where front-buffer overlays
+        // can retain stale frames after hiding or route navigation.
+        ctx2d = canvas.getContext('2d', { alpha: false });
     }
     if (!ctx2d) return;
     if (canvas.width !== frame.codedWidth || canvas.height !== frame.codedHeight) {
@@ -268,10 +300,12 @@ function recreateCanvas(): HTMLCanvasElement | null {
 }
 
 async function renderSharedVideoFrame(frame: VideoFrame, meta?: SharedTextureMeta): Promise<void> {
+    if (!isPlayerRoute()) return;
     let canvas = ensureCanvas();
     if (!canvas) return;
 
-    if (canvas.style.display === 'none' && (activeStream || isPlayerRoute())) {
+    activeStream = true;
+    if (canvas.style.display === 'none') {
         canvas.style.display = 'block';
     }
 
@@ -329,15 +363,17 @@ async function renderSharedVideoFrame(frame: VideoFrame, meta?: SharedTextureMet
 }
 
 function renderSoftwareFrame(payload: SoftwareFramePayload): void {
+    if (!isPlayerRoute()) return;
     const canvas = ensureCanvas();
     if (!canvas) return;
 
-    if (canvas.style.display === 'none' && (activeStream || isPlayerRoute())) {
+    activeStream = true;
+    if (canvas.style.display === 'none') {
         canvas.style.display = 'block';
     }
 
     if (!ctx2d) {
-        ctx2d = canvas.getContext('2d', { alpha: false, desynchronized: true });
+        ctx2d = canvas.getContext('2d', { alpha: false });
     }
     if (!ctx2d) return;
 
@@ -424,6 +460,15 @@ export function setupMpvShellBridge(): boolean {
     contextBridge.exposeInMainWorld('__stremioShellBridge', {
         send: (data: unknown) => {
             const payload = typeof data === 'string' ? data : JSON.stringify(data);
+            try {
+                const parsed = typeof data === 'string' ? JSON.parse(data) : data as any;
+                if (parsed?.args?.[0] === 'mpv-command' && Array.isArray(parsed.args[1]) && parsed.args[1][0] === 'stop') {
+                    activeStream = false;
+                    updateCanvasVisibility();
+                }
+            } catch {
+                // Ignore non-JSON payloads
+            }
             ipcRenderer.send(ENHANCED_API.MPV.SHELL_IPC_TO_MAIN, payload);
         },
         onMessage: (cb: (message: string) => void) => {
@@ -444,20 +489,24 @@ export function setupMpvShellBridge(): boolean {
 
             const deliverMessage = (data) => {
                 const evt = { data };
-                for (let i = 0; i < listeners.length; i++) {
-                    try { listeners[i](evt); } catch (e) { console.error('[ShellIPC] listener error:', e); }
+                const snapshot = listeners.slice();
+                for (let i = 0; i < snapshot.length; i++) {
+                    try { snapshot[i](evt); } catch (e) { console.error('[ShellIPC] listener error:', e); }
                 }
             };
 
             const postMessage = (data) => {
                 if (window.__stremioShellBridge && typeof window.__stremioShellBridge.send === 'function') {
-                    window.__stremioShellBridge.send(data);
+                    const json = typeof data === 'string' ? data : JSON.stringify(data);
+                    window.__stremioShellBridge.send(json);
                 }
             };
 
             const addEventListener = (name, listener) => {
-                if (name !== 'message') return;
-                listeners.push(listener);
+                if (name !== 'message' || typeof listener !== 'function') return;
+                if (!listeners.includes(listener)) {
+                    listeners.push(listener);
+                }
             };
 
             const removeEventListener = (name, listener) => {
@@ -484,6 +533,10 @@ export function setupMpvShellBridge(): boolean {
 
             window.qt = { webChannelTransport };
 
+            // Note: Stremio Web 5.1's shell hook (module 32606) registers its listener on
+            // window.chrome.webview AND sets window.qt.webChannelTransport.onmessage = function(){}.
+            // By keeping webChannelTransport listener separate from chrome.webview / window.ipc listeners,
+            // we never invoke each message handler twice.
             window.chrome = Object.assign(window.chrome || {}, {
                 webview: {
                     postMessage,
@@ -495,7 +548,7 @@ export function setupMpvShellBridge(): boolean {
             addEventListener('message', (message) => {
                 if (typeof webChannelOnMessage === 'function') {
                     try { webChannelOnMessage(message); } catch (e) { console.error('[WebChannel] onmessage error:', e); }
-                } else {
+                } else if (webChannelQueue.length < 64) {
                     webChannelQueue.push(message);
                 }
             });
@@ -509,21 +562,38 @@ export function setupMpvShellBridge(): boolean {
         })();
     `).catch(() => {});
 
-    // Register zero-copy shared texture receiver from main process.
-    if (sharedTexture && typeof sharedTexture.setSharedTextureReceiver === 'function') {
-        sharedTexture.setSharedTextureReceiver(async ({ importedSharedTexture }, meta?: SharedTextureMeta) => {
-            try {
-                const videoFrame = importedSharedTexture.getVideoFrame();
+    // Receive zero-copy shared texture transfers over standard IPC (avoids sendSharedTexture breaking webContents.send in Electron 45).
+    ipcRenderer.on(ENHANCED_API.MPV.SHARED_TEXTURE_FRAME, async (_event, payload: { frameId: number; transfer: any; meta?: SharedTextureMeta }) => {
+        let importedSubtle: any = null;
+        let syncToken: any = null;
+        try {
+            if (sharedTexture?.subtle && typeof sharedTexture.subtle.finishTransferSharedTexture === 'function' && payload?.transfer) {
+                importedSubtle = sharedTexture.subtle.finishTransferSharedTexture(payload.transfer);
+                const videoFrame = importedSubtle.getVideoFrame();
                 try {
-                    await renderSharedVideoFrame(videoFrame, meta);
+                    syncToken = importedSubtle.getFrameCreationSyncToken();
+                } catch {
+                    // Sync token is optional on some GPU paths
+                }
+                try {
+                    await renderSharedVideoFrame(videoFrame, payload.meta);
                 } finally {
                     videoFrame.close();
                 }
-            } finally {
-                importedSharedTexture.release();
             }
-        });
-    }
+        } catch (err) {
+            console.error('[MpvShellBridge] Shared texture receive error:', err);
+        } finally {
+            if (importedSubtle) {
+                try {
+                    importedSubtle.release();
+                } catch {
+                    // Already released
+                }
+            }
+            ipcRenderer.send(ENHANCED_API.MPV.SHARED_TEXTURE_ACK, payload?.frameId, syncToken);
+        }
+    });
 
     // Software fallback receiver if GPU sharedTexture import fails on an exotic driver.
     ipcRenderer.on(ENHANCED_API.MPV.SOFTWARE_FRAME, (_event, payload: SoftwareFramePayload) => {

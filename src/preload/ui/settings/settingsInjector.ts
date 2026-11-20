@@ -9,9 +9,8 @@ import ExtractMetaData from "../../../utils/ExtractMetaData";
 import { getDefaultThemeTemplate } from "../../../components/default-theme/defaultTheme";
 import { getAboutCategoryTemplate } from "../../../components/about-category/aboutCategory";
 import { STORAGE_KEYS, SELECTORS, FILE_EXTENSIONS } from "../../../constants";
-import { getThemeIcon, getPluginIcon, getAboutIcon } from "../../../utils/icons";
+import { getThemeIcon, getPluginIcon, getMarketplaceIcon, getAboutIcon } from "../../../utils/icons";
 import { getTransparencyStatus } from "../titleBar";
-import { setupBrowseModsButton } from "../mod/modBrowser";
 import {
     setupCheckUpdatesButton,
     setupCheckUpdatesOnStartupToggle,
@@ -70,18 +69,19 @@ export function checkSettings() {
     settingsBuilder.addNavGroup("Stremio Enhanced", [
         { id: "themes", label: "Themes", icon: getThemeIcon() },
         { id: "plugins", label: "Plugins", icon: getPluginIcon() },
+        { id: "marketplace", label: "Marketplace", icon: getMarketplaceIcon() },
         { id: "about", label: "About", icon: getAboutIcon() },
     ]);
-    settingsBuilder.addCategory("Themes", "enhanced", getThemeIcon());
-    settingsBuilder.addCategory("Plugins", "enhanced", getPluginIcon());
-    settingsBuilder.addCategory("About", "enhanced", getAboutIcon());
+    settingsBuilder.addCategory("Themes", "enhanced", getThemeIcon(), "themes");
+    settingsBuilder.addCategory("Plugins", "enhanced", getPluginIcon(), "plugins");
+    settingsBuilder.addCategory("Community Marketplace", "enhanced", getMarketplaceIcon(), "marketplace");
+    settingsBuilder.addCategory("About", "enhanced", getAboutIcon(), "about");
     
     settingsBuilder.addButton("Open Themes Folder", "openthemesfolderBtn", SELECTORS.THEMES_CATEGORY);
     settingsBuilder.addButton("Open Plugins Folder", "openpluginsfolderBtn", SELECTORS.PLUGINS_CATEGORY);
     settingsBuilder.addButton("Toggle All Plugins", "toggleallpluginsBtn", SELECTORS.PLUGINS_CATEGORY);
     
     writeAbout();
-    setupBrowseModsButton();
     setupCheckUpdatesButton();
     setupCheckUpdatesOnStartupToggle();
     setupDiscordRpcToggle();

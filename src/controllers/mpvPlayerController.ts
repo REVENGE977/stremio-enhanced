@@ -4,12 +4,12 @@ import { join } from 'path';
 import MPV from 'electron-libmpv';
 import { ENHANCED_API } from '../constants';
 import { mainWindow } from '../main';
-import Updater from '../core/Updater';
 import { getLogger } from '../utils/logger';
 
 const logger = getLogger('MpvPlayerController');
 
 const TRANSPORT_NAME = 'transport';
+const SHELL_PROTOCOL_VERSION = '5.0.27';
 
 const FLOAT_PROPERTIES = new Set([
     'time-pos',
@@ -22,6 +22,12 @@ const FLOAT_PROPERTIES = new Set([
     'cache-buffering-state',
     'demuxer-cache-time',
     'panscan',
+]);
+
+const INT_PROPERTIES = new Set([
+    'aid',
+    'vid',
+    'sid',
 ]);
 
 const BOOL_PROPERTIES = new Set([
@@ -44,24 +50,104 @@ const NODE_PROPERTIES = new Set([
     'metadata',
 ]);
 
+//Properties whose JSON representation could be parsed as a number/boolean if we ran JSON.parse(),
+//or that ShellVideo expects as raw strings when not in FLOAT/BOOL/NODE_PROPERTIES.
+const PLAIN_STRING_PROPERTIES = new Set([
+    'path',
+    'mpv-version',
+    'ffmpeg-version',
+    'aid',
+    'vid',
+    'sid',
+    'mute',
+    'hwdec',
+    'sub-color',
+    'sub-back-color',
+    'sub-border-color',
+    'sub-ass-override',
+]);
+
 function observeFormatForProperty(name: string): MPV.MpvObserveFormat {
     if (FLOAT_PROPERTIES.has(name)) return 'double';
     if (BOOL_PROPERTIES.has(name)) return 'flag';
     if (NODE_PROPERTIES.has(name)) return 'node';
+    // Note: aid, vid, sid, mute must be observed as 'string' (not 'int64' or 'flag') because
+    // when unselected in mpv their value is "no", which fails MPV_FORMAT_INT64 and returns MPV_FORMAT_NONE.
     return 'string';
 }
 
 function parseShellPropertyValue(name: string, value: unknown): unknown {
     if (typeof value !== 'string') return value;
-    // Match stremio-linux-shell: parse JSON primitives/objects for string properties (e.g. sid "1" -> 1),
-    // while leaving plain strings ("mpv 0.40.0", "yes", "no", URLs) intact.
-    if (name === 'mpv-version' || name === 'ffmpeg-version' || name === 'path') {
+    if (PLAIN_STRING_PROPERTIES.has(name)) {
+        if (name === 'mute') {
+            if (value === 'yes' || value === 'true') return true;
+            if (value === 'no' || value === 'false') return false;
+        }
         return value;
+    }
+    if (BOOL_PROPERTIES.has(name)) {
+        if (value === 'yes' || value === 'true') return true;
+        if (value === 'no' || value === 'false') return false;
+    }
+    if (FLOAT_PROPERTIES.has(name) || INT_PROPERTIES.has(name)) {
+        const num = Number(value);
+        if (Number.isFinite(num)) return num;
     }
     try {
         return JSON.parse(value);
     } catch {
         return value;
+    }
+}
+
+/**
+ * Matches stremio-shell-ng's VideoReadyState state machine so interleaved stop / loadfile
+ * transitions never desync ShellVideo's loadId tracking and leave the loading screen stuck on top.
+ */
+class VideoReadyState {
+    private nextLoadId = 0;
+    private currentLoadId: number | null = null;
+    private pendingLoadIds: number[] = [];
+    private activeLoadId: number | null = null;
+    private fileLoadedId: number | null = null;
+    private readySentId: number | null = null;
+
+    public beginTransition(loadsFile: boolean): number {
+        this.nextLoadId += 1;
+        this.currentLoadId = this.nextLoadId;
+        this.fileLoadedId = null;
+        this.readySentId = null;
+        if (loadsFile) {
+            this.pendingLoadIds.push(this.nextLoadId);
+        }
+        return this.nextLoadId;
+    }
+
+    public startFile(): void {
+        this.activeLoadId = this.pendingLoadIds.shift() ?? this.currentLoadId;
+        this.fileLoadedId = null;
+    }
+
+    public fileLoaded(): void {
+        if (this.activeLoadId !== null && this.activeLoadId === this.currentLoadId) {
+            this.fileLoadedId = this.activeLoadId;
+        }
+    }
+
+    public markReady(): number | null {
+        if (this.currentLoadId === null) return null;
+        if (this.fileLoadedId !== this.currentLoadId || this.readySentId === this.currentLoadId) {
+            return null;
+        }
+        this.readySentId = this.currentLoadId;
+        return this.currentLoadId;
+    }
+
+    public reset(): void {
+        this.pendingLoadIds = [];
+        this.activeLoadId = null;
+        this.fileLoadedId = null;
+        this.readySentId = null;
     }
 }
 
@@ -72,6 +158,11 @@ class MpvPlayerController {
     private rendererReady = false;
     private softwareFallbackTriggered = false;
     private inFlightSharedTransfers = 0;
+    private inFlightSubtleFrames = new Map<number, {
+        imported: Electron.SharedTextureImported;
+        timer: ReturnType<typeof setTimeout>;
+    }>();
+    private nextSubtleFrameId = 0;
     private logFilePath: string | null = null;
     private firstFrameLogged = false;
 
@@ -81,9 +172,9 @@ class MpvPlayerController {
     private streamHdrGamma: 'pq' | 'hlg' | null = null;
     private hdrOutputActive = false;
 
-    private currentLoadId = 0;
-    private fileLoaded = false;
-    private videoReadyEmitted = false;
+    private videoReadyState = new VideoReadyState();
+    private playbackActive = false;
+    private lastLoggedTimePosSec = -1;
     private powerSaveBlockerId: number | null = null;
     private pendingDeeplink: string | null = null;
     private windowHooksAttached = false;
@@ -209,6 +300,7 @@ class MpvPlayerController {
         win.webContents.on('did-start-navigation', (_event, _url, isInPlace, isMainFrame) => {
             if (isMainFrame && !isInPlace) {
                 this.rendererReady = false;
+                this.clearInFlightSubtleFrames();
                 this.stopPlayback();
             }
         });
@@ -231,6 +323,7 @@ class MpvPlayerController {
     }
 
     public stopPlayback(): void {
+        this.playbackActive = false;
         this.allowDisplaySleep();
         if (this.mpv && this.available) {
             this.mpv.command('stop');
@@ -239,6 +332,9 @@ class MpvPlayerController {
 
     public destroy(): void {
         this.rendererReady = false;
+        this.playbackActive = false;
+        this.videoReadyState.reset();
+        this.clearInFlightSubtleFrames();
         this.allowDisplaySleep();
         if (this.mpv) {
             try {
@@ -291,6 +387,36 @@ class MpvPlayerController {
         ipcMain.on(ENHANCED_API.MPV.STOP, () => {
             this.stopPlayback();
         });
+
+        ipcMain.on(ENHANCED_API.MPV.SHARED_TEXTURE_ACK, (_event, frameId: number, syncToken?: Electron.SharedTextureSyncToken | null) => {
+            this.completeSubtleFrameTransfer(frameId, syncToken);
+        });
+    }
+
+    private clearInFlightSubtleFrames(): void {
+        for (const [frameId] of this.inFlightSubtleFrames) {
+            this.completeSubtleFrameTransfer(frameId, null);
+        }
+    }
+
+    private completeSubtleFrameTransfer(frameId: number, syncToken?: Electron.SharedTextureSyncToken | null): void {
+        const entry = this.inFlightSubtleFrames.get(frameId);
+        if (!entry) return;
+        clearTimeout(entry.timer);
+        this.inFlightSubtleFrames.delete(frameId);
+        this.inFlightSharedTransfers = Math.max(0, this.inFlightSharedTransfers - 1);
+        if (syncToken) {
+            try {
+                entry.imported.subtle.setReleaseSyncToken(syncToken);
+            } catch {
+                // Ignore sync token errors if frame/GPU context is torn down
+            }
+        }
+        try {
+            entry.imported.release();
+        } catch {
+            // Already released
+        }
     }
 
     private preventDisplaySleep(): void {
@@ -335,16 +461,19 @@ class MpvPlayerController {
 
         // Qt WebChannel Init handshake (type === 3)
         if (msg.type === 3) {
-            const shellVersion = Updater.getCurrentVersion() || '5.0.0';
             this.sendRawShellPayload({
                 id: 0,
                 type: 3,
                 object: TRANSPORT_NAME,
                 data: {
                     transport: {
-                        properties: [[], ['', 'shellVersion', '', shellVersion]],
+                        properties: [
+                            [],
+                            ['', 'shellVersion', '', SHELL_PROTOCOL_VERSION],
+                            ['', 'nativeAssSubtitles', '', 'true'],
+                        ],
                         signals: [],
-                        methods: [['onEvent']],
+                        methods: [['onEvent', '']],
                     },
                 },
             });
@@ -393,6 +522,13 @@ class MpvPlayerController {
 
             case 'mpv-observe-prop': {
                 if (typeof data === 'string' && this.mpv) {
+                    // When a new ShellVideo instance mounts in Stremio Web, 'path' is always the first
+                    // property it observes. Unobserving previous properties first keeps libmpv's
+                    // observer list clean across stream changes while forcing libmpv to emit fresh
+                    // initial values (including 'mpv-version', which resolves ShellVideo's load promise).
+                    if (data === 'path') {
+                        this.mpv.unobserveAll();
+                    }
                     const fmt = observeFormatForProperty(data);
                     const rc = this.mpv.observeProperty(data, fmt);
                     if (rc < 0) {
@@ -403,9 +539,7 @@ class MpvPlayerController {
             }
             case 'mpv-set-prop': {
                 if (Array.isArray(data) && data.length >= 2 && typeof data[0] === 'string') {
-                    if (data[0] !== 'time-pos') {
-                        this.writeDiagLog(`SET_PROP: ${data[0]} = ${JSON.stringify(data[1])}`);
-                    }
+                    this.writeDiagLog(`SET_PROP: ${data[0]} = ${JSON.stringify(data[1])}`);
                     this.applyMpvProperty(data[0], data[1]);
                 }
                 break;
@@ -416,21 +550,28 @@ class MpvPlayerController {
                     const cmdArgs = data.slice(1).map((a: unknown) => String(a));
                     this.writeDiagLog(`COMMAND: ${cmdName} ${JSON.stringify(cmdArgs)}`);
                     if (cmdName === 'loadfile') {
-                        this.currentLoadId += 1;
-                        this.fileLoaded = false;
-                        this.videoReadyEmitted = false;
+                        const loadId = this.videoReadyState.beginTransition(true);
+                        this.playbackActive = true;
                         this.firstFrameLogged = false;
                         this.streamHdrGamma = null;
                         this.reconcileHdrMode();
                         this.preventDisplaySleep();
+                        this.writeDiagLog(`VIDEO_READY: loadId=${loadId} ready=false (loadfile)`);
                         this.sendShellEvent('mpv-event-video-ready', {
-                            loadId: this.currentLoadId,
+                            loadId,
                             ready: false,
                         });
                     } else if (cmdName === 'stop') {
+                        const loadId = this.videoReadyState.beginTransition(false);
+                        this.playbackActive = false;
                         this.streamHdrGamma = null;
                         this.reconcileHdrMode();
                         this.allowDisplaySleep();
+                        this.writeDiagLog(`VIDEO_READY: loadId=${loadId} ready=false (stop)`);
+                        this.sendShellEvent('mpv-event-video-ready', {
+                            loadId,
+                            ready: false,
+                        });
                     }
                     const rc = this.mpv.command(cmdName, ...cmdArgs);
                     if (rc < 0) {
@@ -466,33 +607,36 @@ class MpvPlayerController {
         }
     }
 
+    private emitVideoReadyIfPending(source: string): void {
+        const loadId = this.videoReadyState.markReady();
+        if (loadId !== null) {
+            this.writeDiagLog(`VIDEO_READY: loadId=${loadId} ready=true (${source})`);
+            this.sendShellEvent('mpv-event-video-ready', {
+                loadId,
+                ready: true,
+            });
+        }
+    }
+
     private handleMpvEvent(event: MPV.MpvEvent): void {
         switch (event.type) {
             case 'start-file': {
-                this.fileLoaded = false;
-                this.videoReadyEmitted = false;
+                this.videoReadyState.startFile();
                 this.writeDiagLog('EVENT: start-file');
                 break;
             }
             case 'file-loaded': {
-                this.fileLoaded = true;
+                this.videoReadyState.fileLoaded();
                 this.writeDiagLog('EVENT: file-loaded');
                 break;
             }
             case 'playback-restart': {
                 this.writeDiagLog('EVENT: playback-restart');
-                if (this.fileLoaded && !this.videoReadyEmitted) {
-                    this.videoReadyEmitted = true;
-                    this.sendShellEvent('mpv-event-video-ready', {
-                        loadId: this.currentLoadId,
-                        ready: true,
-                    });
-                }
+                this.emitVideoReadyIfPending('playback-restart');
                 break;
             }
             case 'end-file': {
-                this.fileLoaded = false;
-                this.videoReadyEmitted = false;
+                this.playbackActive = false;
                 this.streamHdrGamma = null;
                 this.reconcileHdrMode();
                 this.allowDisplaySleep();
@@ -503,7 +647,6 @@ class MpvPlayerController {
                     ? { message: event.error || 'Stream failed to load', critical: true }
                     : null;
                 this.sendShellEvent('mpv-event-ended', { reason, error });
-                this.mpv?.unobserveAll();
                 break;
             }
             case 'log-message': {
@@ -522,10 +665,25 @@ class MpvPlayerController {
             }
             case 'property-change': {
                 if (!event.name) return;
+                // Skip MPV_FORMAT_NONE (null) property changes to match stremio-shell-ng / stremio-linux-shell.
+                if (event.value === null || event.value === undefined) return;
 
                 const data = parseShellPropertyValue(event.name, event.value);
-                if (event.name === 'mpv-version') {
-                    this.writeDiagLog(`PROP: mpv-version = ${JSON.stringify(data)}`);
+                if (
+                    event.name === 'mpv-version' ||
+                    event.name === 'paused-for-cache' ||
+                    event.name === 'seeking' ||
+                    event.name === 'duration' ||
+                    event.name === 'aid' ||
+                    event.name === 'sid'
+                ) {
+                    this.writeDiagLog(`PROP: ${event.name} = ${JSON.stringify(data)}`);
+                } else if (event.name === 'time-pos' && typeof data === 'number') {
+                    const sec = Math.floor(data);
+                    if (sec !== this.lastLoggedTimePosSec && sec % 5 === 0) {
+                        this.lastLoggedTimePosSec = sec;
+                        this.writeDiagLog(`PROP: time-pos = ${data.toFixed(2)}`);
+                    }
                 } else if (event.name === 'video-params' && data && typeof data === 'object') {
                     const gamma = typeof (data as Record<string, unknown>).gamma === 'string'
                         ? String((data as Record<string, unknown>).gamma).toLowerCase()
@@ -581,7 +739,7 @@ class MpvPlayerController {
     }
 
     private handleMpvFrame(frame: MPV.MpvFrame): void {
-        if (!this.mpv || !mainWindow || mainWindow.isDestroyed() || !this.rendererReady) {
+        if (!this.mpv || !mainWindow || mainWindow.isDestroyed() || !this.rendererReady || !this.playbackActive) {
             this.mpv?.releaseFrame(frame.slotId, frame.generation);
             return;
         }
@@ -591,6 +749,7 @@ class MpvPlayerController {
             this.writeDiagLog(
                 `FIRST_FRAME: kind=${frame.kind} ${frame.width}x${frame.height} fmt=${frame.pixelFormat} hdr=${frame.hdr}`
             );
+            this.emitVideoReadyIfPending('first-frame');
         }
 
         if (frame.kind === 'software') {
@@ -654,27 +813,46 @@ class MpvPlayerController {
             return;
         }
 
+        // Transfer via sharedTexture.subtle + standard WebContents IPC instead of sharedTexture.sendSharedTexture():
+        // in Electron 45 on Windows, sendSharedTexture stops subsequent webContents.send delivery to the preload.
+        if (typeof imported.subtle?.startTransferSharedTexture !== 'function') {
+            try {
+                imported.release();
+            } catch {
+                // Already released
+            }
+            this.triggerSoftwareFallback('sharedTexture.subtle transfer API is unavailable');
+            return;
+        }
+
+        let transfer: Electron.SharedTextureTransfer;
+        try {
+            transfer = imported.subtle.startTransferSharedTexture();
+        } catch (err) {
+            try {
+                imported.release();
+            } catch {
+                // Already released
+            }
+            this.writeDiagLog(`SHARED_TEXTURE START_TRANSFER ERR: ${err}`);
+            this.triggerSoftwareFallback(`startTransferSharedTexture failed: ${err}`);
+            return;
+        }
+
+        const frameId = ++this.nextSubtleFrameId;
         this.inFlightSharedTransfers += 1;
-        sharedTexture
-            .sendSharedTexture(
-                {
-                    frame: mainWindow.webContents.mainFrame,
-                    importedSharedTexture: imported,
-                },
-                { hdr: frame.hdr, width: frame.width, height: frame.height }
-            )
-            .catch((err: unknown) => {
-                logger.warn(`sendSharedTexture error: ${err}`);
-                this.writeDiagLog(`SHARED_TEXTURE SEND ERR: ${err}`);
-            })
-            .finally(() => {
-                this.inFlightSharedTransfers = Math.max(0, this.inFlightSharedTransfers - 1);
-                try {
-                    imported.release();
-                } catch {
-                    // Already released
-                }
-            });
+        const timer = setTimeout(() => {
+            this.completeSubtleFrameTransfer(frameId, null);
+        }, 1000);
+        this.inFlightSubtleFrames.set(frameId, {
+            imported,
+            timer,
+        });
+        mainWindow.webContents.send(ENHANCED_API.MPV.SHARED_TEXTURE_FRAME, {
+            frameId,
+            transfer,
+            meta: { hdr: frame.hdr, width: frame.width, height: frame.height },
+        });
     }
 
     private triggerSoftwareFallback(reason: string): void {

@@ -95,6 +95,15 @@ export function setupVideoBridge(): HTMLVideoElement {
         bridgeHost.appendChild(bridgeVideo);
     }
 
+    bridgeVideo.closest = function (selector: string) {
+        if (typeof selector === 'string' && selector.includes('player-container')) {
+            return document.querySelector('[class*="player-container"]') ||
+                document.querySelector('.player-container') ||
+                document.body;
+        }
+        return Element.prototype.closest.call(this, selector);
+    };
+
     bridgeVideo.getBoundingClientRect = function (): DOMRect {
         const playerContainer = document.querySelector<HTMLElement>('[class*="player-container"]');
         if (playerContainer) return playerContainer.getBoundingClientRect();
@@ -347,6 +356,19 @@ export function setupVideoBridge(): HTMLVideoElement {
                 v.__enhancedMainPatched = true;
 
                 try {
+                    v.closest = function (selector) {
+                        if (typeof selector === 'string' && selector.includes('player-container')) {
+                            return document.querySelector('[class*="player-container"]') ||
+                                document.querySelector('.player-container') ||
+                                document.body;
+                        }
+                        return Element.prototype.closest.call(this, selector);
+                    };
+                    v.getBoundingClientRect = function () {
+                        const pc = document.querySelector('[class*="player-container"]');
+                        if (pc) return pc.getBoundingClientRect();
+                        return new DOMRect(0, 0, window.innerWidth || 1280, window.innerHeight || 720);
+                    };
                     Object.defineProperties(v, {
                         currentTime: {
                             get: () => curTime,
