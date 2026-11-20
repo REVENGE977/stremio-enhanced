@@ -91,24 +91,16 @@
 
 <div class="enhanced-option">
     <div class="enhanced-option-heading">
-        <div class="enhanced-option-label">
-            ANGLE graphics backend
-        </div>
+        <div class="enhanced-option-label">Hardware Acceleration</div>
     </div>
-
     <div class="enhanced-option-content">
-        <select data-key="gpuRenderer" {{ disabled }} id="gpu-renderer-dropdown" class="search-input-bAgAh text-input-hnLiz plugin-setting-select" style="width: 100%; padding: 0 15px; cursor: pointer; background-color: rgba(255, 255, 255, 0.08); color: white; border: 1px solid transparent; border-radius: 20px; outline: none; appearance: auto; box-sizing: border-box; height: 42px;">
-            <option value="auto" {{ selected_auto }} style="background-color: #1a1a1a; color: white;">Auto (Default)</option>
-            <option value="d3d11" {{ disabled_d3d11 }} {{ selected_d3d11 }} style="background-color: #1a1a1a; color: white;">DirectX 11 (Windows only)</option>
-            <option value="d3d9" {{ disabled_d3d9 }} {{ selected_d3d9 }} style="background-color: #1a1a1a; color: white;">DirectX 9 (Windows only)</option>
-            <option value="gl" {{ selected_gl }} style="background-color: #1a1a1a; color: white;">OpenGL</option>
-            <option value="vulkan" {{ selected_vulkan }} style="background-color: #1a1a1a; color: white;">Vulkan</option>
-            <option value="software" {{ selected_software }} style="background-color: #1a1a1a; color: white;">Software</option>
-        </select>
+        <div tabindex="-1" class="toggle-container-lZfHP button-container-zVLH6 {{ hardwareAcceleration }}" id="hardwareAcceleration" style="outline: none;">
+            <div class="toggle-toOWM"></div>
+        </div>
     </div>
 </div>
 
-<p style="color:rgb(204, 204, 204);">Note: Auto uses DirectX 11 on Windows, OpenGL on Linux and Metal on macOS. If you encounter any issues like not being able to switch audio tracks in some streams, try switching to OpenGL.</p>
+<p style="color:rgb(204, 204, 204);">Note: Uses GPU acceleration for the UI and zero-copy embedded MPV playback. Disable only if you experience GPU driver issues or black screens (requires restart).</p>
 <br/>
 
 <div class="enhanced-option">

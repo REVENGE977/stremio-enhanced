@@ -17,7 +17,7 @@ import {
     setupDiscordRpcToggle,
     setupTransparencyToggle,
     setupAutokillServiceToggle,
-    setupGpuDropdown,
+    setupHardwareAccelerationToggle,
     setupExternalPlayerDropdown,
     setupExternalPlayerPathInputs
 } from "./settingsToggles";
@@ -32,7 +32,7 @@ function writeAbout(): void {
         const checkForUpdatesOnStartup = localStorage.getItem(STORAGE_KEYS.CHECK_UPDATES_ON_STARTUP) === "true";
         const discordRpc = localStorage.getItem(STORAGE_KEYS.DISCORD_RPC) === "true";
         const autokillService = localStorage.getItem(STORAGE_KEYS.AUTOKILL_SERVICE) !== "false";
-        const currentAngle = await gpuRendererAPI.getGpuRenderer();
+        const hardwareAcceleration = await gpuRendererAPI.getHardwareAcceleration();
         const currentExternalPlayer = (localStorage.getItem(STORAGE_KEYS.EXTERNAL_PLAYER) ?? 'disabled') as ExternalPlayer;
         const vlcCustomPath = localStorage.getItem(STORAGE_KEYS.EXTERNAL_PLAYER_VLC_PATH) ?? '';
         const mpvCustomPath = localStorage.getItem(STORAGE_KEYS.EXTERNAL_PLAYER_MPV_PATH) ?? '';
@@ -40,7 +40,7 @@ function writeAbout(): void {
         const aboutCategory = document.querySelector(SELECTORS.ABOUT_CATEGORY);
         if (aboutCategory) {
             aboutCategory.innerHTML += getAboutCategoryTemplate(
-                currentVersion, checkForUpdatesOnStartup, discordRpc, isTransparencyEnabled, autokillService, currentAngle, currentExternalPlayer, vlcCustomPath, mpvCustomPath
+                currentVersion, checkForUpdatesOnStartup, discordRpc, isTransparencyEnabled, autokillService, hardwareAcceleration, currentExternalPlayer, vlcCustomPath, mpvCustomPath
             );
         }
     }).catch(err => logger.error("Failed to write about section: " + err));
@@ -78,8 +78,10 @@ export function checkSettings() {
     settingsBuilder.addCategory("About", "enhanced", getAboutIcon(), "about");
     
     settingsBuilder.addButton("Open Themes Folder", "openthemesfolderBtn", SELECTORS.THEMES_CATEGORY);
-    settingsBuilder.addButton("Open Plugins Folder", "openpluginsfolderBtn", SELECTORS.PLUGINS_CATEGORY);
-    settingsBuilder.addButton("Toggle All Plugins", "toggleallpluginsBtn", SELECTORS.PLUGINS_CATEGORY);
+    settingsBuilder.addButtons([
+        { title: "Open Plugins Folder", id: "openpluginsfolderBtn" },
+        { title: "Toggle All Plugins", id: "toggleallpluginsBtn" },
+    ], SELECTORS.PLUGINS_CATEGORY);
     
     writeAbout();
     setupCheckUpdatesButton();
@@ -88,7 +90,7 @@ export function checkSettings() {
     setupTransparencyToggle();
     setupAutokillServiceToggle();
 
-    if(process.platform != "darwin") setupGpuDropdown();
+    setupHardwareAccelerationToggle();
     setupExternalPlayerDropdown();
     setupExternalPlayerPathInputs();
 

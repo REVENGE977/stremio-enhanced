@@ -1,5 +1,4 @@
 import TemplateCache from '../../utils/templateCache';
-import { VALID_RENDERERS } from '../../interfaces/RendererTypes';
 import { VALID_EXTERNAL_PLAYERS, type ExternalPlayer } from '../../interfaces/ExternalPlayerTypes';
 
 export function getAboutCategoryTemplate(
@@ -8,7 +7,7 @@ export function getAboutCategoryTemplate(
     discordRichPresence: boolean,
     enableTransparentThemes: boolean,
     autokillService: boolean = true,
-    currentAngle: string = 'auto',
+    hardwareAcceleration: boolean = true,
     currentExternalPlayer: ExternalPlayer = 'disabled',
     vlcCustomPath: string = '',
     mpvCustomPath: string = ''
@@ -21,15 +20,7 @@ export function getAboutCategoryTemplate(
         .replace("{{ discordrichpresence }}", discordRichPresence ? "checked" : "")
         .replace("{{ enableTransparentThemes }}", enableTransparentThemes ? "checked" : "")
         .replace("{{ autokillService }}", autokillService ? "checked" : "")
-        .replace("{{ disabled }}", process.platform == "darwin" ? "disabled" : "")
-        .replace("{{ disabled_d3d11 }}", process.platform != "win32" ? "disabled" : "")
-        .replace("{{ disabled_d3d9 }}", process.platform != "win32" ? "disabled" : "")
-
-    VALID_RENDERERS.forEach(renderer => {
-        const placeholder = `{{ selected_${renderer} }}`;
-        const replacement = (currentAngle === renderer) ? "selected" : "";
-        template = template.replace(placeholder, replacement);
-    });
+        .replace("{{ hardwareAcceleration }}", hardwareAcceleration ? "checked" : "");
 
     VALID_EXTERNAL_PLAYERS.forEach(player => {
         const placeholder = `{{ selected_${player} }}`;
