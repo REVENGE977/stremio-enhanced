@@ -1,5 +1,5 @@
 import { app, BrowserWindow, ipcMain, powerSaveBlocker, screen, sharedTexture } from 'electron';
-import { appendFileSync, existsSync, writeFileSync } from 'fs';
+import { existsSync } from 'fs';
 import { join } from 'path';
 import MPV from 'electron-libmpv';
 import { ENHANCED_API } from '../constants';
@@ -24,12 +24,6 @@ const FLOAT_PROPERTIES = new Set([
     'panscan',
 ]);
 
-const INT_PROPERTIES = new Set([
-    'aid',
-    'vid',
-    'sid',
-]);
-
 const BOOL_PROPERTIES = new Set([
     'pause',
     'buffering',
@@ -50,8 +44,7 @@ const NODE_PROPERTIES = new Set([
     'metadata',
 ]);
 
-//Properties whose JSON representation could be parsed as a number/boolean if we ran JSON.parse(),
-//or that ShellVideo expects as raw strings when not in FLOAT/BOOL/NODE_PROPERTIES.
+// Properties that ShellVideo expects as raw strings (or boolean for mute) instead of JSON-parsed numbers.
 const PLAIN_STRING_PROPERTIES = new Set([
     'path',
     'mpv-version',
@@ -71,8 +64,8 @@ function observeFormatForProperty(name: string): MPV.MpvObserveFormat {
     if (FLOAT_PROPERTIES.has(name)) return 'double';
     if (BOOL_PROPERTIES.has(name)) return 'flag';
     if (NODE_PROPERTIES.has(name)) return 'node';
-    // Note: aid, vid, sid, mute must be observed as 'string' (not 'int64' or 'flag') because
-    // when unselected in mpv their value is "no", which fails MPV_FORMAT_INT64 and returns MPV_FORMAT_NONE.
+    // aid, vid, sid, mute must be observed as 'string' because when unselected in mpv
+    // their value is "no", which fails MPV_FORMAT_INT64 / MPV_FORMAT_FLAG and returns MPV_FORMAT_NONE.
     return 'string';
 }
 
@@ -89,7 +82,7 @@ function parseShellPropertyValue(name: string, value: unknown): unknown {
         if (value === 'yes' || value === 'true') return true;
         if (value === 'no' || value === 'false') return false;
     }
-    if (FLOAT_PROPERTIES.has(name) || INT_PROPERTIES.has(name)) {
+    if (FLOAT_PROPERTIES.has(name)) {
         const num = Number(value);
         if (Number.isFinite(num)) return num;
     }
@@ -163,8 +156,6 @@ class MpvPlayerController {
         timer: ReturnType<typeof setTimeout>;
     }>();
     private nextSubtleFrameId = 0;
-    private logFilePath: string | null = null;
-    private firstFrameLogged = false;
 
     private viewportWidth = 1280;
     private viewportHeight = 720;
@@ -174,19 +165,9 @@ class MpvPlayerController {
 
     private videoReadyState = new VideoReadyState();
     private playbackActive = false;
-    private lastLoggedTimePosSec = -1;
     private powerSaveBlockerId: number | null = null;
     private pendingDeeplink: string | null = null;
     private windowHooksAttached = false;
-
-    private writeDiagLog(line: string): void {
-        if (!this.logFilePath) return;
-        try {
-            appendFileSync(this.logFilePath, `[${new Date().toISOString()}] ${line}\n`, 'utf-8');
-        } catch {
-            // Ignore log write errors
-        }
-    }
 
     public isAvailable(): boolean {
         return this.available && this.mpv !== null;
@@ -206,13 +187,6 @@ class MpvPlayerController {
 
     public init(userDataPath: string): boolean {
         if (this.mpv) return this.available;
-
-        this.logFilePath = join(userDataPath, 'stremio-enhanced-mpv.log');
-        try {
-            writeFileSync(this.logFilePath, `=== Stremio Enhanced MPV Log (${new Date().toISOString()}) ===\n`, 'utf-8');
-        } catch {
-            this.logFilePath = null;
-        }
 
         try {
             const mpvConfPath = join(userDataPath, 'mpv.conf');
@@ -235,7 +209,6 @@ class MpvPlayerController {
 
             if (!res.ok) {
                 logger.warn(`Embedded libmpv unavailable, falling back to HTML5 video: ${res.error}`);
-                this.writeDiagLog(`INIT FAILED: ${res.error}`);
                 this.mpv.destroy();
                 this.mpv = null;
                 this.available = false;
@@ -243,16 +216,15 @@ class MpvPlayerController {
             }
 
             this.available = true;
-            const initSummary = `backend=${res.backend}, sharedTexture=${res.sharedTexture}, hdrSupported=${res.hdrSupported}, lib=${res.libmpvPath}${res.gpuError ? `, gpuError=${res.gpuError}` : ''}`;
-            logger.info(`Embedded libmpv initialized (${initSummary})`);
-            this.writeDiagLog(`INIT OK: ${initSummary}`);
+            logger.info(
+                `Embedded libmpv initialized (backend=${res.backend}, sharedTexture=${res.sharedTexture}, hdrSupported=${res.hdrSupported}, lib=${res.libmpvPath})`
+            );
             if (res.gpuError) {
                 logger.warn(`GPU backend init error (fell back to ${res.backend}): ${res.gpuError}`);
             }
             return true;
         } catch (err) {
             logger.error(`Failed to initialize embedded libmpv: ${err}`);
-            this.writeDiagLog(`INIT EXCEPTION: ${err}`);
             this.mpv = null;
             this.available = false;
             return false;
@@ -524,22 +496,16 @@ class MpvPlayerController {
                 if (typeof data === 'string' && this.mpv) {
                     // When a new ShellVideo instance mounts in Stremio Web, 'path' is always the first
                     // property it observes. Unobserving previous properties first keeps libmpv's
-                    // observer list clean across stream changes while forcing libmpv to emit fresh
-                    // initial values (including 'mpv-version', which resolves ShellVideo's load promise).
+                    // observer list clean across stream changes while forcing fresh initial values.
                     if (data === 'path') {
                         this.mpv.unobserveAll();
                     }
-                    const fmt = observeFormatForProperty(data);
-                    const rc = this.mpv.observeProperty(data, fmt);
-                    if (rc < 0) {
-                        this.writeDiagLog(`OBSERVE ERR: prop=${data} fmt=${fmt} rc=${rc}`);
-                    }
+                    this.mpv.observeProperty(data, observeFormatForProperty(data));
                 }
                 break;
             }
             case 'mpv-set-prop': {
                 if (Array.isArray(data) && data.length >= 2 && typeof data[0] === 'string') {
-                    this.writeDiagLog(`SET_PROP: ${data[0]} = ${JSON.stringify(data[1])}`);
                     this.applyMpvProperty(data[0], data[1]);
                 }
                 break;
@@ -548,34 +514,23 @@ class MpvPlayerController {
                 if (Array.isArray(data) && data.length >= 1 && typeof data[0] === 'string' && this.mpv) {
                     const cmdName = data[0];
                     const cmdArgs = data.slice(1).map((a: unknown) => String(a));
-                    this.writeDiagLog(`COMMAND: ${cmdName} ${JSON.stringify(cmdArgs)}`);
                     if (cmdName === 'loadfile') {
                         const loadId = this.videoReadyState.beginTransition(true);
                         this.playbackActive = true;
-                        this.firstFrameLogged = false;
                         this.streamHdrGamma = null;
                         this.reconcileHdrMode();
                         this.preventDisplaySleep();
-                        this.writeDiagLog(`VIDEO_READY: loadId=${loadId} ready=false (loadfile)`);
-                        this.sendShellEvent('mpv-event-video-ready', {
-                            loadId,
-                            ready: false,
-                        });
+                        this.sendShellEvent('mpv-event-video-ready', { loadId, ready: false });
                     } else if (cmdName === 'stop') {
                         const loadId = this.videoReadyState.beginTransition(false);
                         this.playbackActive = false;
                         this.streamHdrGamma = null;
                         this.reconcileHdrMode();
                         this.allowDisplaySleep();
-                        this.writeDiagLog(`VIDEO_READY: loadId=${loadId} ready=false (stop)`);
-                        this.sendShellEvent('mpv-event-video-ready', {
-                            loadId,
-                            ready: false,
-                        });
+                        this.sendShellEvent('mpv-event-video-ready', { loadId, ready: false });
                     }
                     const rc = this.mpv.command(cmdName, ...cmdArgs);
                     if (rc < 0) {
-                        this.writeDiagLog(`COMMAND ERR: ${cmdName} rc=${rc}`);
                         logger.warn(`mpv command '${cmdName}' failed with rc=${rc}`);
                     }
                 }
@@ -592,11 +547,20 @@ class MpvPlayerController {
         // Keep vo bound to the embedded libmpv GPU render context.
         if (name === 'vo') return;
 
-        // Pass Stremio's hwdec preference through cleanly (matches stremio-linux-shell).
-        // On Linux, auto-copy (e.g. vaapi-copy / nvdec-copy) avoids broken EGL/GBM
-        // vaExportSurfaceHandle interop on Intel drivers while keeping GPU rendering zero-copy.
+        // Prefer zero-copy hardware decoding when Stremio enables HW decoding (avoids 25 MB/frame
+        // 4K 10-bit P010 GPU->CPU->GPU readback/upload stalls on integrated GPUs).
         if (name === 'hwdec' && typeof value === 'string') {
-            this.mpv.property('hwdec', value);
+            if (value === 'no') {
+                this.mpv.property('hwdec', 'no');
+            } else if (process.platform === 'linux') {
+                const target = (value === 'auto-copy' || value === 'auto' || value === 'yes')
+                    ? 'vaapi,vaapi-copy,auto-copy'
+                    : value;
+                this.mpv.property('hwdec', target);
+            } else {
+                const target = value === 'auto-copy' ? 'auto-safe' : value;
+                this.mpv.property('hwdec', target);
+            }
             return;
         }
 
@@ -607,34 +571,27 @@ class MpvPlayerController {
         }
     }
 
-    private emitVideoReadyIfPending(source: string): void {
+    private emitVideoReadyIfPending(): void {
         const loadId = this.videoReadyState.markReady();
         if (loadId !== null) {
-            this.writeDiagLog(`VIDEO_READY: loadId=${loadId} ready=true (${source})`);
-            this.sendShellEvent('mpv-event-video-ready', {
-                loadId,
-                ready: true,
-            });
+            this.sendShellEvent('mpv-event-video-ready', { loadId, ready: true });
         }
     }
 
     private handleMpvEvent(event: MPV.MpvEvent): void {
         switch (event.type) {
-            case 'start-file': {
+            case 'start-file':
                 this.videoReadyState.startFile();
-                this.writeDiagLog('EVENT: start-file');
                 break;
-            }
-            case 'file-loaded': {
+
+            case 'file-loaded':
                 this.videoReadyState.fileLoaded();
-                this.writeDiagLog('EVENT: file-loaded');
                 break;
-            }
-            case 'playback-restart': {
-                this.writeDiagLog('EVENT: playback-restart');
-                this.emitVideoReadyIfPending('playback-restart');
+
+            case 'playback-restart':
+                this.emitVideoReadyIfPending();
                 break;
-            }
+
             case 'end-file': {
                 this.playbackActive = false;
                 this.streamHdrGamma = null;
@@ -642,7 +599,6 @@ class MpvPlayerController {
                 this.allowDisplaySleep();
 
                 const reason = event.reason || 'other';
-                this.writeDiagLog(`EVENT: end-file reason=${reason} error=${event.error || 'none'}`);
                 const error = reason === 'error'
                     ? { message: event.error || 'Stream failed to load', critical: true }
                     : null;
@@ -652,10 +608,8 @@ class MpvPlayerController {
             case 'log-message': {
                 const text = (event.text || '').trimEnd();
                 if (!text) break;
-                const level = event.level || 'info';
-                const prefix = event.prefix || 'mpv';
-                const line = `MPV[${level}][${prefix}] ${text}`;
-                this.writeDiagLog(line);
+                const level = event.level || 'warn';
+                const line = `MPV[${level}][${event.prefix || 'mpv'}] ${text}`;
                 if (level === 'error' || level === 'fatal') {
                     logger.error(line);
                 } else if (level === 'warn') {
@@ -664,27 +618,10 @@ class MpvPlayerController {
                 break;
             }
             case 'property-change': {
-                if (!event.name) return;
-                // Skip MPV_FORMAT_NONE (null) property changes to match stremio-shell-ng / stremio-linux-shell.
-                if (event.value === null || event.value === undefined) return;
+                if (!event.name || event.value === null || event.value === undefined) return;
 
                 const data = parseShellPropertyValue(event.name, event.value);
-                if (
-                    event.name === 'mpv-version' ||
-                    event.name === 'paused-for-cache' ||
-                    event.name === 'seeking' ||
-                    event.name === 'duration' ||
-                    event.name === 'aid' ||
-                    event.name === 'sid'
-                ) {
-                    this.writeDiagLog(`PROP: ${event.name} = ${JSON.stringify(data)}`);
-                } else if (event.name === 'time-pos' && typeof data === 'number') {
-                    const sec = Math.floor(data);
-                    if (sec !== this.lastLoggedTimePosSec && sec % 5 === 0) {
-                        this.lastLoggedTimePosSec = sec;
-                        this.writeDiagLog(`PROP: time-pos = ${data.toFixed(2)}`);
-                    }
-                } else if (event.name === 'video-params' && data && typeof data === 'object') {
+                if (event.name === 'video-params' && data && typeof data === 'object') {
                     const gamma = typeof (data as Record<string, unknown>).gamma === 'string'
                         ? String((data as Record<string, unknown>).gamma).toLowerCase()
                         : null;
@@ -744,13 +681,7 @@ class MpvPlayerController {
             return;
         }
 
-        if (!this.firstFrameLogged) {
-            this.firstFrameLogged = true;
-            this.writeDiagLog(
-                `FIRST_FRAME: kind=${frame.kind} ${frame.width}x${frame.height} fmt=${frame.pixelFormat} hdr=${frame.hdr}`
-            );
-            this.emitVideoReadyIfPending('first-frame');
-        }
+        this.emitVideoReadyIfPending();
 
         if (frame.kind === 'software') {
             if (frame.buffer && !mainWindow.isDestroyed()) {
@@ -808,7 +739,6 @@ class MpvPlayerController {
             });
         } catch (err) {
             this.mpv.releaseFrame(frame.slotId, frame.generation);
-            this.writeDiagLog(`SHARED_TEXTURE IMPORT ERR: ${err}`);
             this.triggerSoftwareFallback(`sharedTexture.importSharedTexture failed: ${err}`);
             return;
         }
@@ -834,7 +764,6 @@ class MpvPlayerController {
             } catch {
                 // Already released
             }
-            this.writeDiagLog(`SHARED_TEXTURE START_TRANSFER ERR: ${err}`);
             this.triggerSoftwareFallback(`startTransferSharedTexture failed: ${err}`);
             return;
         }
@@ -844,10 +773,7 @@ class MpvPlayerController {
         const timer = setTimeout(() => {
             this.completeSubtleFrameTransfer(frameId, null);
         }, 1000);
-        this.inFlightSubtleFrames.set(frameId, {
-            imported,
-            timer,
-        });
+        this.inFlightSubtleFrames.set(frameId, { imported, timer });
         mainWindow.webContents.send(ENHANCED_API.MPV.SHARED_TEXTURE_FRAME, {
             frameId,
             transfer,
@@ -859,7 +785,6 @@ class MpvPlayerController {
         if (this.softwareFallbackTriggered || !this.mpv) return;
         this.softwareFallbackTriggered = true;
         logger.warn(`Switching embedded libmpv to software frame fallback: ${reason}`);
-        this.writeDiagLog(`FALLBACK_TO_SW: ${reason}`);
         this.mpv.enableSoftwareFallback();
     }
 }

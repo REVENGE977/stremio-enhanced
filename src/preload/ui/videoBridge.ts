@@ -472,16 +472,8 @@ export function setupVideoBridge(): HTMLVideoElement {
 
             patchVideo();
             window.addEventListener('hashchange', patchVideo);
-            setInterval(patchVideo, 1000);
         })();
     `).catch(() => {});
-
-    setInterval(() => {
-        mountBridgeHost();
-        if (!pausedVal && (durationVal > 0 || currentTimeVal > 0) && bridgeVideo) {
-            bridgeVideo.dispatchEvent(new Event('timeupdate'));
-        }
-    }, 500);
 
     return bridgeVideo;
 }

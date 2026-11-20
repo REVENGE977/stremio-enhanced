@@ -1,20 +1,9 @@
-import { syncMpvCanvasVisibility } from './mpvShellBridge';
+import { isPlayerRoute, updateCanvasVisibility } from './mpvShellBridge';
 
 let isTransparent = false;
 let isEnforcing = false;
 const modifiedElements = new Set<HTMLElement>();
 let observer: MutationObserver | null = null;
-let pollTimer: ReturnType<typeof setInterval> | null = null;
-
-/**
- * Only trust the route hash for player detection.
- * Stremio Web 5.1 uses class names like `video-container-ezBpK` on non-player pages
- * (board/detail episode cards), so DOM class fallbacks cause false positives on the main menu.
- */
-export function isPlayerRoute(): boolean {
-    const hash = window.location.hash || '';
-    return hash.startsWith('#/player') || hash.includes('/player/');
-}
 
 export function enforcePlayerTransparency(force?: boolean): void {
     if (isEnforcing) return;
@@ -87,7 +76,7 @@ export function enforcePlayerTransparency(force?: boolean): void {
             }
         }
 
-        syncMpvCanvasVisibility();
+        updateCanvasVisibility();
     } finally {
         isEnforcing = false;
     }
@@ -120,11 +109,5 @@ export function setupTransparencyBridge(): void {
         attachObserver();
     } else {
         document.addEventListener('DOMContentLoaded', attachObserver, { once: true });
-    }
-
-    if (!pollTimer) {
-        pollTimer = setInterval(() => {
-            enforcePlayerTransparency();
-        }, 300);
     }
 }
