@@ -100,6 +100,7 @@ async function createWindow() {
         frame: transparencyEnabled ? false : true,
         transparent: transparencyEnabled,
         hasShadow: false,
+        accentColor: false,
         visualEffectState: transparencyEnabled ? "active" : "followWindow",
         backgroundColor: "#00000000",
     });
