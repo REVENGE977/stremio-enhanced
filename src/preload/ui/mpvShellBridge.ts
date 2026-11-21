@@ -46,7 +46,7 @@ function getPlatformIpcKey(): string {
     return 'LINUX';
 }
 
-function isPlayerRoute(): boolean {
+export function isPlayerRoute(): boolean {
     const hash = window.location.hash || '';
     return hash.startsWith('#/player') || hash.includes('/player/');
 }
@@ -83,7 +83,7 @@ function clearCanvas(): void {
     }
 }
 
-function updateCanvasVisibility(): void {
+export function updateCanvasVisibility(): void {
     if (!canvasEl) return;
     const onPlayer = isPlayerRoute();
     if (!onPlayer) {
@@ -94,10 +94,6 @@ function updateCanvasVisibility(): void {
     if (!show) {
         clearCanvas();
     }
-}
-
-export function syncMpvCanvasVisibility(): void {
-    updateCanvasVisibility();
 }
 
 function ensureCanvas(): HTMLCanvasElement | null {
@@ -279,23 +275,20 @@ function drawVideoFrame2D(canvas: HTMLCanvasElement, frame: VideoFrame): void {
 
 function recreateCanvas(): HTMLCanvasElement | null {
     const old = canvasEl;
+    ctx2d = null;
+    gpuState = null;
+    gpuInitAttempted = false;
+    gpuInitInFlight = false;
+
     if (old && old.parentElement) {
         const fresh = document.createElement('canvas');
         fresh.id = CANVAS_ID;
         fresh.style.cssText = old.style.cssText;
         old.parentElement.replaceChild(fresh, old);
         canvasEl = fresh;
-        ctx2d = null;
-        gpuState = null;
-        gpuInitAttempted = false;
-        gpuInitInFlight = false;
         return fresh;
     }
     canvasEl = null;
-    ctx2d = null;
-    gpuState = null;
-    gpuInitAttempted = false;
-    gpuInitInFlight = false;
     return ensureCanvas();
 }
 

@@ -76,19 +76,18 @@ export function setupAutokillServiceToggle(): void {
     }).catch(() => {});
 }
 
-export function setupGpuDropdown() {
-    Helpers.waitForElm('#gpu-renderer-dropdown').then(() => {
-        const gpuDropdown = document.getElementById('gpu-renderer-dropdown') as HTMLSelectElement;
-        if (!gpuDropdown) return;
-
-        gpuDropdown.addEventListener('change', async (e) => {
-            const selectedValue = (e.target as HTMLSelectElement).value;
-            
-            await gpuRendererAPI.setGpuRenderer(selectedValue);
+export function setupHardwareAccelerationToggle(): void {
+    Helpers.waitForElm('#hardwareAcceleration').then(() => {
+        const toggle = document.getElementById('hardwareAcceleration');
+        toggle?.addEventListener('click', async () => {
+            toggle.classList.toggle(CLASSES.CHECKED);
+            const isChecked = toggle.classList.contains(CLASSES.CHECKED);
+            logger.info(`Hardware acceleration toggled ${isChecked ? "ON" : "OFF"}`);
+            await gpuRendererAPI.setHardwareAcceleration(isChecked);
             await alertAPI.showAlert(
                 "info",
                 "Restart Required",
-                "Your hardware acceleration settings have been saved. Please restart Stremio Enhanced to apply the changes.",
+                "Your hardware acceleration setting has been saved. Please restart Stremio Enhanced to apply the changes.",
                 ["OK"]
             );
         });

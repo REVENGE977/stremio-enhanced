@@ -203,9 +203,9 @@ export const settingsBuilder = {
     },
 
     /**
-     * Add a button to the settings
+     * Add one or more buttons side-by-side in a single settings option row
      */
-    addButton: (title: string, id: string, query: string): void => {
+    addButtons: (buttons: Array<{ title: string; id: string }>, query: string): void => {
         Helpers.waitForElm(query).then(() => {
             const element = document.querySelector(query);
             if (!element) return;
@@ -216,17 +216,26 @@ export const settingsBuilder = {
             const contentDiv = document.createElement("div");
             contentDiv.classList.add(CLASSES.CONTENT);
 
-            const buttonDiv = document.createElement("div");
-            buttonDiv.setAttribute("tabindex", "0");
-            buttonDiv.setAttribute("title", title);
-            buttonDiv.classList.add(CLASSES.BUTTON, CLASSES.BUTTON_CONTAINER, "button");
-            buttonDiv.id = id;
-            buttonDiv.textContent = title;
+            for (const { title, id } of buttons) {
+                const buttonDiv = document.createElement("div");
+                buttonDiv.setAttribute("tabindex", "0");
+                buttonDiv.setAttribute("title", title);
+                buttonDiv.classList.add(CLASSES.BUTTON, CLASSES.BUTTON_CONTAINER, "button");
+                buttonDiv.id = id;
+                buttonDiv.textContent = title;
+                contentDiv.appendChild(buttonDiv);
+            }
 
-            contentDiv.appendChild(buttonDiv);
             optionDiv.appendChild(contentDiv);
             element.appendChild(optionDiv);
-        }).catch(err => logger.error(`Failed to add button: ${err}`));
+        }).catch(err => logger.error(`Failed to add button(s): ${err}`));
+    },
+
+    /**
+     * Add a button to the settings
+     */
+    addButton: (title: string, id: string, query: string): void => {
+        settingsBuilder.addButtons([{ title, id }], query);
     },
 
     /**
