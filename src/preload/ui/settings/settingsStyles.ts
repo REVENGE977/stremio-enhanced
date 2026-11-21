@@ -15,6 +15,7 @@ export const SETTINGS_STYLES = `
 
 #enhanced[data-show="themes"] > .enhanced-category:not([data-category="themes"]),
 #enhanced[data-show="plugins"] > .enhanced-category:not([data-category="plugins"]),
+#enhanced[data-show="marketplace"] > .enhanced-category:not([data-category="marketplace"]),
 #enhanced[data-show="about"] > .enhanced-category:not([data-category="about"]) { display: none; }
 
 .enhanced-option {
@@ -60,4 +61,47 @@ export const SETTINGS_STYLES = `
 .enhanced-link a { color: inherit; text-decoration: none; }
 .enhanced-link-label { color: var(--foreground-color-primary, var(--primary-foreground-color, #fff)); font-weight: 600; }
 .enhanced-link:hover { background: var(--accent-color, var(--primary-accent-color, #7b5bf5)); }
+
+.marketplace-item-card {
+    transition: border-color 0.2s, background-color 0.2s;
+}
+.marketplace-item-card:hover {
+    border-color: rgba(255, 255, 255, 0.16) !important;
+    background-color: rgba(255, 255, 255, 0.06) !important;
+}
+.marketplace-title {
+    white-space: normal !important;
+    overflow: visible !important;
+    text-overflow: unset !important;
+    word-break: break-word !important;
+    max-width: none !important;
+}
+.marketplace-repo-btn:hover {
+    background: rgba(255, 255, 255, 0.16) !important;
+    color: #fff !important;
+}
+.modActionBtn {
+    cursor: pointer;
+    user-select: none;
+    transition: all 0.2s ease-in-out;
+}
+.modActionBtn.install-button-container-yfcq5 {
+    background-color: var(--action-background-color, var(--action-color, var(--accent-color, var(--primary-accent-color, #735bf2))));
+    color: #fff;
+}
+.modActionBtn.install-button-container-yfcq5:hover {
+    filter: brightness(1.1);
+}
+.modActionBtn.uninstall-button-container-oV4Yo {
+    background-color: rgba(220, 38, 38, 0.78);
+    color: #fff;
+}
+.modActionBtn.uninstall-button-container-oV4Yo:hover {
+    background-color: rgba(220, 38, 38, 0.95);
+}
+.logo-WrsGF {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+}
 `;

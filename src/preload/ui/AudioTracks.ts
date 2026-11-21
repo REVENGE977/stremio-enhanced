@@ -1,5 +1,5 @@
-import Helpers from "./Helpers";
-import { getLogger } from "./logger";
+import Helpers from "../../utils/Helpers";
+import { getLogger } from "../../utils/logger";
 
 const logger = getLogger("AudioTracks");
 

@@ -1,5 +1,6 @@
 import { STORAGE_KEYS, PLAYER_PATH_STORAGE_KEY } from '../../constants';
 import { externalPlayerAPI } from '../api/externalPlayer';
+import { mpvPlayerAPI } from '../api/mpvPlayer';
 import { type ExternalPlayer } from '../../interfaces/ExternalPlayerTypes';
 import PlaybackState from '../../utils/PlaybackState';
 import Helpers from '../../utils/Helpers';
@@ -47,7 +48,8 @@ async function launchExternal(player: ExternalPlayer): Promise<void> {
         discordTracker.lastPlayerState = playerState;  
         discordTracker._externalPlayerActive = true;  
         
-        // Navigate back before launching to prevent the built-in player from loading
+        // Stop embedded MPV and navigate back before launching the external player
+        mpvPlayerAPI.stop();
         history.back();
         const customPath = localStorage.getItem(PLAYER_PATH_STORAGE_KEY[player]);
         

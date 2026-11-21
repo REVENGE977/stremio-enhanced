@@ -31,10 +31,12 @@
 - [x] Fix embedded subs not loading some streams by having manually extracting the subs and loading them.
 - [x] Clean up preload.ts
 - [ ] Features from Zaarrg/stremio-community-v5
-  - [ ] MPV support
-    - [ ] Thumbnail preview
-    - [ ] Upscale model support
-    - [ ] Native playback
+  - [x] MPV embedding (cross-platform zero-copy sharedTexture + Stremio Web native ShellVideo IPC)
+    - [x] Replace HTML5 video with embedded libmpv on Windows (ANGLE D3D11 NT Handle), macOS (CGL IOSurface), and Linux X11/Wayland (GBM/EGL DMA-BUF) with automatic software fallback
+    - [x] Wire Stremio Web 5.1 native ShellVideo transport (`qt.webChannelTransport` / `chrome.webview`) so all stock player controls (play/pause, seekbar, volume, speed slider, audio tracks, embedded + addon + ASS subtitles, auto language selection, video scale, side drawer, statistics, HDR info, next video, continue watching, keybinds) work natively over the video canvas
+    - [x] Preserve custom themes, zoom factor, and plugin compatibility via `transparencyBridge` and `videoBridge`
+  - [ ] Thumbnail preview
+  - [ ] Upscale model support
 - [x] Create API for plugins to put alert and prompt dialogs
 - [x] Put applyTheme in preload and use contextBridge for cleaner implementation
 - [x] Add the ability for themes to set required plugins that the user must install first

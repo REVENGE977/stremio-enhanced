@@ -1,6 +1,7 @@
 import Helpers from "../../utils/Helpers";
 import PlaybackState from "../../utils/PlaybackState";
 import DiscordPresence from "../../core/DiscordPresence";
+import { SELECTORS } from "../../constants";
 
 export let lastPlayerState: any = null;
 
@@ -155,11 +156,11 @@ export const discordTracker = {
         if (!location.href.includes("#/detail")) return;
 
         try {
-            await Helpers.waitForElm('.metadetails-container-K_Dqa');
+            await Helpers.waitForElm(SELECTORS.META_DETAILS_CONTAINER);
             const metaDetails = await PlaybackState.getMetaDetails();
             if (!metaDetails) return;
 
-            await Helpers.waitForElm('.description-container-yi8iU');
+            await Helpers.waitForElm(SELECTORS.DESCRIPTION_CONTAINER);
             DiscordPresence.setExploring(metaDetails.name, metaDetails.poster);
         } catch (error) {
             console.error(error);

@@ -1,10 +1,10 @@
 import { ipcRenderer } from 'electron';
 import { getPromptModalTemplate } from '../../components/prompt-modal/promptModal';
-import { IPC_CHANNELS } from '../../constants';
+import { ENHANCED_API } from '../../constants';
 
 export const alertAPI = {
     showAlert: (alertType: string, title: string, message: string, buttons: string[]) => {
-        return ipcRenderer.invoke(IPC_CHANNELS.SHOW_ALERT, alertType, title, message, buttons);
+        return ipcRenderer.invoke(ENHANCED_API.SHOW_ALERT, alertType, title, message, buttons);
     },
     showPrompt: (promptId: string, title: string, message: string, defaultValue: string = ''): Promise<string | null> => {
         return new Promise((resolve) => {

@@ -246,11 +246,17 @@ xattr -d com.apple.quarantine /path/to/Stremio.Enhanced.app
   
 ## Update v1.2.1
 **This update is to fix Stremio Enhanced to work with the newest Stremio Web version (v5.1).**
-- Now shows Enhanced's options in the settings menu with the new interface correcty.
-- Volume should now be presistent between sessions.
+- Now shows Enhanced's options in the settings menu with the new interface correctly.
+- Volume should now be persistent between sessions.
 - Subtitle loading optimized.
 - Now sends subtitle tracks to external players.
 - Added a toggle all button for plugins.
 - Added a toggle to kill Stremio Service on exit.
 
 **Note: If you are on Windows or Linux, I recommend checking my forks of [stremio-shell-ng](https://github.com/REVENGE977/stremio-shell-ng) and [stremio-linux-shell](https://github.com/REVENGE977/stremio-linux-shell) for a better streaming experience.**
+
+## Update v1.3.0-preview (Cross-Platform Embedded libmpv)
+- Replaced the Windows-only `--wid` + cloned overlay window prototype with a cross-platform **zero-copy GPU shared-texture** `libmpv` render pipeline (ANGLE D3D11 NT Handles on Windows, CGL IOSurface on macOS, GBM/EGL DMA-BUF on Linux X11 & Wayland) with automatic software fallback.
+- Wired Stremio Web 5.1's native `ShellVideo` IPC transport (`qt.webChannelTransport` / `chrome.webview`) directly to embedded `libmpv`, so all stock Stremio player controls, side drawer, subtitles, audio tracks, playback speed slider, statistics, HDR metadata, continue watching, themes, and plugins work natively on top of the video canvas.
+- Supports 4K HDR playback with hardware decoding (`d3d11va` / `videotoolbox` / `vaapi`), 16-bit float (`rgbaf16`) WebGPU extended-range HDR output on HDR displays (Windows/macOS), and high-quality GPU BT.2446a HDR-to-SDR tone mapping on SDR displays.
+- Merged all Stremio Web 5.1 compatibility fixes and recent improvements from `main`.

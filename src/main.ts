@@ -21,6 +21,7 @@ import { setupUpdater } from "./controllers/updaterController";
 import { setupWindowTransparency } from "./controllers/transparencyController";
 import { gpuController } from "./controllers/gpuController";
 import { externalPlayerController } from "./controllers/externalPlayerController";
+import { mpvPlayerController } from "./controllers/mpvPlayerController";
 import { setupServiceController, terminateStremioServiceIfEnabled } from "./controllers/serviceController";
 import { downloadController } from "./controllers/downloadController";
 
@@ -49,7 +50,6 @@ app.commandLine.appendSwitch('disable-background-timer-throttling');
 app.commandLine.appendSwitch('disable-renderer-backgrounding');
 app.commandLine.appendSwitch('enable-quic');
 app.commandLine.appendSwitch('enable-async-dns');
-app.commandLine.appendSwitch('disable-rtc-smoothness-algorithm');
 
 gpuController.setup(userDataPath);
 
@@ -60,7 +60,7 @@ if (!gotLock) {
         // Windows/Linux: protocol URL comes as a command line argument
         const url = argv.find(arg => arg.startsWith('stremio://'));
         if (url) handleStremioURL(url);
-        
+
         if (mainWindow) {
             if (mainWindow.isMinimized()) mainWindow.restore();
             mainWindow.focus();
@@ -100,36 +100,38 @@ async function createWindow() {
         frame: transparencyEnabled ? false : true,
         transparent: transparencyEnabled,
         hasShadow: false,
+        accentColor: false,
         visualEffectState: transparencyEnabled ? "active" : "followWindow",
         backgroundColor: "#00000000",
     });
-    
+
     windowState.manage(mainWindow);
+    mpvPlayerController.attachWindow(mainWindow);
     mainWindow.setMenu(null);
     mainWindow.loadURL(URLS.STREMIO_WEB);
-        
+
     if (transparencyEnabled) {
         mainWindow.on('enter-full-screen', () => {
             mainWindow?.webContents.send(IPC_CHANNELS.FULLSCREEN_CHANGED, true);
         });
-        
+
         mainWindow.on('leave-full-screen', () => {
             mainWindow?.webContents.send(IPC_CHANNELS.FULLSCREEN_CHANGED, false);
         });
     }
-    
+
     // Opens links in external browser instead of opening them in the Electron app.
-    mainWindow.webContents.setWindowOpenHandler((edata:any) => {
+    mainWindow.webContents.setWindowOpenHandler((edata: any) => {
         shell.openExternal(edata.url);
         return { action: "deny" };
     });
-    
+
     // Devtools flag
-    if(process.argv.includes("--devtools")) { 
+    if (process.argv.includes("--devtools")) {
         logger.info("Developer tools flag detected. Opening DevTools in detached mode...");
-        mainWindow.webContents.openDevTools({ mode: "detach" }); 
+        mainWindow.webContents.openDevTools({ mode: "detach" });
     }
-    
+
     mainWindow.on('closed', () => {
         mainWindow = null;
         terminateStremioServiceIfEnabled();
@@ -138,7 +140,7 @@ async function createWindow() {
 
 // Use Stremio Service for streaming
 async function useStremioService() {
-    if(await StremioService.isServiceInstalled()) {
+    if (await StremioService.isServiceInstalled()) {
         logger.info("Found installation of Stremio Service.");
         await StremioService.start();
     } else {
@@ -161,14 +163,14 @@ app.on("ready", async () => {
     logger.info("Running on NodeJS version: " + process.version);
     logger.info("Running on Electron version: v" + process.versions.electron);
     logger.info("Running on Chromium version: v" + process.versions.chrome);
-    
+
     logger.info("User data path: " + app.getPath("userData"));
     logger.info("Themes path: " + Properties.themesPath);
     logger.info("Plugins path: " + Properties.pluginsPath);
-    
+
     try {
         const basePath = Properties.enhancedPath;
-        
+
         if (!existsSync(basePath)) {
             mkdirSync(basePath, { recursive: true });
         }
@@ -181,16 +183,16 @@ app.on("ready", async () => {
     } catch (err) {
         logger.error("Failed to create necessary directories: " + err);
     }
-    
-    if(!process.argv.includes("--no-stremio-server")) {
-        if(!await StremioService.isProcessRunning()) {
-            let platform = process.platform;
-            
+
+    if (!process.argv.includes("--no-stremio-server")) {
+        if (!await StremioService.isProcessRunning()) {
+            const platform = process.platform;
+
             // If the user is on Windows, give the option to either use Stremio Service or server.js
-            if(platform === "win32") {
-                if(existsSync(useStremioServiceFlagPath)) {
+            if (platform === "win32") {
+                if (existsSync(useStremioServiceFlagPath)) {
                     await useStremioService();
-                } else if(existsSync(useServerJSFlagPath)) {
+                } else if (existsSync(useServerJSFlagPath)) {
                     await useServerJS();
                 } else {
                     await chooseStreamingServer();
@@ -203,13 +205,16 @@ app.on("ready", async () => {
             logger.info("Stremio Service is already running.");
         }
     } else logger.info("Launching without Stremio streaming server.");
-    
-    // setup IPC and create window
+
+    // Initialize embedded libmpv & IPC BEFORE creating the BrowserWindow so preload detects ShellVideo immediately.
+    mpvPlayerController.init(userDataPath);
+    mpvPlayerController.initIPC();
+
     setupPluginSettingsAPI();
     setupPluginAlertAPI();
     setupServiceController(userDataPath);
     createWindow();
-    if(transparencyEnabled) setupWindowControls();
+    if (transparencyEnabled) setupWindowControls();
     setupUpdater();
     setupWindowTransparency(transparencyFlagPath);
     gpuController.initIPC(userDataPath);
@@ -221,15 +226,15 @@ app.on("ready", async () => {
         event.preventDefault();
         handleStremioURL(url);
     });
-    
+
     if (!app.isDefaultProtocolClient('stremio')) {
         app.setAsDefaultProtocolClient('stremio');
     }
-    
+
     // Handle any URL passed on first launch (Windows/Linux)
     const launchUrl = process.argv.find(arg => arg.startsWith('stremio://'));
     if (launchUrl) handleStremioURL(launchUrl);
-    
+
     app.on("activate", () => {
         if (BrowserWindow.getAllWindows().length === 0) createWindow();
     });
@@ -245,12 +250,12 @@ async function chooseStreamingServer() {
         "Click 'No' to attempt using server.js directly",
         ["Yes, use Stremio Service (recommended on Windows)", "No, use server.js directly (manual setup required)"]
     );
-    
-    if(result === 0) {
+
+    if (result === 0) {
         logger.info("User chose to use Stremio Service for streaming. User's choice will be saved for future launches.");
         await useStremioService();
         writeFileSync(useStremioServiceFlagPath, "1");
-    } else if(result === 1) {
+    } else if (result === 1) {
         logger.info("User chose to use server.js for streaming. User's choice will be saved for future launches.");
         useServerJS();
         writeFileSync(useServerJSFlagPath, "1");
@@ -267,16 +272,16 @@ async function useServerJS() {
     // First, try to ensure streaming server files are available
     logger.info("Checking for streaming server files...");
     const filesStatus = await StreamingServer.ensureStreamingServerFiles();
-    
-    if(filesStatus === "ready") {
+
+    if (filesStatus === "ready") {
         logger.info("Running server.js directly...");
         StreamingServer.start();
-    } else if(filesStatus === "missing_server_js") {
+    } else if (filesStatus === "missing_server_js") {
         // server.js is missing - show instructions to the user in a loop
         logger.info("server.js not found. Showing download instructions to user...");
         const serverDir = StreamingServer.getStreamingServerDir();
         const downloadUrl = StreamingServer.latestServerJsUrl || SERVER_JS_URL;
-        
+
         let serverJsFound = false;
         while (!serverJsFound) {
             const result = await Helpers.showAlert(
@@ -289,41 +294,35 @@ async function useServerJS() {
                 `Click "Open Folder" to open the destination folder, or "Download" to open the download link in your browser. Click "Close" when you have placed the file in the correct location and FFmpeg will be downloaded automatically if needed.`,
                 ["Open Folder", "Download", "Close"]
             );
-            
+
             if (result === 0) {
-                // Open the folder
                 StreamingServer.openStreamingServerDir();
             } else if (result === 1) {
-                // Open the download URL in browser
                 shell.openExternal(downloadUrl);
             } else {
-                // User clicked Close - check if file exists now
                 if (StreamingServer.serverJsExists()) {
                     serverJsFound = true;
                     logger.info("server.js found after user action. Proceeding with streaming server setup...");
-                    // Re-run the setup to also check/download ffmpeg
                     const retryStatus = await StreamingServer.ensureStreamingServerFiles();
                     if (retryStatus === "ready") {
                         logger.info("Launching local streaming server.");
                         await Helpers.showAlert("info", "Streaming Server Setup Complete", "The streaming server has been set up successfully and will now start. You may need to reload the streaming server from the settings.", ["OK"]);
                         StreamingServer.start();
                     } else {
-                        // FFmpeg issue - fall back to Stremio Service
                         logger.info("FFmpeg not available after server.js setup. Falling back to Stremio Service...");
                         await Helpers.showAlert("error", "Failed to download FFmpeg", "Failed to automatically download FFmpeg. FFmpeg is required for the streaming server to function properly. The app will now use Stremio Service for streaming instead for this instance.", ["OK"]);
                         await useStremioService();
                     }
                 } else {
-                    // File still not there - warn and show dialog again
                     const warnResult = await Helpers.showAlert(
                         "warning",
                         "File Not Found",
                         `server.js was not found in:\n${serverDir}\n\nPlease download the file and place it in the correct location. Do you want to try again or fallback to Stremio Service?`,
                         ["Try Again", "Use Stremio Service"]
                     );
-                    
+
                     if (warnResult === 1) {
-                        serverJsFound = true; // exit loop
+                        serverJsFound = true;
                         logger.info("User abandoned server.js setup. Falling back to Stremio Service...");
                         await useStremioService();
                     }
@@ -331,54 +330,61 @@ async function useServerJS() {
             }
         }
     } else {
-        // FFmpeg download failed - fall back to Stremio Service
         logger.info("FFmpeg not available. Falling back to Stremio Service...");
         await useStremioService();
     }
 }
 
 app.on("before-quit", () => {
+    mpvPlayerController.destroy();
     terminateStremioServiceIfEnabled();
 });
 
 app.on("window-all-closed", () => {
     logger.info("Closing app...");
-    
+
     if (process.platform !== "darwin") {
         app.quit();
     }
 });
 
 app.on('browser-window-created', (_, window) => {
-    window.webContents.on('before-input-event', (event:any, input:any) => {
+    window.webContents.on('before-input-event', (event: any, input: any) => {
         switch (true) {
             // Opens Devtools on Ctrl + Shift + I
             case input.control && input.shift && input.key === 'I':
-            window.webContents.toggleDevTools();
-            event.preventDefault();
-            break;
-            
+                window.webContents.toggleDevTools();
+                event.preventDefault();
+                break;
+
             // Toggles fullscreen on F11
-            case input.key === 'F11':
-            window.setFullScreen(!window.isFullScreen());
-            event.preventDefault();
-            break;
-            
+            case input.key === 'F11' && input.type === 'keyDown':
+                window.setFullScreen(!window.isFullScreen());
+                event.preventDefault();
+                break;
+
+            case input.key === "Escape" && input.type === 'keyDown':
+                if (window.isFullScreen()) {
+                    window.setFullScreen(false);
+                    event.preventDefault();
+                }
+                break;
+
             // Implements zooming in/out using shortcuts (Ctrl + =, Ctrl + -)
-            case input.control && input.key === '=':
-            if (mainWindow) mainWindow.webContents.zoomFactor += 0.1;
-            event.preventDefault();
-            break;
-            case input.control && input.key === '-':
-            if (mainWindow) mainWindow.webContents.zoomFactor -= 0.1;
-            event.preventDefault();
-            break;
-            
+            case input.control && input.key === '=' && input.type === 'keyDown':
+                if (mainWindow) mainWindow.webContents.zoomFactor += 0.1;
+                event.preventDefault();
+                break;
+            case input.control && input.key === '-' && input.type === 'keyDown':
+                if (mainWindow) mainWindow.webContents.zoomFactor -= 0.1;
+                event.preventDefault();
+                break;
+
             // Implements reload on Ctrl + R
-            case input.control && input.key === 'r':
-            mainWindow?.reload();
-            event.preventDefault();
-            break;
+            case input.control && input.key === 'r' && input.type === 'keyDown':
+                mainWindow?.reload();
+                event.preventDefault();
+                break;
         }
     });
 });
@@ -386,9 +392,11 @@ app.on('browser-window-created', (_, window) => {
 function handleStremioURL(url: string) {
     try {
         console.log('Received stremio:// URL:', url);
-        
+
         if (mainWindow && url.endsWith("/manifest.json")) {
             mainWindow.loadURL(URLS.STREMIO_WEB_ADD_ADDON + encodeURIComponent(url));
+        } else if (mpvPlayerController.isAvailable()) {
+            mpvPlayerController.setPendingDeeplink(url);
         }
     } catch (err) {
         console.error('Invalid stremio:// URL', err);

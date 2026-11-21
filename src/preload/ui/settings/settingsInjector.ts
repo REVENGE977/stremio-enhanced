@@ -9,16 +9,15 @@ import ExtractMetaData from "../../../utils/ExtractMetaData";
 import { getDefaultThemeTemplate } from "../../../components/default-theme/defaultTheme";
 import { getAboutCategoryTemplate } from "../../../components/about-category/aboutCategory";
 import { STORAGE_KEYS, SELECTORS, FILE_EXTENSIONS } from "../../../constants";
-import { getThemeIcon, getPluginIcon, getAboutIcon } from "../../../utils/icons";
+import { getThemeIcon, getPluginIcon, getMarketplaceIcon, getAboutIcon } from "../../../utils/icons";
 import { getTransparencyStatus } from "../titleBar";
-import { setupBrowseModsButton } from "../mod/modBrowser";
 import {
     setupCheckUpdatesButton,
     setupCheckUpdatesOnStartupToggle,
     setupDiscordRpcToggle,
     setupTransparencyToggle,
     setupAutokillServiceToggle,
-    setupGpuDropdown,
+    setupHardwareAccelerationToggle,
     setupExternalPlayerDropdown,
     setupExternalPlayerPathInputs
 } from "./settingsToggles";
@@ -33,7 +32,7 @@ function writeAbout(): void {
         const checkForUpdatesOnStartup = localStorage.getItem(STORAGE_KEYS.CHECK_UPDATES_ON_STARTUP) === "true";
         const discordRpc = localStorage.getItem(STORAGE_KEYS.DISCORD_RPC) === "true";
         const autokillService = localStorage.getItem(STORAGE_KEYS.AUTOKILL_SERVICE) !== "false";
-        const currentAngle = await gpuRendererAPI.getGpuRenderer();
+        const hardwareAcceleration = await gpuRendererAPI.getHardwareAcceleration();
         const currentExternalPlayer = (localStorage.getItem(STORAGE_KEYS.EXTERNAL_PLAYER) ?? 'disabled') as ExternalPlayer;
         const vlcCustomPath = localStorage.getItem(STORAGE_KEYS.EXTERNAL_PLAYER_VLC_PATH) ?? '';
         const mpvCustomPath = localStorage.getItem(STORAGE_KEYS.EXTERNAL_PLAYER_MPV_PATH) ?? '';
@@ -41,7 +40,7 @@ function writeAbout(): void {
         const aboutCategory = document.querySelector(SELECTORS.ABOUT_CATEGORY);
         if (aboutCategory) {
             aboutCategory.innerHTML += getAboutCategoryTemplate(
-                currentVersion, checkForUpdatesOnStartup, discordRpc, isTransparencyEnabled, autokillService, currentAngle, currentExternalPlayer, vlcCustomPath, mpvCustomPath
+                currentVersion, checkForUpdatesOnStartup, discordRpc, isTransparencyEnabled, autokillService, hardwareAcceleration, currentExternalPlayer, vlcCustomPath, mpvCustomPath
             );
         }
     }).catch(err => logger.error("Failed to write about section: " + err));
@@ -70,25 +69,28 @@ export function checkSettings() {
     settingsBuilder.addNavGroup("Stremio Enhanced", [
         { id: "themes", label: "Themes", icon: getThemeIcon() },
         { id: "plugins", label: "Plugins", icon: getPluginIcon() },
+        { id: "marketplace", label: "Marketplace", icon: getMarketplaceIcon() },
         { id: "about", label: "About", icon: getAboutIcon() },
     ]);
-    settingsBuilder.addCategory("Themes", "enhanced", getThemeIcon());
-    settingsBuilder.addCategory("Plugins", "enhanced", getPluginIcon());
-    settingsBuilder.addCategory("About", "enhanced", getAboutIcon());
+    settingsBuilder.addCategory("Themes", "enhanced", getThemeIcon(), "themes");
+    settingsBuilder.addCategory("Plugins", "enhanced", getPluginIcon(), "plugins");
+    settingsBuilder.addCategory("Community Marketplace", "enhanced", getMarketplaceIcon(), "marketplace");
+    settingsBuilder.addCategory("About", "enhanced", getAboutIcon(), "about");
     
     settingsBuilder.addButton("Open Themes Folder", "openthemesfolderBtn", SELECTORS.THEMES_CATEGORY);
-    settingsBuilder.addButton("Open Plugins Folder", "openpluginsfolderBtn", SELECTORS.PLUGINS_CATEGORY);
-    settingsBuilder.addButton("Toggle All Plugins", "toggleallpluginsBtn", SELECTORS.PLUGINS_CATEGORY);
+    settingsBuilder.addButtons([
+        { title: "Open Plugins Folder", id: "openpluginsfolderBtn" },
+        { title: "Toggle All Plugins", id: "toggleallpluginsBtn" },
+    ], SELECTORS.PLUGINS_CATEGORY);
     
     writeAbout();
-    setupBrowseModsButton();
     setupCheckUpdatesButton();
     setupCheckUpdatesOnStartupToggle();
     setupDiscordRpcToggle();
     setupTransparencyToggle();
     setupAutokillServiceToggle();
 
-    if(process.platform != "darwin") setupGpuDropdown();
+    setupHardwareAccelerationToggle();
     setupExternalPlayerDropdown();
     setupExternalPlayerPathInputs();
 

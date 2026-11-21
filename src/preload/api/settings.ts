@@ -1,6 +1,6 @@
 import { ipcRenderer } from 'electron';
 import PluginOption from '../../interfaces/PluginSettingSchema';
-import { ENHANCED_PLUGINS_API } from "../../constants";
+import { ENHANCED_API } from "../../constants";
 import { getLogger } from "../../utils/logger";
 import { FILE_EXTENSIONS } from '../../constants';
 
@@ -35,13 +35,13 @@ function isValidPluginSchema(schema: any): schema is PluginOption[] {
 
 export const settingsAPI = {
     getSetting: (pluginFileName: string, key: string) => {
-        return ipcRenderer.invoke(ENHANCED_PLUGINS_API.GET_SETTING, pluginFileName, key);
+        return ipcRenderer.invoke(ENHANCED_API.GET_SETTING, pluginFileName, key);
     },
     getSettings: (pluginFileName: string) => {
-        return ipcRenderer.invoke(ENHANCED_PLUGINS_API.GET_SETTINGS, pluginFileName);
+        return ipcRenderer.invoke(ENHANCED_API.GET_SETTINGS, pluginFileName);
     },
     saveSetting: (pluginFileName: string, key: string, value: any) => {
-        return ipcRenderer.invoke(ENHANCED_PLUGINS_API.SAVE_SETTING, pluginFileName, key, value);
+        return ipcRenderer.invoke(ENHANCED_API.SAVE_SETTING, pluginFileName, key, value);
     },
     registerSettings: (pluginFileName: string, pluginSchema: PluginOption[]) => {
         if(!isValidPluginSchema(pluginSchema)) {
@@ -53,16 +53,16 @@ export const settingsAPI = {
         if(optionsBtn) {
             optionsBtn.style.display = 'flex';
         }
-        return ipcRenderer.invoke(ENHANCED_PLUGINS_API.REGISTER_SETTINGS, pluginFileName, pluginSchema);
+        return ipcRenderer.invoke(ENHANCED_API.REGISTER_SETTINGS, pluginFileName, pluginSchema);
     },
     getRegisteredSettings: (pluginFileName: string) => {
-        return ipcRenderer.invoke(ENHANCED_PLUGINS_API.GET_REGISTERED_SETTINGS, pluginFileName);
+        return ipcRenderer.invoke(ENHANCED_API.GET_REGISTERED_SETTINGS, pluginFileName);
     },
     clearRegisteredSettings: (pluginFileName: string) => {
-        return ipcRenderer.invoke(ENHANCED_PLUGINS_API.CLEAR_REGISTERED_SETTINGS, pluginFileName);
+        return ipcRenderer.invoke(ENHANCED_API.CLEAR_REGISTERED_SETTINGS, pluginFileName);
     },
     onSettingsSaved: (pluginFileName: string, callback: (newSettings: any) => void) => {
-        const channel = `${ENHANCED_PLUGINS_API.ON_SETTINGS_SAVED}:${pluginFileName}`;
+        const channel = `${ENHANCED_API.ON_SETTINGS_SAVED}:${pluginFileName}`;
         
         ipcRenderer.removeAllListeners(channel);
         
