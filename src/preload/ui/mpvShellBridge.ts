@@ -17,12 +17,14 @@ interface SharedTextureMeta {
 }
 
 interface WebGpuState {
+    canvas: HTMLCanvasElement;
     device: any;
     context: any;
     pipeline: any;
     sampler: any;
     bindGroupLayout: any;
     format: string;
+    colorSpace: 'display-p3' | 'srgb';
     hdr: boolean;
 }
 
@@ -33,12 +35,13 @@ let canvasEl: HTMLCanvasElement | null = null;
 let ctx2d: CanvasRenderingContext2D | null = null;
 let gpuState: WebGpuState | null = null;
 let gpuInitAttempted = false;
-let gpuInitInFlight = false;
+let gpuInitPromise: Promise<WebGpuState | null> | null = null;
 let lastSentW = 0;
 let lastSentH = 0;
 let lastSentHdr: boolean | null = null;
 let resizeTimer: ReturnType<typeof setTimeout> | null = null;
 let activeStream = false;
+let canvasVisible = false;
 
 function getPlatformIpcKey(): string {
     if (process.platform === 'win32') return 'WIN';
@@ -90,8 +93,13 @@ export function updateCanvasVisibility(): void {
         activeStream = false;
     }
     const show = onPlayer && activeStream;
+    if (show === canvasVisible && canvasEl.style.display === (show ? 'block' : 'none')) {
+        return;
+    }
+    const wasVisible = canvasVisible;
+    canvasVisible = show;
     canvasEl.style.display = show ? 'block' : 'none';
-    if (!show) {
+    if (!show && wasVisible) {
         clearCanvas();
     }
 }
@@ -145,118 +153,159 @@ function syncViewportSize(immediate = false): void {
     resizeTimer = setTimeout(send, 50);
 }
 
-async function initWebGpuForHdr(canvas: HTMLCanvasElement, hdr: boolean): Promise<WebGpuState | null> {
-    if (gpuState) {
-        if (gpuState.hdr !== hdr) {
-            const preferredFormat = (navigator as any).gpu.getPreferredCanvasFormat();
-            const format = hdr ? 'rgba16float' : preferredFormat;
-            gpuState.context.configure({
-                device: gpuState.device,
+function configureWebGpuContext(
+    context: any,
+    device: any,
+    format: string,
+    hdr: boolean
+): 'display-p3' | 'srgb' {
+    if (hdr) {
+        try {
+            context.configure({
+                device,
                 format,
+                colorSpace: 'display-p3',
                 alphaMode: 'opaque',
-                toneMapping: { mode: hdr ? 'extended' : 'standard' },
+                toneMapping: { mode: 'extended' },
             });
-            gpuState.format = format;
-            gpuState.hdr = hdr;
+            return 'display-p3';
+        } catch {
+            // Fall back to extended sRGB if display-p3 is unsupported by this adapter
+        }
+    }
+    context.configure({
+        device,
+        format,
+        colorSpace: 'srgb',
+        alphaMode: 'opaque',
+        toneMapping: { mode: hdr ? 'extended' : 'standard' },
+    });
+    return 'srgb';
+}
+
+async function initWebGpuForHdr(canvas: HTMLCanvasElement, hdr: boolean): Promise<WebGpuState | null> {
+    if (gpuState && gpuState.canvas === canvas) {
+        if (gpuState.hdr !== hdr) {
+            // Pipeline target format must match configured format; recreate context/pipeline cleanly on toggle.
+            const fresh = recreateCanvas();
+            if (!fresh) return null;
+            return initWebGpuForHdr(fresh, hdr);
         }
         return gpuState;
     }
-    if (gpuInitAttempted || gpuInitInFlight) return null;
+    if (gpuInitPromise) {
+        return gpuInitPromise;
+    }
+    if (gpuInitAttempted) return null;
     const gpu = (navigator as any).gpu;
     if (!gpu) {
         gpuInitAttempted = true;
         return null;
     }
 
-    gpuInitInFlight = true;
-    try {
-        const adapter = await gpu.requestAdapter({ powerPreference: 'high-performance' });
-        if (!adapter) {
+    gpuInitPromise = (async (): Promise<WebGpuState | null> => {
+        try {
+            const adapter = await gpu.requestAdapter({ powerPreference: 'high-performance' });
+            if (!adapter || canvas !== canvasEl) {
+                if (!adapter) gpuInitAttempted = true;
+                return null;
+            }
+            const device = await adapter.requestDevice();
+            if (canvas !== canvasEl) {
+                try { device.destroy(); } catch { /* ignore */ }
+                return null;
+            }
+            const context = canvas.getContext('webgpu') as any;
+            if (!context) {
+                gpuInitAttempted = true;
+                try { device.destroy(); } catch { /* ignore */ }
+                return null;
+            }
+
+            const preferredFormat = gpu.getPreferredCanvasFormat();
+            const format = hdr ? 'rgba16float' : preferredFormat;
+            const colorSpace = configureWebGpuContext(context, device, format, hdr);
+
+            const shaderModule = device.createShaderModule({
+                code: `
+                    struct VsOut {
+                        @builtin(position) pos: vec4<f32>,
+                        @location(0) uv: vec2<f32>,
+                    };
+
+                    @vertex
+                    fn vs(@builtin(vertex_index) idx: u32) -> VsOut {
+                        var positions = array<vec2<f32>, 3>(
+                            vec2<f32>(-1.0, -1.0),
+                            vec2<f32>( 3.0, -1.0),
+                            vec2<f32>(-1.0,  3.0)
+                        );
+                        var uvs = array<vec2<f32>, 3>(
+                            vec2<f32>(0.0, 1.0),
+                            vec2<f32>(2.0, 1.0),
+                            vec2<f32>(0.0, -1.0)
+                        );
+                        var out: VsOut;
+                        out.pos = vec4<f32>(positions[idx], 0.0, 1.0);
+                        out.uv = uvs[idx];
+                        return out;
+                    }
+
+                    @group(0) @binding(0) var videoSampler: sampler;
+                    @group(0) @binding(1) var videoTex: texture_external;
+
+                    @fragment
+                    fn fs(@location(0) uv: vec2<f32>) -> @location(0) vec4<f32> {
+                        return textureSampleBaseClampToEdge(videoTex, videoSampler, uv);
+                    }
+                `,
+            });
+
+            const pipeline = device.createRenderPipeline({
+                layout: 'auto',
+                vertex: { module: shaderModule, entryPoint: 'vs' },
+                fragment: {
+                    module: shaderModule,
+                    entryPoint: 'fs',
+                    targets: [{ format }],
+                },
+                primitive: { topology: 'triangle-list' },
+            });
+
+            const sampler = device.createSampler({ magFilter: 'linear', minFilter: 'linear' });
+            const bindGroupLayout = pipeline.getBindGroupLayout(0);
+
+            const state: WebGpuState = {
+                canvas,
+                device,
+                context,
+                pipeline,
+                sampler,
+                bindGroupLayout,
+                format,
+                colorSpace,
+                hdr,
+            };
+
+            device.lost?.then(() => {
+                if (gpuState === state) {
+                    gpuState = null;
+                    gpuInitAttempted = false;
+                }
+            }).catch(() => {});
+
+            gpuState = state;
+            gpuInitAttempted = true;
+            return state;
+        } catch {
             gpuInitAttempted = true;
             return null;
+        } finally {
+            gpuInitPromise = null;
         }
-        const device = await adapter.requestDevice();
-        const context = canvas.getContext('webgpu') as any;
-        if (!context) {
-            gpuInitAttempted = true;
-            return null;
-        }
+    })();
 
-        const preferredFormat = gpu.getPreferredCanvasFormat();
-        const format = hdr ? 'rgba16float' : preferredFormat;
-        context.configure({
-            device,
-            format,
-            alphaMode: 'opaque',
-            toneMapping: { mode: hdr ? 'extended' : 'standard' },
-        });
-
-        const shaderModule = device.createShaderModule({
-            code: `
-                struct VsOut {
-                    @builtin(position) pos: vec4<f32>,
-                    @location(0) uv: vec2<f32>,
-                };
-
-                @vertex
-                fn vs(@builtin(vertex_index) idx: u32) -> VsOut {
-                    var positions = array<vec2<f32>, 3>(
-                        vec2<f32>(-1.0, -1.0),
-                        vec2<f32>( 3.0, -1.0),
-                        vec2<f32>(-1.0,  3.0)
-                    );
-                    var uvs = array<vec2<f32>, 3>(
-                        vec2<f32>(0.0, 1.0),
-                        vec2<f32>(2.0, 1.0),
-                        vec2<f32>(0.0, -1.0)
-                    );
-                    var out: VsOut;
-                    out.pos = vec4<f32>(positions[idx], 0.0, 1.0);
-                    out.uv = uvs[idx];
-                    return out;
-                }
-
-                @group(0) @binding(0) var videoSampler: sampler;
-                @group(0) @binding(1) var videoTex: texture_external;
-
-                @fragment
-                fn fs(@location(0) uv: vec2<f32>) -> @location(0) vec4<f32> {
-                    return textureSampleBaseClampToEdge(videoTex, videoSampler, uv);
-                }
-            `,
-        });
-
-        const pipeline = device.createRenderPipeline({
-            layout: 'auto',
-            vertex: { module: shaderModule, entryPoint: 'vs' },
-            fragment: {
-                module: shaderModule,
-                entryPoint: 'fs',
-                targets: [{ format }],
-            },
-            primitive: { topology: 'triangle-list' },
-        });
-
-        const sampler = device.createSampler({ magFilter: 'linear', minFilter: 'linear' });
-        const bindGroupLayout = pipeline.getBindGroupLayout(0);
-
-        gpuState = {
-            device,
-            context,
-            pipeline,
-            sampler,
-            bindGroupLayout,
-            format,
-            hdr,
-        };
-        gpuInitAttempted = true;
-        return gpuState;
-    } catch {
-        gpuInitAttempted = true;
-        return null;
-    } finally {
-        gpuInitInFlight = false;
-    }
+    return gpuInitPromise;
 }
 
 function drawVideoFrame2D(canvas: HTMLCanvasElement, frame: VideoFrame): void {
@@ -275,10 +324,13 @@ function drawVideoFrame2D(canvas: HTMLCanvasElement, frame: VideoFrame): void {
 
 function recreateCanvas(): HTMLCanvasElement | null {
     const old = canvasEl;
+    if (gpuState) {
+        try { gpuState.device?.destroy?.(); } catch { /* ignore */ }
+    }
     ctx2d = null;
     gpuState = null;
     gpuInitAttempted = false;
-    gpuInitInFlight = false;
+    gpuInitPromise = null;
 
     if (old && old.parentElement) {
         const fresh = document.createElement('canvas');
@@ -298,6 +350,7 @@ async function renderSharedVideoFrame(frame: VideoFrame, meta?: SharedTextureMet
     if (!canvas) return;
 
     activeStream = true;
+    canvasVisible = true;
     if (canvas.style.display === 'none') {
         canvas.style.display = 'block';
     }
@@ -311,19 +364,22 @@ async function renderSharedVideoFrame(frame: VideoFrame, meta?: SharedTextureMet
     if (wantWebGpu && ctx2d) {
         canvas = recreateCanvas();
         if (!canvas) return;
-    } else if (!wantWebGpu && gpuState) {
+    } else if (!wantWebGpu && (gpuState || gpuInitPromise)) {
         canvas = recreateCanvas();
         if (!canvas) return;
     }
 
     if (wantWebGpu) {
         const wg = await initWebGpuForHdr(canvas, true);
-        if (wg) {
-            if (canvas.width !== frame.codedWidth || canvas.height !== frame.codedHeight) {
-                canvas.width = frame.codedWidth;
-                canvas.height = frame.codedHeight;
+        if (wg && wg.canvas === canvasEl) {
+            if (wg.canvas.width !== frame.codedWidth || wg.canvas.height !== frame.codedHeight) {
+                wg.canvas.width = frame.codedWidth;
+                wg.canvas.height = frame.codedHeight;
             }
-            const externalTex = wg.device.importExternalTexture({ source: frame });
+            const externalTex = wg.device.importExternalTexture({
+                source: frame,
+                colorSpace: wg.colorSpace,
+            });
             const bindGroup = wg.device.createBindGroup({
                 layout: wg.bindGroupLayout,
                 entries: [
@@ -347,7 +403,8 @@ async function renderSharedVideoFrame(frame: VideoFrame, meta?: SharedTextureMet
             wg.device.queue.submit([encoder.finish()]);
             return;
         }
-        // WebGPU unavailable — recreate canvas so 2D fallback can bind cleanly.
+        // Only fall back to 2D if WebGPU genuinely failed (not while a concurrent init is in progress).
+        if (gpuInitPromise) return;
         canvas = recreateCanvas();
         if (!canvas) return;
     }
@@ -361,19 +418,26 @@ function renderSoftwareFrame(payload: SoftwareFramePayload): void {
     if (!canvas) return;
 
     activeStream = true;
+    canvasVisible = true;
     if (canvas.style.display === 'none') {
         canvas.style.display = 'block';
     }
 
+    if (gpuState || gpuInitPromise) {
+        recreateCanvas();
+    }
+    const swCanvas = ensureCanvas();
+    if (!swCanvas) return;
+
     if (!ctx2d) {
-        ctx2d = canvas.getContext('2d', { alpha: false });
+        ctx2d = swCanvas.getContext('2d', { alpha: false });
     }
     if (!ctx2d) return;
 
     const { width, height, stride, buffer } = payload;
-    if (canvas.width !== width || canvas.height !== height) {
-        canvas.width = width;
-        canvas.height = height;
+    if (swCanvas.width !== width || swCanvas.height !== height) {
+        swCanvas.width = width;
+        swCanvas.height = height;
     }
 
     const expectedRowBytes = width * 4;
@@ -559,6 +623,7 @@ export function setupMpvShellBridge(): boolean {
     ipcRenderer.on(ENHANCED_API.MPV.SHARED_TEXTURE_FRAME, async (_event, payload: { frameId: number; transfer: any; meta?: SharedTextureMeta }) => {
         let importedSubtle: any = null;
         let syncToken: any = null;
+        let hadError = false;
         try {
             if (sharedTexture?.subtle && typeof sharedTexture.subtle.finishTransferSharedTexture === 'function' && payload?.transfer) {
                 importedSubtle = sharedTexture.subtle.finishTransferSharedTexture(payload.transfer);
@@ -573,9 +638,14 @@ export function setupMpvShellBridge(): boolean {
                 } finally {
                     videoFrame.close();
                 }
+            } else {
+                hadError = true;
+                ipcRenderer.send(ENHANCED_API.MPV.SHARED_TEXTURE_ERROR, payload?.frameId, 'sharedTexture.subtle.finishTransferSharedTexture unavailable in renderer');
             }
         } catch (err) {
+            hadError = true;
             console.error('[MpvShellBridge] Shared texture receive error:', err);
+            ipcRenderer.send(ENHANCED_API.MPV.SHARED_TEXTURE_ERROR, payload?.frameId, err instanceof Error ? err.message : String(err));
         } finally {
             if (importedSubtle) {
                 try {
@@ -584,7 +654,9 @@ export function setupMpvShellBridge(): boolean {
                     // Already released
                 }
             }
-            ipcRenderer.send(ENHANCED_API.MPV.SHARED_TEXTURE_ACK, payload?.frameId, syncToken);
+            if (!hadError) {
+                ipcRenderer.send(ENHANCED_API.MPV.SHARED_TEXTURE_ACK, payload?.frameId, syncToken);
+            }
         }
     });
 
@@ -625,6 +697,20 @@ export function setupMpvShellBridge(): boolean {
     } catch {
         // Older media query listener API
     }
+
+    // Re-sync render resolution when dragging the window across monitors with different DPI scales.
+    const watchDprChange = () => {
+        try {
+            const mq = window.matchMedia(`(resolution: ${window.devicePixelRatio || 1}dppx)`);
+            mq.addEventListener('change', () => {
+                syncViewportSize(true);
+                watchDprChange();
+            }, { once: true });
+        } catch {
+            // Ignore unsupported media query syntax
+        }
+    };
+    watchDprChange();
 
     return true;
 }

@@ -28,8 +28,6 @@ function readHardwareAccelerationConfig(bootConfigPath: string): boolean {
 
 export const gpuController = {
     setup: (userDataPath: string) => {
-        app.commandLine.appendSwitch('disable-features', 'UseChromeOSDirectVideoDecoder');
-
         const bootConfigPath = join(userDataPath, 'boot-config.json');
         const hardwareAcceleration = readHardwareAccelerationConfig(bootConfigPath);
 
@@ -45,7 +43,8 @@ export const gpuController = {
         ];
 
         if (process.platform !== 'darwin') {
-            enabledFeatures.push('AcceleratedVideoEncoder', 'disable-gpu-driver-bug-workaround');
+            enabledFeatures.push('AcceleratedVideoEncoder');
+            app.commandLine.appendSwitch('disable-gpu-driver-bug-workarounds');
             app.commandLine.appendSwitch('ignore-gpu-blocklist');
             app.commandLine.appendSwitch('enable-zero-copy');
             app.commandLine.appendSwitch('enable-gpu-rasterization');

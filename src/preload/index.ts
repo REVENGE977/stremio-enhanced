@@ -29,6 +29,13 @@ import { setupVideoBridge, ensureBridgeVideo } from "./ui/videoBridge";
 
 // Install Stremio Native Shell IPC + Zero-Copy SharedTexture Canvas receiver BEFORE Stremio Web boots.
 const embeddedMpvActive = setupMpvShellBridge();
+if (embeddedMpvActive) {
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', () => setupTransparencyBridge(), { once: true });
+    } else {
+        setupTransparencyBridge();
+    }
+}
 
 export const stremioEnhancedAPI = {
     ...alertAPI,

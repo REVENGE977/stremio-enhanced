@@ -83,14 +83,18 @@
 			],
 			"extraFiles": [
 				{
-					"from": "resources/win-x64/libmpv-2.dll",
+					"from": "resources/win-${arch}/libmpv-2.dll",
 					"to": "libmpv-2.dll"
 				}
 			]
 		},
 		"mac": {
 			"target": "dmg",
-			"icon": "images/icon.icns"
+			"icon": "images/icon.icns",
+			"hardenedRuntime": true,
+			"gatekeeperAssess": false,
+			"entitlements": "build/entitlements.mac.plist",
+			"entitlementsInherit": "build/entitlements.mac.plist"
 		},
 		"linux": {
 			"target": "AppImage",

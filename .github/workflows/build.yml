@@ -62,7 +62,7 @@ jobs:
 
       - name: Rebuild native dependencies
         run: |
-          npx @electron/rebuild -f
+          npx @electron/rebuild -f --arch=${{ matrix.arch }}
         env:
           PYTHON: python3
 

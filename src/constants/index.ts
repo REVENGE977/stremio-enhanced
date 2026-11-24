@@ -202,6 +202,7 @@ export const ENHANCED_API = {
         SOFTWARE_FRAME: 'mpv-software-frame',
         SHARED_TEXTURE_FRAME: 'mpv:shared-texture-frame',
         SHARED_TEXTURE_ACK: 'mpv:shared-texture-ack',
+        SHARED_TEXTURE_ERROR: 'mpv:shared-texture-error',
         COMMAND: 'mpv-command',
         SET_PROPERTY: 'mpv-set-property',
         GET_PROPERTY: 'mpv-get-property',

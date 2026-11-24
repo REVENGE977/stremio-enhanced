@@ -2,15 +2,22 @@ import { isPlayerRoute, updateCanvasVisibility } from './mpvShellBridge';
 
 let isTransparent = false;
 let isEnforcing = false;
+let scheduledRaf: number | null = null;
+let bridgeInstalled = false;
 const modifiedElements = new Set<HTMLElement>();
 let observer: MutationObserver | null = null;
 
 export function enforcePlayerTransparency(force?: boolean): void {
     if (isEnforcing) return;
+    const shouldBeTransparent = force !== undefined ? force : isPlayerRoute();
+    // Fast path: when outside the player route and already restored, avoid DOM scans and canvas clears.
+    if (!shouldBeTransparent && !isTransparent) {
+        return;
+    }
+
     isEnforcing = true;
 
     try {
-        const shouldBeTransparent = force !== undefined ? force : isPlayerRoute();
         const html = document.documentElement;
         const body = document.body;
         const app = document.getElementById('app');
@@ -83,7 +90,21 @@ export function enforcePlayerTransparency(force?: boolean): void {
 }
 
 export function setupTransparencyBridge(): void {
+    if (bridgeInstalled) {
+        enforcePlayerTransparency();
+        return;
+    }
+    bridgeInstalled = true;
     enforcePlayerTransparency();
+
+    const scheduleEnforce = () => {
+        if (!isPlayerRoute() && !isTransparent) return;
+        if (scheduledRaf !== null) return;
+        scheduledRaf = window.requestAnimationFrame(() => {
+            scheduledRaf = null;
+            enforcePlayerTransparency();
+        });
+    };
 
     window.addEventListener('hashchange', () => enforcePlayerTransparency());
     window.addEventListener('popstate', () => enforcePlayerTransparency());
@@ -94,7 +115,7 @@ export function setupTransparencyBridge(): void {
         if (!target) return;
 
         observer = new MutationObserver(() => {
-            enforcePlayerTransparency();
+            scheduleEnforce();
         });
 
         observer.observe(target, {

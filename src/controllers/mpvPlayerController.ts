@@ -19,6 +19,8 @@ const FLOAT_PROPERTIES = new Set([
     'sub-pos',
     'sub-scale',
     'sub-delay',
+    'secondary-sub-delay',
+    'secondary-sub-pos',
     'cache-buffering-state',
     'demuxer-cache-time',
     'panscan',
@@ -36,6 +38,7 @@ const BOOL_PROPERTIES = new Set([
     'keepaspect',
     'sub-ass-force-margins',
     'sub-bold',
+    'secondary-sub-visibility',
 ]);
 
 const NODE_PROPERTIES = new Set([
@@ -52,13 +55,34 @@ const PLAIN_STRING_PROPERTIES = new Set([
     'aid',
     'vid',
     'sid',
+    'secondary-sid',
     'mute',
     'hwdec',
     'sub-color',
     'sub-back-color',
     'sub-border-color',
     'sub-ass-override',
+    'sub-text',
+    'secondary-sub-text',
 ]);
+
+const GPU_ERROR_FALLBACK_THRESHOLD = 5;
+const SHARED_TEXTURE_ACK_TIMEOUT_MS = 3000;
+
+function isSafeStartOption(option: string): boolean {
+    if (!option.startsWith('start=+')) return false;
+    const num = Number(option.slice('start=+'.length));
+    return Number.isFinite(num) && num >= 0;
+}
+
+function normalizeMpvCommand(cmdName: string, cmdArgs: string[]): { name: string; args: string[] } {
+    // mpv 0.38+ added an optional `index` parameter before `options` in `loadfile`:
+    // normalize 4-arg `loadfile <url> replace start=+X` to 5-arg `loadfile <url> replace -1 start=+X`.
+    if (cmdName === 'loadfile' && cmdArgs.length === 3 && cmdArgs[1] === 'replace' && isSafeStartOption(cmdArgs[2])) {
+        return { name: cmdName, args: [cmdArgs[0], 'replace', '-1', cmdArgs[2]] };
+    }
+    return { name: cmdName, args: cmdArgs };
+}
 
 function observeFormatForProperty(name: string): MPV.MpvObserveFormat {
     if (FLOAT_PROPERTIES.has(name)) return 'double';
@@ -117,7 +141,7 @@ class VideoReadyState {
     }
 
     public startFile(): void {
-        this.activeLoadId = this.pendingLoadIds.shift() ?? this.currentLoadId;
+        this.activeLoadId = this.pendingLoadIds.shift() ?? null;
         this.fileLoadedId = null;
     }
 
@@ -137,6 +161,7 @@ class VideoReadyState {
     }
 
     public reset(): void {
+        this.currentLoadId = null;
         this.pendingLoadIds = [];
         this.activeLoadId = null;
         this.fileLoadedId = null;
@@ -150,6 +175,7 @@ class MpvPlayerController {
     private ipcInitialized = false;
     private rendererReady = false;
     private softwareFallbackTriggered = false;
+    private consecutiveGpuErrors = 0;
     private inFlightSharedTransfers = 0;
     private inFlightSubtleFrames = new Map<number, {
         imported: Electron.SharedTextureImported;
@@ -161,9 +187,14 @@ class MpvPlayerController {
     private viewportHeight = 720;
     private displaySupportsHdr = false;
     private streamHdrGamma: 'pq' | 'hlg' | null = null;
+    private activeHdrGamma: 'pq' | 'hlg' | null = null;
     private hdrOutputActive = false;
 
     private videoReadyState = new VideoReadyState();
+    private observedProperties = new Set<string>();
+    private mediaEpoch = 0;
+    private pendingSubCommands: Array<{ epoch: number; name: string; args: string[] }> = [];
+    private subFlushTimer: ReturnType<typeof setTimeout> | null = null;
     private playbackActive = false;
     private powerSaveBlockerId: number | null = null;
     private pendingDeeplink: string | null = null;
@@ -248,16 +279,27 @@ class MpvPlayerController {
             }
         };
 
-        win.on('enter-full-screen', () => this.sendShellEvent('win-visibility-changed', {
-            visible: true,
-            visibility: 1,
-            isFullscreen: true,
-        }));
-        win.on('leave-full-screen', () => this.sendShellEvent('win-visibility-changed', {
-            visible: true,
-            visibility: 1,
-            isFullscreen: false,
-        }));
+        const onDisplayMetricsChanged = () => syncBounds();
+        screen.on('display-metrics-changed', onDisplayMetricsChanged);
+
+        win.on('moved', syncBounds);
+        win.on('resize', syncBounds);
+        win.on('enter-full-screen', () => {
+            syncBounds();
+            this.sendShellEvent('win-visibility-changed', {
+                visible: true,
+                visibility: 1,
+                isFullscreen: true,
+            });
+        });
+        win.on('leave-full-screen', () => {
+            syncBounds();
+            this.sendShellEvent('win-visibility-changed', {
+                visible: true,
+                visibility: 1,
+                isFullscreen: false,
+            });
+        });
         win.on('show', () => this.sendShellEvent('win-visibility-changed', {
             visible: true,
             visibility: 1,
@@ -272,18 +314,41 @@ class MpvPlayerController {
         win.webContents.on('did-start-navigation', (_event, _url, isInPlace, isMainFrame) => {
             if (isMainFrame && !isInPlace) {
                 this.rendererReady = false;
-                this.clearInFlightSubtleFrames();
+                this.resetSessionState();
                 this.stopPlayback();
             }
         });
 
         win.on('closed', () => {
+            screen.removeListener('display-metrics-changed', onDisplayMetricsChanged);
             this.rendererReady = false;
             this.windowHooksAttached = false;
+            this.resetSessionState();
             this.stopPlayback();
         });
 
         syncBounds();
+    }
+
+    private clearPendingSubCommands(): void {
+        this.pendingSubCommands = [];
+        if (this.subFlushTimer) {
+            clearTimeout(this.subFlushTimer);
+            this.subFlushTimer = null;
+        }
+    }
+
+    private resetSessionState(): void {
+        this.mediaEpoch += 1;
+        this.clearPendingSubCommands();
+        this.clearInFlightSubtleFrames();
+        this.videoReadyState.reset();
+        this.observedProperties.clear();
+        this.streamHdrGamma = null;
+        if (this.mpv && this.available) {
+            this.mpv.unobserveAll();
+            this.reconcileHdrMode();
+        }
     }
 
     public setPendingDeeplink(url: string): void {
@@ -295,17 +360,27 @@ class MpvPlayerController {
     }
 
     public stopPlayback(): void {
+        this.mediaEpoch += 1;
+        this.clearPendingSubCommands();
+        const loadId = this.videoReadyState.beginTransition(false);
         this.playbackActive = false;
+        this.streamHdrGamma = null;
+        this.reconcileHdrMode();
         this.allowDisplaySleep();
         if (this.mpv && this.available) {
             this.mpv.command('stop');
         }
+        this.sendShellEvent('mpv-event-video-ready', { loadId, ready: false });
+        this.sendShellEvent('mpv-prop-change', { name: 'path', data: null });
     }
 
     public destroy(): void {
         this.rendererReady = false;
         this.playbackActive = false;
+        this.mediaEpoch += 1;
+        this.clearPendingSubCommands();
         this.videoReadyState.reset();
+        this.observedProperties.clear();
         this.clearInFlightSubtleFrames();
         this.allowDisplaySleep();
         if (this.mpv) {
@@ -361,7 +436,15 @@ class MpvPlayerController {
         });
 
         ipcMain.on(ENHANCED_API.MPV.SHARED_TEXTURE_ACK, (_event, frameId: number, syncToken?: Electron.SharedTextureSyncToken | null) => {
+            this.consecutiveGpuErrors = 0;
             this.completeSubtleFrameTransfer(frameId, syncToken);
+        });
+
+        ipcMain.on(ENHANCED_API.MPV.SHARED_TEXTURE_ERROR, (_event, frameId: number, reason: string) => {
+            if (typeof frameId === 'number') {
+                this.completeSubtleFrameTransfer(frameId, null);
+            }
+            this.recordGpuTransferError(`Renderer sharedTexture error: ${reason || 'unknown'}`);
         });
     }
 
@@ -434,7 +517,7 @@ class MpvPlayerController {
         // Qt WebChannel Init handshake (type === 3)
         if (msg.type === 3) {
             this.sendRawShellPayload({
-                id: 0,
+                id: typeof msg.id === 'number' ? msg.id : 0,
                 type: 3,
                 object: TRANSPORT_NAME,
                 data: {
@@ -472,12 +555,17 @@ class MpvPlayerController {
             }
             case 'win-set-visibility': {
                 if (mainWindow && !mainWindow.isDestroyed() && data && typeof data.fullscreen === 'boolean') {
-                    mainWindow.setFullScreen(data.fullscreen);
-                    this.sendShellEvent('win-visibility-changed', {
-                        visible: true,
-                        visibility: 1,
-                        isFullscreen: data.fullscreen,
-                    });
+                    if (mainWindow.isFullScreen() === data.fullscreen) {
+                        this.sendShellEvent('win-visibility-changed', {
+                            visible: true,
+                            visibility: 1,
+                            isFullscreen: data.fullscreen,
+                        });
+                    } else {
+                        // Let enter-full-screen / leave-full-screen emit the authoritative state
+                        // once the OS transition finishes (avoids premature/duplicate events on macOS).
+                        mainWindow.setFullScreen(data.fullscreen);
+                    }
                 }
                 break;
             }
@@ -494,12 +582,14 @@ class MpvPlayerController {
 
             case 'mpv-observe-prop': {
                 if (typeof data === 'string' && this.mpv) {
-                    // When a new ShellVideo instance mounts in Stremio Web, 'path' is always the first
-                    // property it observes. Unobserving previous properties first keeps libmpv's
-                    // observer list clean across stream changes while forcing fresh initial values.
-                    if (data === 'path') {
+                    // When a new ShellVideo instance mounts in Stremio Web, it re-observes 'path'
+                    // (which is already in observedProperties). Reset observers only on re-mount so
+                    // we never wipe properties observed before 'path'.
+                    if (data === 'path' && this.observedProperties.has('path')) {
                         this.mpv.unobserveAll();
+                        this.observedProperties.clear();
                     }
+                    this.observedProperties.add(data);
                     this.mpv.observeProperty(data, observeFormatForProperty(data));
                 }
                 break;
@@ -512,9 +602,18 @@ class MpvPlayerController {
             }
             case 'mpv-command': {
                 if (Array.isArray(data) && data.length >= 1 && typeof data[0] === 'string' && this.mpv) {
-                    const cmdName = data[0];
-                    const cmdArgs = data.slice(1).map((a: unknown) => String(a));
+                    const rawName = data[0];
+                    const rawArgs = data.slice(1).map((a: unknown) => String(a));
+                    const { name: cmdName, args: cmdArgs } = normalizeMpvCommand(rawName, rawArgs);
+
+                    if (cmdName === 'sub-add' || cmdName === 'sub-remove') {
+                        this.enqueueSubtitleCommand(cmdName, cmdArgs);
+                        break;
+                    }
+
                     if (cmdName === 'loadfile') {
+                        this.mediaEpoch += 1;
+                        this.clearPendingSubCommands();
                         const loadId = this.videoReadyState.beginTransition(true);
                         this.playbackActive = true;
                         this.streamHdrGamma = null;
@@ -522,6 +621,8 @@ class MpvPlayerController {
                         this.preventDisplaySleep();
                         this.sendShellEvent('mpv-event-video-ready', { loadId, ready: false });
                     } else if (cmdName === 'stop') {
+                        this.mediaEpoch += 1;
+                        this.clearPendingSubCommands();
                         const loadId = this.videoReadyState.beginTransition(false);
                         this.playbackActive = false;
                         this.streamHdrGamma = null;
@@ -538,6 +639,30 @@ class MpvPlayerController {
             }
             default:
                 break;
+        }
+    }
+
+    private enqueueSubtitleCommand(name: string, args: string[]): void {
+        this.pendingSubCommands.push({ epoch: this.mediaEpoch, name, args });
+        if (!this.subFlushTimer) {
+            this.flushNextSubtitleCommand();
+        }
+    }
+
+    private flushNextSubtitleCommand(): void {
+        this.subFlushTimer = null;
+        while (this.pendingSubCommands.length > 0) {
+            const next = this.pendingSubCommands.shift()!;
+            if (next.epoch !== this.mediaEpoch) continue;
+            if (!this.mpv || !this.available) return;
+            const rc = this.mpv.command(next.name, ...next.args);
+            if (rc < 0) {
+                logger.warn(`mpv subtitle command '${next.name}' failed with rc=${rc}`);
+            }
+            if (this.pendingSubCommands.length > 0) {
+                this.subFlushTimer = setTimeout(() => this.flushNextSubtitleCommand(), 10);
+            }
+            return;
         }
     }
 
@@ -618,14 +743,18 @@ class MpvPlayerController {
                 break;
             }
             case 'property-change': {
-                if (!event.name || event.value === null || event.value === undefined) return;
+                if (!event.name || event.value === undefined) return;
 
-                const data = parseShellPropertyValue(event.name, event.value);
-                if (event.name === 'video-params' && data && typeof data === 'object') {
-                    const gamma = typeof (data as Record<string, unknown>).gamma === 'string'
-                        ? String((data as Record<string, unknown>).gamma).toLowerCase()
-                        : null;
-                    this.streamHdrGamma = (gamma === 'pq' || gamma === 'hlg') ? gamma : null;
+                const data = event.value === null ? null : parseShellPropertyValue(event.name, event.value);
+                if (event.name === 'video-params') {
+                    if (data && typeof data === 'object') {
+                        const gamma = typeof (data as Record<string, unknown>).gamma === 'string'
+                            ? String((data as Record<string, unknown>).gamma).toLowerCase()
+                            : null;
+                        this.streamHdrGamma = (gamma === 'pq' || gamma === 'hlg') ? gamma : null;
+                    } else {
+                        this.streamHdrGamma = null;
+                    }
                     this.reconcileHdrMode();
                 }
 
@@ -660,12 +789,17 @@ class MpvPlayerController {
             this.displaySupportsHdr &&
             this.streamHdrGamma !== null;
 
-        if (shouldUseHdrSurface !== this.hdrOutputActive) {
+        const desiredGamma = shouldUseHdrSurface ? this.streamHdrGamma : null;
+        if (shouldUseHdrSurface !== this.hdrOutputActive || desiredGamma !== this.activeHdrGamma) {
             this.hdrOutputActive = shouldUseHdrSurface;
+            this.activeHdrGamma = desiredGamma;
             if (this.hdrOutputActive) {
+                // Resize to 16-bit float first so mpv switches target-trc alongside/after HDR surface creation.
+                this.mpv.resize(this.viewportWidth, this.viewportHeight, true);
                 this.mpv.property('target-prim', 'bt.2020');
-                this.mpv.property('target-trc', this.streamHdrGamma === 'hlg' ? 'hlg' : 'pq');
-                logger.info(`Enabled 16-bit float HDR passthrough pipeline (${this.streamHdrGamma})`);
+                this.mpv.property('target-trc', this.activeHdrGamma === 'hlg' ? 'hlg' : 'pq');
+                logger.info(`Enabled 16-bit float HDR passthrough pipeline (${this.activeHdrGamma})`);
+                return;
             } else {
                 this.mpv.property('target-prim', 'auto');
                 this.mpv.property('target-trc', 'auto');
@@ -711,7 +845,7 @@ class MpvPlayerController {
         const colorSpace: Electron.ColorSpace = frame.hdr
             ? {
                 primaries: 'bt2020',
-                transfer: this.streamHdrGamma === 'hlg' ? 'hlg' : 'pq',
+                transfer: (this.activeHdrGamma ?? this.streamHdrGamma) === 'hlg' ? 'hlg' : 'pq',
                 matrix: 'rgb',
                 range: 'full',
             }
@@ -739,7 +873,7 @@ class MpvPlayerController {
             });
         } catch (err) {
             this.mpv.releaseFrame(frame.slotId, frame.generation);
-            this.triggerSoftwareFallback(`sharedTexture.importSharedTexture failed: ${err}`);
+            this.recordGpuTransferError(`sharedTexture.importSharedTexture failed: ${err}`);
             return;
         }
 
@@ -764,7 +898,7 @@ class MpvPlayerController {
             } catch {
                 // Already released
             }
-            this.triggerSoftwareFallback(`startTransferSharedTexture failed: ${err}`);
+            this.recordGpuTransferError(`startTransferSharedTexture failed: ${err}`);
             return;
         }
 
@@ -772,13 +906,21 @@ class MpvPlayerController {
         this.inFlightSharedTransfers += 1;
         const timer = setTimeout(() => {
             this.completeSubtleFrameTransfer(frameId, null);
-        }, 1000);
+        }, SHARED_TEXTURE_ACK_TIMEOUT_MS);
         this.inFlightSubtleFrames.set(frameId, { imported, timer });
         mainWindow.webContents.send(ENHANCED_API.MPV.SHARED_TEXTURE_FRAME, {
             frameId,
             transfer,
             meta: { hdr: frame.hdr, width: frame.width, height: frame.height },
         });
+    }
+
+    private recordGpuTransferError(reason: string): void {
+        this.consecutiveGpuErrors += 1;
+        logger.warn(`Shared texture error (${this.consecutiveGpuErrors}/${GPU_ERROR_FALLBACK_THRESHOLD}): ${reason}`);
+        if (this.consecutiveGpuErrors >= GPU_ERROR_FALLBACK_THRESHOLD) {
+            this.triggerSoftwareFallback(reason);
+        }
     }
 
     private triggerSoftwareFallback(reason: string): void {

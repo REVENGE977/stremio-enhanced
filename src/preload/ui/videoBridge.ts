@@ -117,7 +117,6 @@ export function setupVideoBridge(): HTMLVideoElement {
                 const targetTime = Math.max(0, Number(val) || 0);
                 currentTimeVal = targetTime;
                 sendMpvCmd(['seek', String(targetTime), 'absolute']);
-                sendMpvProp('time-pos', targetTime);
                 bridgeVideo!.dispatchEvent(new Event('seeking'));
                 bridgeVideo!.dispatchEvent(new Event('timeupdate'));
                 setTimeout(() => {
@@ -289,10 +288,19 @@ export function setupVideoBridge(): HTMLVideoElement {
                 } else if (name === 'path') {
                     if (data) {
                         srcVal = String(data);
+                        currentTimeVal = 0;
+                        durationVal = 0;
+                        seekingVal = false;
                         endedVal = false;
                         bridgeVideo!.dispatchEvent(new Event('loadstart'));
                         bridgeVideo!.dispatchEvent(new Event('loadedmetadata'));
                         if (!pausedVal) bridgeVideo!.dispatchEvent(new Event('playing'));
+                    } else {
+                        srcVal = '';
+                        currentTimeVal = 0;
+                        durationVal = 0;
+                        seekingVal = false;
+                        pausedVal = false;
                     }
                 } else if (name === 'speed') {
                     speedVal = Number(data) || 1;
@@ -314,6 +322,10 @@ export function setupVideoBridge(): HTMLVideoElement {
                 }
             } else if (action === 'mpv-event-ended') {
                 endedVal = true;
+                currentTimeVal = 0;
+                durationVal = 0;
+                srcVal = '';
+                seekingVal = false;
                 bridgeVideo!.dispatchEvent(new Event('ended'));
             }
         } catch {
@@ -375,7 +387,6 @@ export function setupVideoBridge(): HTMLVideoElement {
                             set: (val) => {
                                 curTime = Math.max(0, Number(val) || 0);
                                 sendCmd(['seek', String(curTime), 'absolute']);
-                                sendProp('time-pos', curTime);
                                 v.dispatchEvent(new Event('seeking'));
                                 v.dispatchEvent(new Event('timeupdate'));
                             },
@@ -445,11 +456,22 @@ export function setupVideoBridge(): HTMLVideoElement {
                         } else if (name === 'seeking') {
                             isSeeking = Boolean(data);
                             v?.dispatchEvent(new Event(isSeeking ? 'seeking' : 'seeked'));
-                        } else if (name === 'path' && data) {
-                            srcStr = String(data);
-                            isEnded = false;
-                            v?.dispatchEvent(new Event('loadstart'));
-                            v?.dispatchEvent(new Event('loadedmetadata'));
+                        } else if (name === 'path') {
+                            if (data) {
+                                srcStr = String(data);
+                                curTime = 0;
+                                dur = 0;
+                                isSeeking = false;
+                                isEnded = false;
+                                v?.dispatchEvent(new Event('loadstart'));
+                                v?.dispatchEvent(new Event('loadedmetadata'));
+                            } else {
+                                srcStr = '';
+                                curTime = 0;
+                                dur = 0;
+                                isSeeking = false;
+                                isPaused = false;
+                            }
                         } else if (name === 'speed') {
                             rate = Number(data) || 1;
                             v?.dispatchEvent(new Event('ratechange'));
@@ -465,6 +487,10 @@ export function setupVideoBridge(): HTMLVideoElement {
                         }
                     } else if (action === 'mpv-event-ended') {
                         isEnded = true;
+                        curTime = 0;
+                        dur = 0;
+                        srcStr = '';
+                        isSeeking = false;
                         v?.dispatchEvent(new Event('ended'));
                     }
                 } catch (_) {}
